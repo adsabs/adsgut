@@ -21,6 +21,7 @@ class DaBase(object):
 
 	@classmethod
 	def add(cls, theobject):
+		print "cls is", cls
 		cls.__theset__.add(theobject)
 
 class User(DaBase):
@@ -28,13 +29,17 @@ class User(DaBase):
 		self.email = email
 
 class Item(DaBase):
+	__theset__ = set()
 	__thelist__ = []
 
 	@classmethod
 	def add(cls, theobject):
 		print "supercls", type(super(cls))
 		super(Item,cls).add(theobject)
+		print "ps"
 		cls.__thelist__.append(theobject)
+		print "ps2"
+		cls.__theset__.add(theobject)
 
 class ItemType(DaBase):
 	
@@ -61,4 +66,4 @@ if __name__=="__main__":
 		print x.email
 	print TagType("rahuldave@gmail.com/comment").scope
 	Item.add(Item())
-	print Item.__theset__, Item.__thelist__
+	print Item.__theset__, Item.__thelist__, "lll", DaBase.__theset__
