@@ -47,3 +47,26 @@ def getItemsForUserAndApp(user, wanteduser, wantedapp, itemtypespec):
 	pass #[itemuri]
 
 #conbine get tags for items and get items for user and app to get tags for users and apps
+
+class TestClass1:   
+    def setup(self):
+        engine = create_engine('sqlite:///:memory:', echo=False)
+        Session = sessionmaker(bind=engine)
+        self.session = Session()
+        # You probably need to create some tables and 
+        # load some test data, do so here.
+
+        # To create tables, you typically do:
+        DaBase.metadata.create_all(engine)
+
+    def teardown(self):
+        self.session.close()
+
+
+    def test_something(self):
+        sess=self.session
+        adsgutuser=User(name='adsgut')
+        adsuser=User(name='ads')
+        sess.add(adsgutuser)
+        sess.add(adsuser)
+        sess.flush()
