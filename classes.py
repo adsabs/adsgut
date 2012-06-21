@@ -4,7 +4,7 @@ import sqlalchemy
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, backref, sessionmaker
-from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, Table
+from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, Table, text
 DaBase = declarative_base()
 
 #redis setup
@@ -12,8 +12,8 @@ DaBase = declarative_base()
 #in mem setup
 #our clases
 #Base=object
-
-
+sqlite_NOW="CURRENT_TIMESTAMP"
+THENOW=sqlite_NOW
 #NO SECURITY and PERMISSIONS right now
 
 ItemTag = Table('item_tag', DaBase.metadata,
@@ -34,10 +34,9 @@ UserApplication = Table('user_application', DaBase.metadata,
 class User(DaBase):
     __tablename__='users'
     id = Column(Integer, primary_key=True)
-    name = Column(String)
-    fullname = Column(String)
+    name = Column(String, nullable=False)
     password = Column(String)
-    email = Column(String)#expect unique
+    email = Column(String, unique=True)#expect unique
     groupsin = relationship('Group', secondary=UserGroup,
                             backref=backref('groupusers', lazy='dynamic'))
     applicationsin = relationship('Application', secondary=UserApplication,
@@ -45,64 +44,81 @@ class User(DaBase):
 
 class Item(DaBase):
     __tablename__='items'
-    __mapper_args__ = {'polymorphic_identity': 'item','polymorphic_on': 'itemtype'}
+    #__mapper_args__ = {'polymorphic_on': 'itemtype_id'}
     id = Column(Integer, primary_key=True)
-    itemtype = Column(Integer, ForeignKey('itemtypes.id'))
-    user_id = Column(Integer, ForeignKey('users.id'))
-    name = Column(String)
-    uri = Column(String)
+    itemtype_id = Column(Integer, ForeignKey('itemtypes.id'))
+    itemtype = relationship('ItemType', backref=backref('itemsofthistype', lazy='dynamic'))
+    creator_id = Column(Integer, ForeignKey('users.id'))
+    creator = relationship('User', backref=backref('itemscreated', lazy='dynamic'))
+    name = Column(String)#this is the main text, eg for article, it could be title.
+    #make it seful, make it searchable.
+    uri = Column(String, unique=True)
     metajson = Column(Text)
-    whencreated = Column(DateTime)
+    whencreated = Column(DateTime, server_default=text(THENOW))
     tags = relationship('Tag', secondary=ItemTag,
                             backref=backref('items', lazy='dynamic'))
 
 
 class ItemType(DaBase):
     __tablename__='itemtypes'
+    __mapper_args__ = {'polymorphic_on': 'id'}
     id = Column(Integer, primary_key=True)
     creator_id = Column(Integer, ForeignKey('users.id'))
     name = Column(String)
     description = Column(Text)
-    whencreated = Column(DateTime)
+    whencreated = Column(DateTime, server_default=text(THENOW))
     creator = relationship('User', backref=backref('itemtypes', lazy='dynamic'))
+
+
+#bug: cant figure how to inherit this from itemtype
+class TagType(ItemType):
+    __tablename__='tagtypes'
+    #__mapper_args__ = {'polymorphic_on': 'name'}
+    tagtype_id = Column(Integer, primary_key=True)
+    itemtype_id = Column(Integer, ForeignKey('itemtypes.id'))
+
 
 class Tag(Item):
     __tablename__='tags'
-    __mapper_args__ = {'polymorphic_identity': 'tag', 'polymorphic_on': 'tagtype'}
+    #__mapper_args__ = {'polymorphic_on': 'tagtype'}
     tag_id = Column(Integer, primary_key=True)
+    #the item corresponding to tis tag, not the item tagged
     item_id = Column(Integer, ForeignKey('items.id'))
-    tagtype = Column(Integer, ForeignKey('tagtypes.tagtype_id'))
+    tagtype_id = Column(Integer, ForeignKey('tagtypes.tagtype_id'))
+    tagtype = relationship('TagType', backref=backref('tagsofthistype', lazy='dynamic'))
+    #is above redundant with itemtype?
     tagtext = Column(Text)
-    tagvisibility = Column(Boolean)
+    #how to get a direct REL to items tagged thus? (see backref under items)
+    #BELOW is not needed as the tag itself is posted into a group or not, separate from the item
+    #tagvisibility = Column(Boolean, default=False)
+    #OK Constructor to make some restrictions from the item class...how do we do this?
+    #truth is I do not know
     
-
 #bug: cant figure how to inherit this from itemtype
-class TagType(DaBase):
-    __tablename__='tagtypes'
-    tagtype_id = Column(Integer, primary_key=True)
-    creator_id = Column(Integer, ForeignKey('users.id'))
-    name = Column(String)
-    description = Column(Text)
-    whencreated = Column(DateTime)
-    tagtypemeta = Column(Text)
-    creator = relationship('User', backref=backref('tagtypes', lazy='dynamic'))
+# class TagType(DaBase):
+#     __tablename__='tagtypes'
+#     tagtype_id = Column(Integer, primary_key=True)
+#     creator_id = Column(Integer, ForeignKey('users.id'))
+#     name = Column(String)
+#     description = Column(Text)
+#     whencreated = Column(DateTime, server_default=text(THENOW))
+#     tagtypemeta = Column(Text)
+#     creator = relationship('User', backref=backref('tagtypes', lazy='dynamic'))
+
 
 
 class Group(Tag):
     __tablename__='groups'
-    __mapper_args__ = {'polymorphic_identity': 'group'}
     group_id = Column(Integer, primary_key=True)
     tag_id = Column(Integer, ForeignKey('tags.tag_id'))
     owner_id = Column(Integer, ForeignKey('users.id'))
-    lastupdated = Column(DateTime)
+    lastupdated = Column(DateTime, server_default=text(THENOW))
     owner = relationship('User', backref=backref('groupsowned', lazy='dynamic'))
 
 class Application(Group):
     __tablename__='applications'
-    __mapper_args__ = {'polymorphic_identity': 'application'}
     application_id = Column(Integer, primary_key=True)
     group_id = Column(Integer, ForeignKey('groups.group_id'))
-    applmeta = Column(Text)
     #owner = relationship('User', backref=backref('appsowned', lazy='dynamic'))
 
 
@@ -149,6 +165,7 @@ if __name__=="__main__":
     session.add(defaultgroup)
     adspubsapp=Application(name='publications', owner=adsuser)
     session.add(adspubsapp)
+    print "---------"
     pubtype=ItemType(name="pub", creator=adsuser)
     session.add(pubtype)
     notetype=TagType(name="note", creator=adsuser)
@@ -163,7 +180,8 @@ if __name__=="__main__":
     #GROUPSET
     mlg=Group(name='ml', owner=rahuldave)
     session.add(mlg)
-
+    thispub = Item(name="hello kitty", uri='xxxlm', itemtype=pubtype, creator=rahuldave)
+    session.add(thispub)
     session.commit()
     print session.query(User, User.name).all()
     print session.query(Group, Group.name).all()
