@@ -1,17 +1,21 @@
 #managing users, groups, and applications
 import classes
+import tbase
 #wont worry about permissions right now
 #wont worry about cascade deletion right now either.
 #what about permissions? MUCH LATER
 #FUNDAMENTAL
+#What about adding user to default groups and all? I say routes. Dont muddy this.
 
-class Whosdb(object):
+#RULE HERE: users are expected to be python objects. Anything else is a string
 
-    def __init__(self, session):
-        self.session = session
+def validatespec(specdict, spectype):
+    return specdict
+
+class Whosdb(classes.Database):
 
     def addUser(currentuser, userspec):
-        newuser=classes.User(userspec)
+        newuser=classes.User(validatespec(userspec, "user"))
         self.session.add(newuser)
 
     def removeUser(currentuser, usertoberemovedemail):
@@ -19,11 +23,14 @@ class Whosdb(object):
         self.session.delete(remuser)
 
     def createGroup(currentuser, groupspec):
-        newuser=classes.Group(groupspec)
-        self.session.add(newuser)
+        newgroup=classes.Group(validatespec(groupspec, "group"))
+        self.session.add(newgroup)
 
     def removeGroup(currentuser, fullyQualifiedGroupName):
         remgrp=self.session.query(classes.Group).filter_by(name=fullyQualifiedGroupName)
+        #How will the cascades work? removing users? should we not archive?
+        #from an ORM perspective its like groups should be added to a new table ArchivedGroup,
+        #or perhaps just flagged "archived"
         self.session.delete(remgrp)
 
 
@@ -32,38 +39,41 @@ class Whosdb(object):
     #what about invitations. Is that taken over ny getting an oauth token in authspec?
     def addUserToGroup(currentuser, fullyQualifiedGroupName, usertobeaddded, authspec):
         grp=self.session.query(classes.Group).filter_by(name=fullyQualifiedGroupName)
-        pass
+        usertobeadded.groupsin.append(grp)
 
-    def removeUserFromGroup(currentuser, group, usertoberemoved):
-        pass
+    def removeUserFromGroup(currentuser, fullyQualifiedGroupName, usertoberemoved):
+        grp=self.session.query(classes.Group).filter_by(name=fullyQualifiedGroupName)
+        usertoberemoved.groupsin.remove(grp)
+        
 
-    def changeOwnershipOfGroup(currentuser, group, usertobenewowner):
-        pass
+    def changeOwnershipOfGroup(currentuser, fullyQualifiedGroupName, usertobenewowner):
+        grp=self.session.query(classes.Group).filter_by(name=fullyQualifiedGroupName)
+        grp.owner = usertobenewowner
 
     #INFORMATIONAL
 
-    def usersInGroup(currentuser, group):
+    def usersInGroup(currentuser, fullyQualifiedGroupName):
         pass
 
     def groupsUserIsIn(currentuser, userwanted):
         pass
 
     #EVEN MORE DERIVED
-    def addUserToApp(currentuser, app, usertobeadded, authspec):
+    def addUserToApp(currentuser, fullyQualifiedAppName, usertobeadded, authspec):
         pass
 
-    def removeUserFromApp(currentuser, app, usertoberemoved):
+    def removeUserFromApp(currentuser, fullyQualifiedAppName, usertoberemoved):
         pass
 
     #How are these implemented: a route? And, what is this?
-    def addGroupToApp(currentuser, app, grouptoadd, authspec):
+    def addGroupToApp(currentuser, fullyQualifiedAppName, fullyQualifiedGroupName, authspec):
         pass
 
-    def removeGroupFromApp(currentuser, app, grouptoremove):
+    def removeGroupFromApp(currentuser, fullyQualifiedAppName, fullyQualifiedGroupName):
         pass
 
 
-    def usersInApp(currentuser, app):
+    def usersInApp(currentuser, fullyQualifiedAppName):
         pass
 
     def appsForUser(currentuser, userwanted):
@@ -75,25 +85,16 @@ class Whosdb(object):
     def ownerOfApps(currentuser, userwanted):
         pass
 
-class TestClass1:   
-    def setup(self):
-        engine = create_engine('sqlite:///:memory:', echo=False)
-        Session = sessionmaker(bind=engine)
-        self.session = Session()
-        # You probably need to create some tables and 
-        # load some test data, do so here.
 
-        # To create tables, you typically do:
-        DaBase.metadata.create_all(engine)
 
-    def teardown(self):
-        self.session.close()
+    
 
+class TestA(tbase.TBase):
 
     def test_something(self):
         sess=self.session
-        adsgutuser=User(name='adsgut')
-        adsuser=User(name='ads')
+        adsgutuser=classes.User(name='adsgut', email='adsgut@adslabs.org')
+        adsuser=classes.User(name='ads', email='ads@adslabs.org')
         sess.add(adsgutuser)
         sess.add(adsuser)
-        sess.flush()
+        sess.flush() 

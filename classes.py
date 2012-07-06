@@ -176,28 +176,15 @@ class Application(Group):
         return "<App:%s,%s>" % (self.owner.name, self.name)
 
 
-class TestClass1:   
-    def setup(self):
-        engine = create_engine('sqlite:///:memory:', echo=False)
-        Session = sessionmaker(bind=engine)
-        self.session = Session()
-        # You probably need to create some tables and 
-        # load some test data, do so here.
+class Database:
 
-        # To create tables, you typically do:
-        DaBase.metadata.create_all(engine)
+    def __init__(self, session):
+        self.session = session
 
-    def teardown(self):
-        self.session.close()
+    def commit(self):
+        self.session.commit()
 
 
-    def test_something(self):
-        sess=self.session
-        adsgutuser=User(name='adsgut')
-        adsuser=User(name='ads')
-        sess.add(adsgutuser)
-        sess.add(adsuser)
-        sess.flush()
 
 if __name__=="__main__":
     engine = create_engine('sqlite:///:memory:', echo=False)
