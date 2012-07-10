@@ -6,7 +6,7 @@ import tbase
 #what about permissions? MUCH LATER
 #FUNDAMENTAL
 #What about adding user to default groups and all? I say routes. Dont muddy this.
-
+OK=200
 #RULE HERE: users are expected to be python objects. Anything else is a string
 
 def validatespec(specdict, spectype):
@@ -17,14 +17,17 @@ class Whosdb(classes.Database):
     def addUser(currentuser, userspec):
         newuser=classes.User(validatespec(userspec, "user"))
         self.session.add(newuser)
+        return OK
 
     def removeUser(currentuser, usertoberemovedemail):
         remuser=session.query(classes.User).filter_by(email=usertoberemovedemail)
         self.session.delete(remuser)
+        return OK
 
     def createGroup(currentuser, groupspec):
         newgroup=classes.Group(validatespec(groupspec, "group"))
         self.session.add(newgroup)
+        return OK
 
     def removeGroup(currentuser, fullyQualifiedGroupName):
         remgrp=self.session.query(classes.Group).filter_by(name=fullyQualifiedGroupName)
@@ -32,6 +35,7 @@ class Whosdb(classes.Database):
         #from an ORM perspective its like groups should be added to a new table ArchivedGroup,
         #or perhaps just flagged "archived"
         self.session.delete(remgrp)
+        return OK
 
 
     #DERIVED
@@ -40,50 +44,78 @@ class Whosdb(classes.Database):
     def addUserToGroup(currentuser, fullyQualifiedGroupName, usertobeaddded, authspec):
         grp=self.session.query(classes.Group).filter_by(name=fullyQualifiedGroupName)
         usertobeadded.groupsin.append(grp)
+        return OK
 
     def removeUserFromGroup(currentuser, fullyQualifiedGroupName, usertoberemoved):
         grp=self.session.query(classes.Group).filter_by(name=fullyQualifiedGroupName)
         usertoberemoved.groupsin.remove(grp)
+        return OK
         
 
     def changeOwnershipOfGroup(currentuser, fullyQualifiedGroupName, usertobenewowner):
         grp=self.session.query(classes.Group).filter_by(name=fullyQualifiedGroupName)
         grp.owner = usertobenewowner
+        return OK
 
     #INFORMATIONAL
 
     def usersInGroup(currentuser, fullyQualifiedGroupName):
-        pass
+        grp=self.session.query(classes.Group).filter_by(name=fullyQualifiedGroupName)
+        users=grp.groupusers
+        return [e.info() for e in users]
 
     def groupsUserIsIn(currentuser, userwanted):
-        pass
+        groups=userwanted.groupsin
+        return [e.info() for e in groups]
 
     #EVEN MORE DERIVED
     def addUserToApp(currentuser, fullyQualifiedAppName, usertobeadded, authspec):
-        pass
+        app=self.session.query(classes.Application).filter_by(name=fullyQualifiedAppName)
+        usertobeadded.applicationsin.append(app)
+        return OK
 
     def removeUserFromApp(currentuser, fullyQualifiedAppName, usertoberemoved):
-        pass
+        app=self.session.query(classes.Application).filter_by(name=fullyQualifiedAppName)
+        usertoberemoved.applicationsin.remove(app)
+        return OK
 
     #How are these implemented: a route? And, what is this?
     def addGroupToApp(currentuser, fullyQualifiedAppName, fullyQualifiedGroupName, authspec):
-        pass
+        app=self.session.query(classes.Application).filter_by(name=fullyQualifiedAppName)
+        grp=self.session.query(classes.Group).filter_by(name=fullyQualifiedGroupName)
+        grp.applicationsin.append(app)
+        #pubsub must add the individual users
+        return OK
 
     def removeGroupFromApp(currentuser, fullyQualifiedAppName, fullyQualifiedGroupName):
-        pass
+        app=self.session.query(classes.Application).filter_by(name=fullyQualifiedAppName)
+        grp=self.session.query(classes.Group).filter_by(name=fullyQualifiedGroupName)
+        grp.applicationsin.remove(app)
+        #pubsub depending on what we want to do to delete
+        return OK
 
 
     def usersInApp(currentuser, fullyQualifiedAppName):
-        pass
+        app=self.session.query(classes.Group).filter_by(name=fullyQualifiedGroupName)
+        users=app.applicationusers
+        return [e.info() for e in users]
+
+    def groupsInApp(currentuser, fullyQualifiedAppName):
+        app=self.session.query(classes.Group).filter_by(name=fullyQualifiedGroupName)
+        groups=app.applicationgroups
+        return [e.info() for e in groups]
 
     def appsForUser(currentuser, userwanted):
-        pass
+        applications=userwanted.applicationsin
+        return [e.info() for e in applications]
 
     def ownerOfGroups(currentuser, userwanted):
-        pass
+        groups=userwanted.groupsowned
+        return [e.info() for e in groups]
 
     def ownerOfApps(currentuser, userwanted):
-        pass
+        applications=userwanted.appsowned
+        return [e.info() for e in applications]
 
 
 

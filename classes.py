@@ -31,6 +31,11 @@ UserApplication = Table('user_application', DaBase.metadata,
     Column('application_id', Integer, ForeignKey('applications.application_id'))
 )
 
+GroupApplication = Table('group_application', DaBase.metadata,
+    Column('group_id', Integer, ForeignKey('users.id')),
+    Column('application_id', Integer, ForeignKey('applications.application_id'))
+)
+
 ItemGroup = Table('item_group', DaBase.metadata,
     Column('item_id', Integer, ForeignKey('items.id')),
     Column('group_id', Integer, ForeignKey('groups.group_id'))
@@ -64,6 +69,9 @@ class User(DaBase):
 
     def __repr__(self):
         return "<User:%s:%s>" % (self.name, self.email)
+
+    def info(self):
+        return {'name': self.name}
 
 class ItemType(DaBase):
     __tablename__='itemtypes'
@@ -161,9 +169,14 @@ class Group(Tag):
     owner_id = Column(Integer, ForeignKey('users.id'))
     lastupdated = Column(DateTime, server_default=text(THENOW))
     owner = relationship('User', primaryjoin='Group.owner_id == User.id', backref=backref('groupsowned', lazy='dynamic'))
-
+    applicationsin = relationship('Application', secondary=UserApplication,
+                            backref=backref('applicationgroups', lazy='dynamic'))
     def __repr__(self):
         return "<Grp:%s,%s>" % (self.owner.name, self.name)
+
+    def info(self):
+        #should return fully qualified name instead
+        return {'name': self.name}
 
 class Application(Group):
     __tablename__='applications'
@@ -175,6 +188,8 @@ class Application(Group):
     def __repr__(self):
         return "<App:%s,%s>" % (self.owner.name, self.name)
 
+    def info(self):
+        return {'name': self.name}
 
 class Database:
 
