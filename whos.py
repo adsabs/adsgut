@@ -1,5 +1,5 @@
 #managing users, groups, and applications
-import classes
+from classes import *
 import tbase
 #wont worry about permissions right now
 #wont worry about cascade deletion right now either.
@@ -12,25 +12,27 @@ OK=200
 def validatespec(specdict, spectype):
     return specdict
 
-class Whosdb(classes.Database):
+class Whosdb(Database):
 
-    def addUser(currentuser, userspec):
-        newuser=classes.User(validatespec(userspec, "user"))
+    def addUser(self, currentuser, userspec):
+        vspec=validatespec(userspec, "user")
+        #print vspec
+        newuser=User(**vspec)
         self.session.add(newuser)
-        return OK
+        return newuser
 
-    def removeUser(currentuser, usertoberemovedemail):
-        remuser=session.query(classes.User).filter_by(email=usertoberemovedemail)
+    def removeUser(self, currentuser, usertoberemovedemail):
+        remuser=session.query(User).filter_by(email=usertoberemovedemail)
         self.session.delete(remuser)
         return OK
 
-    def createGroup(currentuser, groupspec):
-        newgroup=classes.Group(validatespec(groupspec, "group"))
+    def addGroup(self, currentuser, groupspec):
+        newgroup=Group(**validatespec(groupspec, "group"))
         self.session.add(newgroup)
-        return OK
+        return newgroup
 
-    def removeGroup(currentuser, fullyQualifiedGroupName):
-        remgrp=self.session.query(classes.Group).filter_by(name=fullyQualifiedGroupName)
+    def removeGroup(self,currentuser, fullyQualifiedGroupName):
+        remgrp=self.session.query(Group).filter_by(name=fullyQualifiedGroupName)
         #How will the cascades work? removing users? should we not archive?
         #from an ORM perspective its like groups should be added to a new table ArchivedGroup,
         #or perhaps just flagged "archived"
@@ -41,79 +43,87 @@ class Whosdb(classes.Database):
     #DERIVED
 
     #what about invitations. Is that taken over ny getting an oauth token in authspec?
-    def addUserToGroup(currentuser, fullyQualifiedGroupName, usertobeaddded, authspec):
-        grp=self.session.query(classes.Group).filter_by(name=fullyQualifiedGroupName)
+    def addUserToGroup(self, currentuser, fullyQualifiedGroupName, usertobeaddded, authspec):
+        grp=self.session.query(Group).filter_by(name=fullyQualifiedGroupName)
         usertobeadded.groupsin.append(grp)
         return OK
 
-    def removeUserFromGroup(currentuser, fullyQualifiedGroupName, usertoberemoved):
-        grp=self.session.query(classes.Group).filter_by(name=fullyQualifiedGroupName)
+    def removeUserFromGroup(self, currentuser, fullyQualifiedGroupName, usertoberemoved):
+        grp=self.session.query(Group).filter_by(name=fullyQualifiedGroupName)
         usertoberemoved.groupsin.remove(grp)
         return OK
         
 
-    def changeOwnershipOfGroup(currentuser, fullyQualifiedGroupName, usertobenewowner):
-        grp=self.session.query(classes.Group).filter_by(name=fullyQualifiedGroupName)
+    def changeOwnershipOfGroup(self, currentuser, fullyQualifiedGroupName, usertobenewowner):
+        grp=self.session.query(Group).filter_by(name=fullyQualifiedGroupName)
         grp.owner = usertobenewowner
         return OK
 
     #INFORMATIONAL
 
-    def usersInGroup(currentuser, fullyQualifiedGroupName):
-        grp=self.session.query(classes.Group).filter_by(name=fullyQualifiedGroupName)
+    def allUsers(self, currentuser):
+        users=self.session.query(User).all()
+        return [e.info() for e in users]
+
+    def allGroups(self, currentuser):
+        users=self.session.query(Group).all()
+        return [e.info() for e in users]
+
+    def usersInGroup(self, currentuser, fullyQualifiedGroupName):
+        grp=self.session.query(Group).filter_by(name=fullyQualifiedGroupName)
         users=grp.groupusers
         return [e.info() for e in users]
 
-    def groupsUserIsIn(currentuser, userwanted):
+    def groupsUserIsIn(self, currentuser, userwanted):
         groups=userwanted.groupsin
         return [e.info() for e in groups]
 
     #EVEN MORE DERIVED
-    def addUserToApp(currentuser, fullyQualifiedAppName, usertobeadded, authspec):
-        app=self.session.query(classes.Application).filter_by(name=fullyQualifiedAppName)
+    def addUserToApp(self, currentuser, fullyQualifiedAppName, usertobeadded, authspec):
+        app=self.session.query(Application).filter_by(name=fullyQualifiedAppName)
         usertobeadded.applicationsin.append(app)
         return OK
 
-    def removeUserFromApp(currentuser, fullyQualifiedAppName, usertoberemoved):
-        app=self.session.query(classes.Application).filter_by(name=fullyQualifiedAppName)
+    def removeUserFromApp(self, currentuser, fullyQualifiedAppName, usertoberemoved):
+        app=self.session.query(Application).filter_by(name=fullyQualifiedAppName)
         usertoberemoved.applicationsin.remove(app)
         return OK
 
     #How are these implemented: a route? And, what is this?
-    def addGroupToApp(currentuser, fullyQualifiedAppName, fullyQualifiedGroupName, authspec):
-        app=self.session.query(classes.Application).filter_by(name=fullyQualifiedAppName)
-        grp=self.session.query(classes.Group).filter_by(name=fullyQualifiedGroupName)
+    def addGroupToApp(self, currentuser, fullyQualifiedAppName, fullyQualifiedGroupName, authspec):
+        app=self.session.query(Application).filter_by(name=fullyQualifiedAppName)
+        grp=self.session.query(Group).filter_by(name=fullyQualifiedGroupName)
         grp.applicationsin.append(app)
         #pubsub must add the individual users
         return OK
 
-    def removeGroupFromApp(currentuser, fullyQualifiedAppName, fullyQualifiedGroupName):
-        app=self.session.query(classes.Application).filter_by(name=fullyQualifiedAppName)
-        grp=self.session.query(classes.Group).filter_by(name=fullyQualifiedGroupName)
+    def removeGroupFromApp(self, currentuser, fullyQualifiedAppName, fullyQualifiedGroupName):
+        app=self.session.query(Application).filter_by(name=fullyQualifiedAppName)
+        grp=self.session.query(Group).filter_by(name=fullyQualifiedGroupName)
         grp.applicationsin.remove(app)
         #pubsub depending on what we want to do to delete
         return OK
 
 
-    def usersInApp(currentuser, fullyQualifiedAppName):
-        app=self.session.query(classes.Group).filter_by(name=fullyQualifiedGroupName)
+    def usersInApp(self, currentuser, fullyQualifiedAppName):
+        app=self.session.query(Group).filter_by(name=fullyQualifiedGroupName)
         users=app.applicationusers
         return [e.info() for e in users]
 
-    def groupsInApp(currentuser, fullyQualifiedAppName):
-        app=self.session.query(classes.Group).filter_by(name=fullyQualifiedGroupName)
+    def groupsInApp(self, currentuser, fullyQualifiedAppName):
+        app=self.session.query(Group).filter_by(name=fullyQualifiedGroupName)
         groups=app.applicationgroups
         return [e.info() for e in groups]
 
-    def appsForUser(currentuser, userwanted):
+    def appsForUser(self, currentuser, userwanted):
         applications=userwanted.applicationsin
         return [e.info() for e in applications]
 
-    def ownerOfGroups(currentuser, userwanted):
+    def ownerOfGroups(self, currentuser, userwanted):
         groups=userwanted.groupsowned
         return [e.info() for e in groups]
 
-    def ownerOfApps(currentuser, userwanted):
+    def ownerOfApps(self, currentuser, userwanted):
         applications=userwanted.appsowned
         return [e.info() for e in applications]
 
@@ -124,9 +134,19 @@ class Whosdb(classes.Database):
 class TestA(tbase.TBase):
 
     def test_something(self):
+        print "HELLO"
         sess=self.session
-        adsgutuser=classes.User(name='adsgut', email='adsgut@adslabs.org')
-        adsuser=classes.User(name='ads', email='ads@adslabs.org')
-        sess.add(adsgutuser)
-        sess.add(adsuser)
-        sess.flush() 
+        currentuser=None
+        whosdb=Whosdb(sess)
+        adsgutuser=whosdb.addUser(currentuser, dict(name='adsgut', email='adsgut@adslabs.org'))
+        adsgutdefault=whosdb.addGroup(currentuser, dict(name='default', owner=adsgutuser))
+        public=whosdb.addGroup(currentuser, dict(name='public', owner=adsgutuser))
+        whosdb.commit()
+        #adsgutuser=User(name='adsgut', email='adsgut@adslabs.org')
+        adsuser=whosdb.addUser(currentuser, dict(name='ads', email='ads@adslabs.org'))
+        adsdefault=whosdb.addGroup(currentuser, dict(name='default', owner=adsuser))
+        #adsuser=User(name='ads', email='ads@adslabs.org')
+        whosdb.commit()
+        print whosdb.allUsers(currentuser)
+        print whosdb.allGroups(currentuser)
+        whosedb.edu()

@@ -3,7 +3,7 @@
 import sqlalchemy
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship, backref, sessionmaker
+from sqlalchemy.orm import relationship, backref, sessionmaker, mapper
 from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, Table, text
 DaBase = declarative_base()
 
@@ -32,7 +32,7 @@ UserApplication = Table('user_application', DaBase.metadata,
 )
 
 GroupApplication = Table('group_application', DaBase.metadata,
-    Column('group_id', Integer, ForeignKey('users.id')),
+    Column('group_id', Integer, ForeignKey('groups.group_id')),
     Column('application_id', Integer, ForeignKey('applications.application_id'))
 )
 
@@ -169,14 +169,13 @@ class Group(Tag):
     owner_id = Column(Integer, ForeignKey('users.id'))
     lastupdated = Column(DateTime, server_default=text(THENOW))
     owner = relationship('User', primaryjoin='Group.owner_id == User.id', backref=backref('groupsowned', lazy='dynamic'))
-    applicationsin = relationship('Application', secondary=UserApplication,
-                            backref=backref('applicationgroups', lazy='dynamic'))
+    
     def __repr__(self):
         return "<Grp:%s,%s>" % (self.owner.name, self.name)
 
     def info(self):
         #should return fully qualified name instead
-        return {'name': self.name}
+        return {'name': self.name, 'owner': self.owner.email}
 
 class Application(Group):
     __tablename__='applications'
@@ -191,6 +190,10 @@ class Application(Group):
     def info(self):
         return {'name': self.name}
 
+Group.applicationsin = relationship('Application', secondary=GroupApplication, 
+                            primaryjoin=GroupApplication.c.group_id == Group.group_id,
+                            secondaryjoin=GroupApplication.c.application_id == Application.application_id,
+                            backref=backref('applicationgroups', lazy='dynamic'))
 class Database:
 
     def __init__(self, session):
