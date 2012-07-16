@@ -99,10 +99,11 @@ class Item(DaBase):
     itemtype = relationship('ItemType', primaryjoin=itemtype_id == ItemType.id, backref=backref('itemsofthistype', lazy='dynamic'))
     #itemtype_string = Column(String, ForeignKey('itemtypes.name'))
     type=Column(String)
-    creator_id = Column(Integer, ForeignKey('users.id'))
+    creator_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     creator = relationship('User', backref=backref('itemscreated', lazy='dynamic'))
     name = Column(String)#this is the main text, eg for article, it could be title.
     #make it seful, make it searchable.
+    fqin = Column(String, unique=True, nullable=False)
     uri = Column(String, unique=True)
     metajson = Column(Text)
     whencreated = Column(DateTime, server_default=text(THENOW))
@@ -166,12 +167,12 @@ class Group(Tag):
     __mapper_args__ = {'polymorphic_identity': 'group', 'polymorphic_on': 'type'}
     group_id = Column(Integer, primary_key=True)
     tag_id = Column(Integer, ForeignKey('tags.tag_id'))
-    owner_id = Column(Integer, ForeignKey('users.id'))
+    owner_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     lastupdated = Column(DateTime, server_default=text(THENOW))
     owner = relationship('User', primaryjoin='Group.owner_id == User.id', backref=backref('groupsowned', lazy='dynamic'))
     
     def __repr__(self):
-        return "<Grp:%s,%s>" % (self.owner.name, self.name)
+        return "<Grp:%s,%s>" % (self.owner.name, self.fqin)
 
     def info(self):
         #should return fully qualified name instead
@@ -185,10 +186,10 @@ class Application(Group):
     owner = relationship('User', primaryjoin='Application.owner_id == User.id', backref=backref('appsowned', lazy='dynamic'))
 
     def __repr__(self):
-        return "<App:%s,%s>" % (self.owner.name, self.name)
+        return "<App:%s,%s>" % (self.owner.name, self.fqin)
 
     def info(self):
-        return {'name': self.name}
+        return {'name': self.name, 'owner':self.owner.email}
 
 Group.applicationsin = relationship('Application', secondary=GroupApplication, 
                             primaryjoin=GroupApplication.c.group_id == Group.group_id,
