@@ -59,8 +59,9 @@ TagApplication = Table('tag_application', DaBase.metadata,
 class User(DaBase):
     __tablename__='users'
     id = Column(Integer, primary_key=True)
-    name = Column(String, nullable=False)
+    name = Column(String)
     password = Column(String)
+    nick = Column(String, unique=True, nullable=False)#expect unique
     email = Column(String, unique=True, nullable=False)#expect unique
     groupsin = relationship('Group', secondary=UserGroup,
                             backref=backref('groupusers', lazy='dynamic'))
@@ -79,6 +80,7 @@ class ItemType(DaBase):
     creator_id = Column(Integer, ForeignKey('users.id'))
     name = Column(String)
     type=Column(String)
+    fqin = Column(String, unique=True, nullable=False)
     description = Column(Text)
     whencreated = Column(DateTime, server_default=text(THENOW))
     creator = relationship('User', backref=backref('itemtypes', lazy='dynamic'))
@@ -101,7 +103,7 @@ class Item(DaBase):
     type=Column(String)
     creator_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     creator = relationship('User', backref=backref('itemscreated', lazy='dynamic'))
-    name = Column(String)#this is the main text, eg for article, it could be title.
+    name = Column(String, nullable=False)#this is the main text, eg for article, it could be title.
     #make it seful, make it searchable.
     fqin = Column(String, unique=True, nullable=False)
     uri = Column(String, unique=True)
@@ -216,35 +218,35 @@ if __name__=="__main__":
     # print TagType("rahuldave@gmail.com/comment").scope
     # Item.add(Item())
     # print Item.__theset__, Item.__thelist__, "lll", DaBase.__theset__
-    adsgutuser=User(name='adsgut', email="adsgut@adslabs.org")
-    adsuser=User(name='ads', email="ads@adslabs.org")
+    adsgutuser=User(nick='adsgut', email="adsgut@adslabs.org")
+    adsuser=User(nick='ads', email="ads@adslabs.org")
     session.add(adsgutuser)
     session.add(adsuser)
-    defaultgroup=Group(name='default', owner=adsgutuser)
+    defaultgroup=Group(name='default', creator=adsgutuser, owner=adsgutuser, fqin="adsgut/default")
     session.add(defaultgroup)
-    adspubsapp=Application(name='publications', owner=adsuser)
+    adspubsapp=Application(name='publications', creator=adsuser, owner=adsuser, fqin="ads/publications")
     session.add(adspubsapp)
     print "---------"
-    pubtype=ItemType(name="pub", creator=adsuser)
+    pubtype=ItemType(name="pub", creator=adsuser, fqin="ads/pub")
     session.add(pubtype)
-    notetype=TagType(name="note", creator=adsuser)
+    notetype=TagType(name="note", creator=adsuser, fqin="ads/note")
     session.add(notetype)
     #session.commit()
     #pubtype=session.query(ItemType).filter_by(name="pub")[0]
     #print "PUBTYPE", pubtype
     #USERSET
-    rahuldave=User(name='rahuldave', email="rahuldave@gmail.com")
+    rahuldave=User(nick='rahuldave', email="rahuldave@gmail.com")
     rahuldave.groupsin.append(defaultgroup)
     session.add(rahuldave)
-    jluker=User(name='jluker', email="jluker@gmail.com")
+    jluker=User(nick='jluker', email="jluker@gmail.com")
     session.add(jluker)
     jluker.groupsin.append(defaultgroup)
     jluker.applicationsin.append(adspubsapp)
     #GROUPSET
-    mlg=Group(name='ml', owner=rahuldave)
+    mlg=Group(name='ml', creator=rahuldave, owner=rahuldave, fqin="rahuldave/ml")
     session.add(mlg)
-    thispub = Item(name="hello kitty", uri='xxxlm', itemtype=pubtype, creator=rahuldave)
-    thistag = Tag(taggeditem=thispub, itemtype=notetype, tagtype=notetype, creator=rahuldave, name="crazy note")
+    thispub = Item(name="hello kitty", uri='xxxlm', itemtype=pubtype, creator=rahuldave, fqin="rahuldave/hello kitty")
+    thistag = Tag(taggeditem=thispub, itemtype=notetype, tagtype=notetype, creator=rahuldave, name="crazy note", fqin="rahuldave/crazy note")
     
     thispub.groupsin.append(mlg)
     thistag.groupsin.append(mlg)

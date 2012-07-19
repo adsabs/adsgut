@@ -15,7 +15,7 @@ OK=200
 def validatespec(specdict, spectype):
     if spectype=='group' or spectype=='app':
         specdict['owner']=specdict['creator']
-        specdict['fqin']=specdict['creator'].email+"/"+specdict['name']
+        specdict['fqin']=specdict['creator'].nick+"/"+specdict['name']
     return specdict
 
 class Whosdb(Database):
@@ -157,13 +157,13 @@ class TestA(tbase.TBase):
         sess=self.session
         currentuser=None
         whosdb=Whosdb(sess)
-        adsgutuser=whosdb.addUser(currentuser, dict(name='adsgut', email='adsgut@adslabs.org'))
+        adsgutuser=whosdb.addUser(currentuser, dict(nick='adsgut', email='adsgut@adslabs.org'))
         currentuser=adsgutuser
         adsgutdefault=whosdb.addGroup(currentuser, dict(name='default', creator=adsgutuser))
         public=whosdb.addGroup(currentuser, dict(name='public', creator=adsgutuser))
         whosdb.commit()
         #adsgutuser=User(name='adsgut', email='adsgut@adslabs.org')
-        adsuser=whosdb.addUser(currentuser, dict(name='ads', email='ads@adslabs.org'))
+        adsuser=whosdb.addUser(currentuser, dict(nick='ads', email='ads@adslabs.org'))
         adsdefault=whosdb.addGroup(currentuser, dict(name='default', creator=adsuser))
         #adsuser=User(name='ads', email='ads@adslabs.org')
         whosdb.commit()
@@ -171,30 +171,30 @@ class TestA(tbase.TBase):
         adspubsapp=whosdb.addApp(currentuser, dict(name='publications', creator=adsuser))
         whosdb.commit()
 
-        rahuldave=whosdb.addUser(currentuser, dict(name='rahuldave', email="rahuldave@gmail.com"))
-        whosdb.addUserToGroup(currentuser, 'adsgut@adslabs.org/public', rahuldave, None)
+        rahuldave=whosdb.addUser(currentuser, dict(nick='rahuldave', email="rahuldave@gmail.com"))
+        whosdb.addUserToGroup(currentuser, 'adsgut/public', rahuldave, None)
         #rahuldave.groupsin.append(public)
         rahuldavedefault=whosdb.addGroup(currentuser, dict(name='default', creator=rahuldave))
         rahuldave.groupsin.append(rahuldavedefault)
-        whosdb.addUserToApp(currentuser, 'ads@adslabs.org/publications', rahuldave, None)
+        whosdb.addUserToApp(currentuser, 'ads/publications', rahuldave, None)
         #rahuldave.applicationsin.append(adspubsapp)
         whosdb.commit()
-        jayluker=whosdb.addUser(currentuser, dict(name='jayluker', email="jluker@gmail.com"))
-        whosdb.addUserToGroup(currentuser, 'adsgut@adslabs.org/public', jayluker, None)
+        jayluker=whosdb.addUser(currentuser, dict(nick='jayluker', email="jluker@gmail.com"))
+        whosdb.addUserToGroup(currentuser, 'adsgut/public', jayluker, None)
         #jayluker.groupsin.append(public)
         jaylukerdefault=whosdb.addGroup(currentuser, dict(name='default', creator=jayluker))
         jayluker.groupsin.append(jaylukerdefault)
-        whosdb.addUserToApp(currentuser, 'ads@adslabs.org/publications', jayluker, None)
+        whosdb.addUserToApp(currentuser, 'ads/publications', jayluker, None)
         #jayluker.applicationsin.append(adspubsapp)
         whosdb.commit()
-        whosdb.addGroupToApp(currentuser, 'ads@adslabs.org/publications', 'adsgut@adslabs.org/public', None )
+        whosdb.addGroupToApp(currentuser, 'ads/publications', 'adsgut/public', None )
         #public.applicationsin.append(adspubsapp)
         rahuldavedefault.applicationsin.append(adspubsapp)
         whosdb.commit()
         print whosdb.allUsers(currentuser)
         print whosdb.allGroups(currentuser)
-        print whosdb.usersInGroup(currentuser, 'adsgut@adslabs.org/public')
-        print whosdb.usersInApp(currentuser, 'ads@adslabs.org/publications')
-        print whosdb.groupsInApp(currentuser, 'ads@adslabs.org/publications')
+        print whosdb.usersInGroup(currentuser, 'adsgut/public')
+        print whosdb.usersInApp(currentuser, 'ads/publications')
+        print whosdb.groupsInApp(currentuser, 'ads/publications')
         print adspubsapp.applicationgroups.all()
         whosdb.edu()
