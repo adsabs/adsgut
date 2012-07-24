@@ -21,14 +21,28 @@ THENOW=sqlite_NOW
 #     Column('tag_id', Integer, ForeignKey('tags.tag_id'))
 # )
 
+#Invites to applications are for betas. Invites to groups must be accepted to join
+#so it depends on who the current user is: for apps its the adsgut user, for invites, its the user himself?
 UserGroup = Table('user_group', DaBase.metadata,
     Column('user_id', Integer, ForeignKey('users.id')),
     Column('group_id', Integer, ForeignKey('groups.group_id'))
 )
 
+InvitationGroup = Table('invitation_group', DaBase.metadata,
+    Column('user_id', Integer, ForeignKey('users.id')),
+    Column('group_id', Integer, ForeignKey('groups.group_id')),
+    Column('accepted', Boolean, default=False)
+)
+
 UserApplication = Table('user_application', DaBase.metadata,
     Column('user_id', Integer, ForeignKey('users.id')),
     Column('application_id', Integer, ForeignKey('applications.application_id'))
+)
+
+InvitationApplication = Table('invitation_application', DaBase.metadata,
+    Column('user_id', Integer, ForeignKey('users.id')),
+    Column('application_id', Integer, ForeignKey('applications.application_id')),
+    Column('accepted', Boolean, default=True)
 )
 
 GroupApplication = Table('group_application', DaBase.metadata,
@@ -65,14 +79,17 @@ class User(DaBase):
     email = Column(String, unique=True, nullable=False)#expect unique
     groupsin = relationship('Group', secondary=UserGroup,
                             backref=backref('groupusers', lazy='dynamic'))
+    groupsinvitedto = relationship('Group', secondary=InvitationGroup,
+                            backref=backref('groupsinvitedusers', lazy='dynamic'))
     applicationsin = relationship('Application', secondary=UserApplication,
                             backref=backref('applicationusers', lazy='dynamic'))
-
+    applicationsinvitedto = relationship('Application', secondary=InvitationApplication,
+                            backref=backref('applicationsinvitedusers', lazy='dynamic'))
     def __repr__(self):
-        return "<User:%s:%s>" % (self.name, self.email)
+        return "<User:%s:%s>" % (self.nick, self.email)
 
     def info(self):
-        return {'name': self.name}
+        return {'name': self.nick}
 
 class ItemType(DaBase):
     __tablename__='itemtypes'
@@ -174,11 +191,11 @@ class Group(Tag):
     owner = relationship('User', primaryjoin='Group.owner_id == User.id', backref=backref('groupsowned', lazy='dynamic'))
     
     def __repr__(self):
-        return "<Grp:%s,%s>" % (self.owner.name, self.fqin)
+        return "<Grp:%s,%s>" % (self.owner.nick, self.fqin)
 
     def info(self):
         #should return fully qualified name instead
-        return {'name': self.name, 'owner': self.owner.email}
+        return {'name': self.name, 'owner': self.owner.nick}
 
 class Application(Group):
     __tablename__='applications'
@@ -188,10 +205,10 @@ class Application(Group):
     owner = relationship('User', primaryjoin='Application.owner_id == User.id', backref=backref('appsowned', lazy='dynamic'))
 
     def __repr__(self):
-        return "<App:%s,%s>" % (self.owner.name, self.fqin)
+        return "<App:%s,%s>" % (self.owner.nick, self.fqin)
 
     def info(self):
-        return {'name': self.name, 'owner':self.owner.email}
+        return {'name': self.name, 'owner':self.owner.nick}
 
 Group.applicationsin = relationship('Application', secondary=GroupApplication, 
                             primaryjoin=GroupApplication.c.group_id == Group.group_id,

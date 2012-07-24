@@ -38,7 +38,7 @@ class Whosdb(Database):
         return newgroup
 
     def removeGroup(self,currentuser, fullyQualifiedGroupName):
-        remgrp=self.session.query(Group).filter_by(fqin=fullyQualifiedGroupName)
+        remgrp=self.session.query(Group).filter_by(fqin=fullyQualifiedGroupName).one()
         #How will the cascades work? removing users? should we not archive?
         #from an ORM perspective its like groups should be added to a new table ArchivedGroup,
         #or perhaps just flagged "archived"
@@ -51,7 +51,7 @@ class Whosdb(Database):
         return newapp
 
     def removeApp(self,currentuser, fullyQualifiedAppName):
-        remapp=self.session.query(Application).filter_by(fqin=fullyQualifiedAppName)
+        remapp=self.session.query(Application).filter_by(fqin=fullyQualifiedAppName).one()
         #How will the cascades work? removing users? should we not archive?
         #from an ORM perspective its like groups should be added to a new table ArchivedGroup,
         #or perhaps just flagged "archived"
@@ -63,18 +63,29 @@ class Whosdb(Database):
 
     #what about invitations. Is that taken over ny getting an oauth token in authspec?
     def addUserToGroup(self, currentuser, fullyQualifiedGroupName, usertobeadded, authspec):
-        grp=self.session.query(Group).filter_by(fqin=fullyQualifiedGroupName)
-        usertobeadded.groupsin.append(grp[0])
+        grp=self.session.query(Group).filter_by(fqin=fullyQualifiedGroupName).one()
+        usertobeadded.groupsin.append(grp)
+        return OK
+
+    def inviteUserToGroup(self, currentuser, fullyQualifiedGroupName, usertobeadded, authspec):
+        grp=self.session.query(Group).filter_by(fqin=fullyQualifiedGroupName).one()
+        usertobeadded.groupsinvitedto.append(grp)
+        return OK
+
+    def acceptInviteToGroup(self, currentuser, fullyQualifiedGroupName, usertobeadded, authspec):
+        grp=self.session.query(Group).filter_by(fqin=fullyQualifiedGroupName).one()
+        if grp in usertobeadded.groupsinvitedto:
+            usertobeadded.groupsin.append(grp)
         return OK
 
     def removeUserFromGroup(self, currentuser, fullyQualifiedGroupName, usertoberemoved):
-        grp=self.session.query(Group).filter_by(fqin=fullyQualifiedGroupName)
-        usertoberemoved.groupsin.remove(grp[0])
+        grp=self.session.query(Group).filter_by(fqin=fullyQualifiedGroupName).one()
+        usertoberemoved.groupsin.remove(grp)
         return OK
         
 
     def changeOwnershipOfGroup(self, currentuser, fullyQualifiedGroupName, usertobenewowner):
-        grp=self.session.query(Group).filter_by(fqin=fullyQualifiedGroupName)
+        grp=self.session.query(Group).filter_by(fqin=fullyQualifiedGroupName).one()
         grp.owner = usertobenewowner
         return OK
 
@@ -89,8 +100,8 @@ class Whosdb(Database):
         return [e.info() for e in users]
 
     def usersInGroup(self, currentuser, fullyQualifiedGroupName):
-        grp=self.session.query(Group).filter_by(fqin=fullyQualifiedGroupName)
-        users=grp[0].groupusers
+        grp=self.session.query(Group).filter_by(fqin=fullyQualifiedGroupName).one()
+        users=grp.groupusers
         return [e.info() for e in users]
 
     def groupsUserIsIn(self, currentuser, userwanted):
@@ -98,40 +109,53 @@ class Whosdb(Database):
         return [e.info() for e in groups]
 
     #EVEN MORE DERIVED
+    #who runs this?
     def addUserToApp(self, currentuser, fullyQualifiedAppName, usertobeadded, authspec):
-        app=self.session.query(Application).filter_by(fqin=fullyQualifiedAppName)
-        usertobeadded.applicationsin.append(app[0])
+        app=self.session.query(Application).filter_by(fqin=fullyQualifiedAppName).one()
+        usertobeadded.applicationsin.append(app)
+        return OK
+
+    #and who runs this?
+    def inviteUserToApp(self, currentuser, fullyQualifiedAppName, usertobeadded, authspec):
+        app=self.session.query(Application).filter_by(fqin=fullyQualifiedAppName).one()
+        usertobeadded.applicationsinvitedto.append(app)
+        return OK
+
+    def acceptInviteToApp(self, currentuser, fullyQualifiedAppName, usertobeadded, authspec):
+        app=self.session.query(Application).filter_by(fqin=fullyQualifiedAppName).one()
+        if app in usertobeadded.applicationsinvitedto:
+            usertobeadded.applicationsin.append(app)
         return OK
 
     def removeUserFromApp(self, currentuser, fullyQualifiedAppName, usertoberemoved):
-        app=self.session.query(Application).filter_by(fqin=fullyQualifiedAppName)
-        usertoberemoved.applicationsin.remove(app[0])
+        app=self.session.query(Application).filter_by(fqin=fullyQualifiedAppName).one()
+        usertoberemoved.applicationsin.remove(app)
         return OK
 
     #How are these implemented: a route? And, what is this?
     def addGroupToApp(self, currentuser, fullyQualifiedAppName, fullyQualifiedGroupName, authspec):
-        app=self.session.query(Application).filter_by(fqin=fullyQualifiedAppName)
-        grp=self.session.query(Group).filter_by(fqin=fullyQualifiedGroupName)
-        grp[0].applicationsin.append(app[0])
+        app=self.session.query(Application).filter_by(fqin=fullyQualifiedAppName).one()
+        grp=self.session.query(Group).filter_by(fqin=fullyQualifiedGroupName).one()
+        grp.applicationsin.append(app)
         #pubsub must add the individual users
         return OK
 
     def removeGroupFromApp(self, currentuser, fullyQualifiedAppName, fullyQualifiedGroupName):
-        app=self.session.query(Application).filter_by(fqin=fullyQualifiedAppName)
-        grp=self.session.query(Group).filter_by(fqin=fullyQualifiedGroupName)
-        grp[0].applicationsin.remove(app[0])
+        app=self.session.query(Application).filter_by(fqin=fullyQualifiedAppName).one()
+        grp=self.session.query(Group).filter_by(fqin=fullyQualifiedGroupName).one()
+        grp.applicationsin.remove(app)
         #pubsub depending on what we want to do to delete
         return OK
 
 
     def usersInApp(self, currentuser, fullyQualifiedAppName):
-        app=self.session.query(Group).filter_by(fqin=fullyQualifiedAppName)
-        users=app[0].applicationusers
+        app=self.session.query(Group).filter_by(fqin=fullyQualifiedAppName).one()
+        users=app.applicationusers
         return [e.info() for e in users]
 
     def groupsInApp(self, currentuser, fullyQualifiedAppName):
-        app=self.session.query(Application).filter_by(fqin=fullyQualifiedAppName)
-        groups=app[0].applicationgroups
+        app=self.session.query(Application).filter_by(fqin=fullyQualifiedAppName).one()
+        groups=app.applicationgroups
         return [e.info() for e in groups]
 
     def appsForUser(self, currentuser, userwanted):
@@ -178,6 +202,9 @@ class TestA(tbase.TBase):
         rahuldave.groupsin.append(rahuldavedefault)
         whosdb.addUserToApp(currentuser, 'ads/publications', rahuldave, None)
         #rahuldave.applicationsin.append(adspubsapp)
+
+        mlg=whosdb.addGroup(currentuser, dict(name='ml', creator=rahuldave))
+        rahuldave.groupsin.append(mlg)
         whosdb.commit()
         jayluker=whosdb.addUser(currentuser, dict(nick='jayluker', email="jluker@gmail.com"))
         whosdb.addUserToGroup(currentuser, 'adsgut/public', jayluker, None)
@@ -187,13 +214,17 @@ class TestA(tbase.TBase):
         whosdb.addUserToApp(currentuser, 'ads/publications', jayluker, None)
         #jayluker.applicationsin.append(adspubsapp)
         whosdb.commit()
+        whosdb.inviteUserToGroup(currentuser, 'rahuldave/ml', jayluker, None)
+        whosdb.commit()
+        whosdb.acceptInviteToGroup(currentuser, 'rahuldave/ml', jayluker, None)
         whosdb.addGroupToApp(currentuser, 'ads/publications', 'adsgut/public', None )
         #public.applicationsin.append(adspubsapp)
         rahuldavedefault.applicationsin.append(adspubsapp)
         whosdb.commit()
         print whosdb.allUsers(currentuser)
-        print whosdb.allGroups(currentuser)
+        print whosdb.allGroups(currentuser)#[this includes apps]
         print whosdb.usersInGroup(currentuser, 'adsgut/public')
+        print whosdb.usersInGroup(currentuser, 'rahuldave/ml')
         print whosdb.usersInApp(currentuser, 'ads/publications')
         print whosdb.groupsInApp(currentuser, 'ads/publications')
         print adspubsapp.applicationgroups.all()
