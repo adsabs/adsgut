@@ -187,7 +187,8 @@ class Group(Tag):
     owner_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     lastupdated = Column(DateTime, server_default=text(THENOW))
     owner = relationship('User', primaryjoin='Group.owner_id == User.id', backref=backref('groupsowned', lazy='dynamic'))
-    
+    existence_public = Column(Boolean, default=False)
+
     def __repr__(self):
         return "<Grp:%s,%s>" % (self.owner.nick, self.fqin)
 

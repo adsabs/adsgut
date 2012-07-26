@@ -21,6 +21,15 @@ def validatespec(specdict, spectype):
 
 class Whosdb(dbase.Database):
 
+    def getUserForNick(self, nick):
+        user=self.session.query(User).filter_by(nick=nick).one()
+        return user
+
+    def getUserInfo(self, userwantednick):
+        user=self.session.query(User).filter_by(nick=userwantednick).one()
+        return user.info()
+
+
     def addUser(self, currentuser, userspec):
         vspec=validatespec(userspec, "user")
         #print vspec
@@ -28,8 +37,8 @@ class Whosdb(dbase.Database):
         self.session.add(newuser)
         return newuser
 
-    def removeUser(self, currentuser, usertoberemovedemail):
-        remuser=session.query(User).filter_by(email=usertoberemovedemail)
+    def removeUser(self, currentuser, usertoberemovednick):
+        remuser=session.query(User).filter_by(nick=usertoberemovednick).one()
         self.session.delete(remuser)
         return OK
 
@@ -100,14 +109,7 @@ class Whosdb(dbase.Database):
         users=self.session.query(Group).all()
         return [e.info() for e in users]
 
-    def usersInGroup(self, currentuser, fullyQualifiedGroupName):
-        grp=self.session.query(Group).filter_by(fqin=fullyQualifiedGroupName).one()
-        users=grp.groupusers
-        return [e.info() for e in users]
 
-    def groupsUserIsIn(self, currentuser, userwanted):
-        groups=userwanted.groupsin
-        return [e.info() for e in groups]
 
     #EVEN MORE DERIVED
     #who runs this?
@@ -172,6 +174,22 @@ class Whosdb(dbase.Database):
         return [e.info() for e in applications]
 
 
+    def usersInGroup(self, currentuser, fullyQualifiedGroupName):
+        grp=self.session.query(Group).filter_by(fqin=fullyQualifiedGroupName).one()
+        users=grp.groupusers
+        return [e.info() for e in users]
+
+    def groupsForUser(self, currentuser, userwanted):
+        groups=userwanted.groupsin
+        return [e.info() for e in groups]
+
+    def groupInvitationsForUser(self, currentuser, userwanted):
+        groups=userwanted.groupsinvitedto
+        return [e.info() for e in groups]
+
+    def appInvitationsForUser(self, currentuser, userwanted):
+        apps=userwanted.applicationsinvitedto
+        return [e.info() for e in apps]
 #BUG: why cant arguments be specified via destructuring as in coffeescript
     
 
