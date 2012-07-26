@@ -1,11 +1,9 @@
 #sqlalchemy setup
-
-import sqlalchemy
-from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, backref, sessionmaker, mapper
 from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, Table, text
-DaBase = declarative_base()
+from dbase import DaBase
+#DaBase = declarative_base()
 
 #redis setup
 
@@ -214,17 +212,10 @@ Group.applicationsin = relationship('Application', secondary=GroupApplication,
                             primaryjoin=GroupApplication.c.group_id == Group.group_id,
                             secondaryjoin=GroupApplication.c.application_id == Application.application_id,
                             backref=backref('applicationgroups', lazy='dynamic'))
-class Database:
-
-    def __init__(self, session):
-        self.session = session
-
-    def commit(self):
-        self.session.commit()
-
 
 
 if __name__=="__main__":
+    from sqlalchemy import create_engine
     engine = create_engine('sqlite:///:memory:', echo=False)
     Session = sessionmaker(bind=engine)
     session = Session()

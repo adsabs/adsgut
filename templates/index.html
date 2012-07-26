@@ -1,0 +1,13 @@
+{% extends "layout.html" %}
+{% block body %}
+  {% if session.logged_in %}
+    Hi, {{session.username}}
+  {% endif %}
+  <ul class=entries>
+  {% for user in users %}
+    <li><h2>{{ user.name }}</h2>
+  {% else %}
+    <li><em>Unbelievable.  No users here so far</em>
+  {% endfor %}
+  </ul>
+{% endblock %}

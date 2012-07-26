@@ -1,6 +1,7 @@
 #managing users, groups, and applications
 from classes import *
 import tbase
+import dbase
 #wont worry about permissions right now
 #wont worry about cascade deletion right now either.
 #what about permissions? MUCH LATER
@@ -18,7 +19,7 @@ def validatespec(specdict, spectype):
         specdict['fqin']=specdict['creator'].nick+"/"+specdict['name']
     return specdict
 
-class Whosdb(Database):
+class Whosdb(dbase.Database):
 
     def addUser(self, currentuser, userspec):
         vspec=validatespec(userspec, "user")

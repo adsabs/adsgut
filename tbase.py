@@ -1,8 +1,10 @@
+from sqlalchemy import create_engine
+from sqlalchemy.orm import scoped_session, sessionmaker
 import classes
 class TBase:   
     def setup(self):
-        engine = classes.create_engine('sqlite:///:memory:', echo=False)
-        Session = classes.sessionmaker(bind=engine)
+        engine = create_engine('sqlite:///:memory:', echo=False)
+        Session = sessionmaker(bind=engine)
         self.session = Session()
         # You probably need to create some tables and 
         # load some test data, do so here.
