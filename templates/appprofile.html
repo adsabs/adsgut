@@ -1,0 +1,16 @@
+{% extends "layout.html" %}
+{% block body %}
+	<h2>App {{theapp.fqan}}</h2>
+    <h3>App Info</h3>
+  <iframe src="/app/{{ theapp.fqan}}"></iframe>
+  <hr/>
+  <h3>Users</h3>
+    <h5>Users In</h5>
+  <iframe src="/app/{{ theapp.fqan}}/users"></iframe>
+  <hr/>
+  <h3>Groups</h3>
+  	<h5>Groups In</h5>
+  <iframe src="/app/{{ theapp.fqan}}/groups"></iframe>
+  
+  
+{% endblock %}

@@ -21,13 +21,21 @@ def validatespec(specdict, spectype):
 
 class Whosdb(dbase.Database):
 
-    def getUserForNick(self, nick):
+    def getUserForNick(self, currentuser, nick):
         user=self.session.query(User).filter_by(nick=nick).one()
         return user
 
-    def getUserInfo(self, userwantednick):
+    def getUserInfo(self, currentuser, userwantednick):
         user=self.session.query(User).filter_by(nick=userwantednick).one()
         return user.info()
+
+    def getGroupInfo(self, currentuser, fullyQualifiedGroupName):
+        group=self.session.query(Group).filter_by(fqin=fullyQualifiedGroupName).one()
+        return group.info()
+
+    def getAppInfo(self, currentuser, fullyQualifiedAppName):
+        app=self.session.query(Application).filter_by(fqin=fullyQualifiedAppName).one()
+        return app.info()
 
 
     def addUser(self, currentuser, userspec):
@@ -106,8 +114,12 @@ class Whosdb(dbase.Database):
         return [e.info() for e in users]
 
     def allGroups(self, currentuser):
-        users=self.session.query(Group).all()
-        return [e.info() for e in users]
+        groups=self.session.query(Group).all()
+        return [e.info() for e in groups]
+
+    def allApps(self, currentuser):
+        apps=self.session.query(Application).all()
+        return [e.info() for e in apps]
 
 
 

@@ -1,0 +1,22 @@
+{% extends "layout.html" %}
+{% block body %}
+    <h2>User {{theuser.nick}}</h2>
+    <h3>User Info</h3>
+  <iframe src="/user/{{ theuser.nick}}"></iframe>
+  <hr/>
+  <h3>Groups</h3>
+    <h5>Groups In</h5>
+  <iframe src="/user/{{ theuser.nick}}/groupsin"></iframe>
+    <h5>Groups Owned</h5>
+  <iframe src="/user/{{ theuser.nick}}/groupsowned"></iframe>
+    <h5>Groups Invited</h5>
+  <iframe src="/user/{{ theuser.nick}}/groupsinvited"></iframe>
+  <hr/>
+  <h3>Apps</h3>
+    <h5>Apps In</h5>
+  <iframe src="/user/{{ theuser.nick}}/appsin"></iframe>
+    <h5>Apps Owned</h5>
+  <iframe src="/user/{{ theuser.nick}}/appsowned"></iframe>
+    <h5>Apps Invited</h5>
+  <iframe src="/user/{{ theuser.nick}}/appsinvited"></iframe>
+{% endblock %}

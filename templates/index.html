@@ -1,13 +1,28 @@
 {% extends "layout.html" %}
 {% block body %}
-  {% if session.logged_in %}
-    Hi, {{session.username}}
-  {% endif %}
+  <hr/><h2>Users</h2><hr/>
   <ul class=entries>
   {% for user in users %}
-    <li><h2>{{ user.name }}</h2>
+    <li><a href="/user/{{ user.nick }}/profile/html">{{user.nick}}</a>
   {% else %}
     <li><em>Unbelievable.  No users here so far</em>
+  {% endfor %}
+  </ul>
+  <hr/><h2>Groups</h2><hr/>
+  <ul class=entries>
+  {% for group in groups %}
+    <li><a href="/group/{{ group.fqgn }}/profile/html">{{group.fqgn}}</a>: {{group.description}}
+  {% else %}
+    <li><em>Unbelievable.  No groups here so far</em>
+  {% endfor %}
+  </ul>
+  <hr/><h2>Apps</h2><hr/>
+  <ul class=entries>
+  {% for app in apps %}
+    <li><a href="/app/{{ app.fqan }}/profile/html">{{app.fqan}}</a>: 
+      {{app.description}}
+  {% else %}
+    <li><em>Unbelievable.  No apps here so far</em>
   {% endfor %}
   </ul>
 {% endblock %}

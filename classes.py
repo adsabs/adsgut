@@ -87,7 +87,7 @@ class User(DaBase):
         return "<User:%s:%s>" % (self.nick, self.email)
 
     def info(self):
-        return {'name': self.nick}
+        return {'name': self.name, 'nick': self.nick}
 
 class ItemType(DaBase):
     __tablename__='itemtypes'
@@ -119,7 +119,7 @@ class Item(DaBase):
     creator_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     creator = relationship('User', backref=backref('itemscreated', lazy='dynamic'))
     name = Column(String, nullable=False)#this is the main text, eg for article, it could be title.
-    #make it seful, make it searchable.
+    #make it useful, make it searchable.
     fqin = Column(String, unique=True, nullable=False)
     uri = Column(String, unique=True)
     metajson = Column(Text)
@@ -147,7 +147,9 @@ class Tag(Item):
     tagtype_id = Column(Integer, ForeignKey('tagtypes.tagtype_id'))
     tagtype = relationship('TagType', backref=backref('tagsofthistype', lazy='dynamic'))
     #is above redundant with itemtype?
-    tagtext = Column(Text)
+    #Description is the tagtext. along with the name, the description (arguments etc)
+    #form the complete tag: tagtype:name, description
+    description = Column(Text)
     taggeditem=relationship("Item", primaryjoin=taggeditem_id == Item.id, 
         backref=backref('tags', lazy='dynamic'))
     groupsin = relationship('Group', secondary=TagGroup,
@@ -194,7 +196,7 @@ class Group(Tag):
 
     def info(self):
         #should return fully qualified name instead
-        return {'name': self.name, 'owner': self.owner.nick}
+        return {'name': self.name, 'description': self.description, 'owner': self.owner.nick, 'fqgn': self.fqin, 'creator': self.creator.nick, 'whencreated': self.whencreated.strftime("%Y-%m-%d %H:%M:%S")}
 
 class Application(Group):
     __tablename__='applications'
@@ -209,7 +211,7 @@ class Application(Group):
         return "<App:%s,%s>" % (self.owner.nick, self.fqin)
 
     def info(self):
-        return {'name': self.name, 'owner':self.owner.nick}
+        return {'name': self.name, 'description': self.description, 'owner': self.owner.nick, 'fqan': self.fqin, 'creator': self.creator.nick, 'whencreated': self.whencreated.strftime("%Y-%m-%d %H:%M:%S")}
 
 Group.applicationsin = relationship('Application', secondary=GroupApplication, 
                             primaryjoin=GroupApplication.c.group_id == Group.group_id,

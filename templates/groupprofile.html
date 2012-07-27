@@ -1,0 +1,13 @@
+{% extends "layout.html" %}
+{% block body %}
+	<h2>Group {{thegroup.fqgn}}</h2>
+    <h3>Group Info</h3>
+  <iframe src="/group/{{ thegroup.fqgn}}"></iframe>
+  <hr/>
+  <h3>Users</h3>
+    <h5>Users In</h5>
+  <iframe src="/group/{{ thegroup.fqgn}}/users"></iframe>
+  <hr/>
+  <h3>Apps belonged to</h3>
+  
+{% endblock %}

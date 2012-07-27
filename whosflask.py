@@ -7,10 +7,10 @@ def initialize_application():
     init_db()
     currentuser=None
     whosdb=whos.Whosdb(db_session)
-    adsgutuser=whosdb.addUser(currentuser, dict(nick='adsgut', email='adsgut@adslabs.org'))
+    adsgutuser=whosdb.addUser(currentuser, dict(nick='adsgut', name="ADS GUT", email='adsgut@adslabs.org'))
     currentuser=adsgutuser
     adsgutdefault=whosdb.addGroup(currentuser, dict(name='default', creator=adsgutuser))
-    public=whosdb.addGroup(currentuser, dict(name='public', creator=adsgutuser))
+    public=whosdb.addGroup(currentuser, dict(name='public', description="The Public", creator=adsgutuser))
     whosdb.commit()
     #adsgutuser=User(name='adsgut', email='adsgut@adslabs.org')
     adsuser=whosdb.addUser(currentuser, dict(nick='ads', email='ads@adslabs.org'))
@@ -18,7 +18,7 @@ def initialize_application():
     #adsuser=User(name='ads', email='ads@adslabs.org')
     whosdb.commit()
     
-    adspubsapp=whosdb.addApp(currentuser, dict(name='publications', creator=adsuser))
+    adspubsapp=whosdb.addApp(currentuser, dict(name='publications', description="ADS's flagship publication app", creator=adsuser))
     whosdb.commit()
 
     rahuldave=whosdb.addUser(currentuser, dict(nick='rahuldave', email="rahuldave@gmail.com"))
@@ -29,7 +29,7 @@ def initialize_application():
     whosdb.addUserToApp(currentuser, 'ads/publications', rahuldave, None)
     #rahuldave.applicationsin.append(adspubsapp)
 
-    mlg=whosdb.addGroup(currentuser, dict(name='ml', creator=rahuldave))
+    mlg=whosdb.addGroup(currentuser, dict(name='ml', description="Machine Learning Group", creator=rahuldave))
     rahuldave.groupsin.append(mlg)
     whosdb.commit()
     jayluker=whosdb.addUser(currentuser, dict(nick='jayluker', email="jluker@gmail.com"))
@@ -56,7 +56,7 @@ app = Flask(__name__)
 def before_request():
         g.db=whos.Whosdb(db_session)
         if session.has_key('username'):
-            g.currentuser=g.db.getUserForNick(session.username)
+            g.currentuser=g.db.getUserForNick(None, session['username'])
         else:
             g.currentuser=None
 
@@ -69,8 +69,8 @@ def shutdown_session(exception=None):
 #SCHEDULE COMMITS SEPARATELY..really commits not a property of whosdb
 @app.route('/')
 def index():
-    start='<a href="/login">Login</a><br/>'
-    return render_template('index.html', users=g.db.allUsers(None))
+    return render_template('index.html', users=g.db.allUsers(g.currentuser), 
+        groups=g.db.allGroups(g.currentuser), apps=g.db.allApps(g.currentuser))
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -95,50 +95,52 @@ def logout():
 #GET for info
 @app.route('/user/<nick>')
 def douser(nick):
-    userinfo=g.db.getUserInfo(nick)
+    userinfo=g.db.getUserInfo(g.currentuser, nick)
     return jsonify(**userinfo)
 
 @app.route('/user/<nick>/profile/html')
 def profile(nick):
-    pass
+    userinfo=g.db.getUserInfo(g.currentuser, nick)
+    return render_template('userprofile.html', theuser=userinfo)
 
 @app.route('/user/<nick>/groupsin')
 def groupsin(nick):
-    user=g.db.getUserForNick(nick)
+    user=g.db.getUserForNick(g.currentuser, nick)
     groups=g.db.groupsForUser(g.currentuser, user)
     return jsonify({'groups':groups})
 
 @app.route('/user/<nick>/groupsowned')
 def groupsowned(nick):
-    user=g.db.getUserForNick(nick)
+    user=g.db.getUserForNick(g.currentuser, nick)
     groups=g.db.ownerOfGroups(g.currentuser, user)
     return jsonify({'groups':groups})
 
 @app.route('/user/<nick>/groupsinvited')
 def groupsinvited(nick):
-    user=g.db.getUserForNick(nick)
+    user=g.db.getUserForNick(g.currentuser, nick)
     groups=g.db.groupInvitationsForUser(g.currentuser, user)
     return jsonify({'groups':groups})
 
 @app.route('/user/<nick>/appsin')
 def appsin(nick):
-    user=g.db.getUserForNick(nick)
+    user=g.db.getUserForNick(g.currentuser, nick)
     apps=g.db.appsForUser(g.currentuser, user)
     return jsonify({'apps':apps})
 
 @app.route('/user/<nick>/appsowned')
 def appsowned(nick):
-    user=g.db.getUserForNick(nick)
+    user=g.db.getUserForNick(g.currentuser, nick)
     apps=g.db.ownerOfApps(g.currentuser, user)
     return jsonify({'apps':apps})
 
 #use this for the email invitation?
 @app.route('/user/<nick>/appsinvited')
 def appsinvited(nick):
-    user=g.db.getUserForNick(nick)
+    user=g.db.getUserForNick(g.currentuser, nick)
     apps=g.db.appInvitationsForUser(g.currentuser, user)
     return jsonify({'apps':apps})
 
+#POST/GET
 @app.route('/group/html')
 def creategroup():
     pass
@@ -147,12 +149,14 @@ def creategroup():
 @app.route('/group/<username>/<groupname>')
 def dogroup(username, groupname):
     fqgn = username+'/'+groupname
-    pass
+    groupinfo=g.db.getGroupInfo(g.currentuser, fqgn)
+    return jsonify(**groupinfo)
 
 @app.route('/group/<username>/<groupname>/profile/html')
 def group_profile(username, groupname):
     fqgn = username+'/'+groupname
-    pass
+    groupinfo=g.db.getGroupInfo(g.currentuser, fqgn)
+    return render_template('groupprofile.html', thegroup=groupinfo)
 
 @app.route('/group/<username>/<groupname>/users')
 def group_users(username, groupname):
@@ -160,6 +164,8 @@ def group_users(username, groupname):
     users=g.db.usersInGroup(g.currentuser,fqgn)
     return jsonify({'users':users})
 
+#TODO: do one for a groups apps
+#POST/GET
 @app.route('/app/html')
 def createapp():
     pass
@@ -167,11 +173,14 @@ def createapp():
 @app.route('/app/<username>/<appname>')
 def doapp(username, appname):
     fqan = username+'/'+appname
-    pass
+    appinfo=g.db.getAppInfo(g.currentuser, fqan)
+    return jsonify(**appinfo)
 
 @app.route('/app/<username>/<appname>/profile/html')
 def app_profile(username, appname):
-    pass
+    fqan = username+'/'+appname
+    appinfo=g.db.getAppInfo(g.currentuser, fqan)
+    return render_template('appprofile.html', theapp=appinfo)
 
 @app.route('/app/<username>/<appname>/users')
 def application_users(username, appname):
