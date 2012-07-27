@@ -1,7 +1,7 @@
 from dbase import db_session, init_db
 import whos
 from flask import Flask, request, session, g, redirect, url_for, \
-     abort, render_template, flash, escape, make_response
+     abort, render_template, flash, escape, make_response, jsonify
 
 def initialize_application():
     init_db()
@@ -96,7 +96,7 @@ def logout():
 @app.route('/user/<nick>')
 def douser(nick):
     userinfo=g.db.getUserInfo(nick)
-    return str(userinfo)
+    return jsonify(**userinfo)
 
 @app.route('/user/<nick>/profile/html')
 def profile(nick):
@@ -106,79 +106,85 @@ def profile(nick):
 def groupsin(nick):
     user=g.db.getUserForNick(nick)
     groups=g.db.groupsForUser(g.currentuser, user)
-    return groups
+    return jsonify({'groups':groups})
 
 @app.route('/user/<nick>/groupsowned')
 def groupsowned(nick):
     user=g.db.getUserForNick(nick)
     groups=g.db.ownerOfGroups(g.currentuser, user)
-    return groups
+    return jsonify({'groups':groups})
 
 @app.route('/user/<nick>/groupsinvited')
 def groupsinvited(nick):
     user=g.db.getUserForNick(nick)
     groups=g.db.groupInvitationsForUser(g.currentuser, user)
-    return groups
+    return jsonify({'groups':groups})
 
 @app.route('/user/<nick>/appsin')
 def appsin(nick):
     user=g.db.getUserForNick(nick)
     apps=g.db.appsForUser(g.currentuser, user)
-    return apps
+    return jsonify({'apps':apps})
 
 @app.route('/user/<nick>/appsowned')
 def appsowned(nick):
     user=g.db.getUserForNick(nick)
     apps=g.db.ownerOfApps(g.currentuser, user)
-    return apps
+    return jsonify({'apps':apps})
 
 #use this for the email invitation?
 @app.route('/user/<nick>/appsinvited')
 def appsinvited(nick):
     user=g.db.getUserForNick(nick)
     apps=g.db.appInvitationsForUser(g.currentuser, user)
-    return apps
+    return jsonify({'apps':apps})
 
 @app.route('/group/html')
 def creategroup():
     pass
 
 #get group info
-@app.route('/group/<fqgn>')
-def dogroup(fqgn):
+@app.route('/group/<username>/<groupname>')
+def dogroup(username, groupname):
+    fqgn = username+'/'+groupname
     pass
 
-@app.route('/group/<fqgn>/profile/html')
-def group_profile(fqgn):
+@app.route('/group/<username>/<groupname>/profile/html')
+def group_profile(username, groupname):
+    fqgn = username+'/'+groupname
     pass
 
-@app.route('/group/<fqgn>/users')
-def group_users(fqgn):
+@app.route('/group/<username>/<groupname>/users')
+def group_users(username, groupname):
+    fqgn = username+'/'+groupname
     users=g.db.usersInGroup(g.currentuser,fqgn)
-    return users
+    return jsonify({'users':users})
 
 @app.route('/app/html')
 def createapp():
     pass
 
-@app.route('/app/<fqan>')
-def doapp(fqan):
+@app.route('/app/<username>/<appname>')
+def doapp(username, appname):
+    fqan = username+'/'+appname
     pass
 
-@app.route('/app/<fqan>/profile/html')
-def app_profile(fqan):
+@app.route('/app/<username>/<appname>/profile/html')
+def app_profile(username, appname):
     pass
 
-@app.route('/app/<fqan>/users')
-def application_users(fqan):
+@app.route('/app/<username>/<appname>/users')
+def application_users(username, appname):
+    fqan = username+'/'+appname
     users=g.db.usersInApp(g.currentuser,fqan)
-    return users
+    return jsonify({'users':users})
 
 
-@app.route('/app/<fqan>/groups')
-def application_groups(fqan):
-    groups=g.db.usersInApp(g.currentuser,fqan)
-    return groups
+@app.route('/app/<username>/<appname>/groups')
+def application_groups(username, appname):
+    fqan = username+'/'+appname
+    groups=g.db.groupsInApp(g.currentuser,fqan)
+    return jsonify({'groups':groups})
 
 app.secret_key = 'A0Zr98j/3yX R~XHH!jmN]LWX/,?RT'
 

@@ -152,7 +152,7 @@ class Whosdb(dbase.Database):
 
 
     def usersInApp(self, currentuser, fullyQualifiedAppName):
-        app=self.session.query(Group).filter_by(fqin=fullyQualifiedAppName).one()
+        app=self.session.query(Application).filter_by(fqin=fullyQualifiedAppName).one()
         users=app.applicationusers
         return [e.info() for e in users]
 
@@ -167,6 +167,7 @@ class Whosdb(dbase.Database):
 
     def ownerOfGroups(self, currentuser, userwanted):
         groups=userwanted.groupsowned
+        print "GROUPS", groups
         return [e.info() for e in groups]
 
     def ownerOfApps(self, currentuser, userwanted):
@@ -247,4 +248,5 @@ class TestA(tbase.TBase):
         print whosdb.usersInApp(currentuser, 'ads/publications')
         print whosdb.groupsInApp(currentuser, 'ads/publications')
         print adspubsapp.applicationgroups.all()
+        print whosdb.groupsForUser(currentuser, rahuldave)
         whosdb.edu()

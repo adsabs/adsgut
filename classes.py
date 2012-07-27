@@ -201,6 +201,8 @@ class Application(Group):
     __mapper_args__ = {'polymorphic_identity': 'application', 'polymorphic_on': 'type'}
     application_id = Column(Integer, primary_key=True)
     group_id = Column(Integer, ForeignKey('groups.group_id'))
+    #Not sure what the effect of having the column down there is.
+    owner_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     owner = relationship('User', primaryjoin='Application.owner_id == User.id', backref=backref('appsowned', lazy='dynamic'))
 
     def __repr__(self):
