@@ -16,7 +16,7 @@ OK=200
 def validatespec(specdict, spectype):
     if spectype=='group' or spectype=='app':
         specdict['owner']=specdict['creator']
-        specdict['fqin']=specdict['creator'].nick+"/"+specdict['name']
+        specdict['fqin']=specdict['creator'].nick+"/"+spectype+":"+specdict['name']
     return specdict
 
 class Whosdb(dbase.Database):
@@ -49,7 +49,7 @@ class Whosdb(dbase.Database):
             newuser.systemuser=True          
             self.addGroup(currentuser, dict(name='public', description="Public Items", creator=newuser))
         else:
-            self.addUserToGroup(currentuser, 'adsgut/public', newuser, None)
+            self.addUserToGroup(currentuser, 'adsgut/group:public', newuser, None)
         return newuser
 
     def removeUser(self, currentuser, usertoberemovednick):

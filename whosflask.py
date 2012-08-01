@@ -19,19 +19,19 @@ def initialize_application():
     whosdb.commit()
 
     rahuldave=whosdb.addUser(currentuser, dict(nick='rahuldave', email="rahuldave@gmail.com"))
-    whosdb.addUserToApp(currentuser, 'ads/publications', rahuldave, None)
+    whosdb.addUserToApp(currentuser, 'ads/app:publications', rahuldave, None)
     #rahuldave.applicationsin.append(adspubsapp)
 
     mlg=whosdb.addGroup(currentuser, dict(name='ml', description="Machine Learning Group", creator=rahuldave))
     whosdb.commit()
     jayluker=whosdb.addUser(currentuser, dict(nick='jayluker', email="jluker@gmail.com"))
-    whosdb.addUserToApp(currentuser, 'ads/publications', jayluker, None)
+    whosdb.addUserToApp(currentuser, 'ads/app:publications', jayluker, None)
     #jayluker.applicationsin.append(adspubsapp)
     whosdb.commit()
-    whosdb.inviteUserToGroup(currentuser, 'rahuldave/ml', jayluker, None)
+    whosdb.inviteUserToGroup(currentuser, 'rahuldave/group:ml', jayluker, None)
     whosdb.commit()
-    whosdb.acceptInviteToGroup(currentuser, 'rahuldave/ml', jayluker, None)
-    whosdb.addGroupToApp(currentuser, 'ads/publications', 'adsgut/public', None )
+    whosdb.acceptInviteToGroup(currentuser, 'rahuldave/group:ml', jayluker, None)
+    whosdb.addGroupToApp(currentuser, 'ads/app:publications', 'adsgut/group:public', None )
     #public.applicationsin.append(adspubsapp)
     #rahuldavedefault.applicationsin.append(adspubsapp)
     whosdb.commit()
@@ -135,21 +135,21 @@ def creategroup():
     pass
 
 #get group info
-@app.route('/group/<username>/<groupname>')
+@app.route('/group/<username>/group:<groupname>')
 def dogroup(username, groupname):
-    fqgn = username+'/'+groupname
+    fqgn = username+'/group:'+groupname
     groupinfo=g.db.getGroupInfo(g.currentuser, fqgn)
     return jsonify(**groupinfo)
 
-@app.route('/group/<username>/<groupname>/profile/html')
+@app.route('/group/<username>/group:<groupname>/profile/html')
 def group_profile(username, groupname):
-    fqgn = username+'/'+groupname
+    fqgn = username+'/group:'+groupname
     groupinfo=g.db.getGroupInfo(g.currentuser, fqgn)
     return render_template('groupprofile.html', thegroup=groupinfo)
 
-@app.route('/group/<username>/<groupname>/users')
+@app.route('/group/<username>/group:<groupname>/users')
 def group_users(username, groupname):
-    fqgn = username+'/'+groupname
+    fqgn = username+'/group:'+groupname
     users=g.db.usersInGroup(g.currentuser,fqgn)
     return jsonify({'users':users})
 
@@ -159,28 +159,28 @@ def group_users(username, groupname):
 def createapp():
     pass
 
-@app.route('/app/<username>/<appname>')
+@app.route('/app/<username>/app:<appname>')
 def doapp(username, appname):
-    fqan = username+'/'+appname
+    fqan = username+'/app:'+appname
     appinfo=g.db.getAppInfo(g.currentuser, fqan)
     return jsonify(**appinfo)
 
-@app.route('/app/<username>/<appname>/profile/html')
+@app.route('/app/<username>/app:<appname>/profile/html')
 def app_profile(username, appname):
-    fqan = username+'/'+appname
+    fqan = username+'/app:'+appname
     appinfo=g.db.getAppInfo(g.currentuser, fqan)
     return render_template('appprofile.html', theapp=appinfo)
 
-@app.route('/app/<username>/<appname>/users')
+@app.route('/app/<username>/app:<appname>/users')
 def application_users(username, appname):
-    fqan = username+'/'+appname
+    fqan = username+'/app:'+appname
     users=g.db.usersInApp(g.currentuser,fqan)
     return jsonify({'users':users})
 
 
-@app.route('/app/<username>/<appname>/groups')
+@app.route('/app/<username>/app:<appname>/groups')
 def application_groups(username, appname):
-    fqan = username+'/'+appname
+    fqan = username+'/app:'+appname
     groups=g.db.groupsInApp(g.currentuser,fqan)
     return jsonify({'groups':groups})
 
