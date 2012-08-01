@@ -9,12 +9,9 @@ def initialize_application():
     whosdb=whos.Whosdb(db_session)
     adsgutuser=whosdb.addUser(currentuser, dict(nick='adsgut', name="ADS GUT", email='adsgut@adslabs.org'))
     currentuser=adsgutuser
-    adsgutdefault=whosdb.addGroup(currentuser, dict(name='default', creator=adsgutuser))
-    public=whosdb.addGroup(currentuser, dict(name='public', description="The Public", creator=adsgutuser))
     whosdb.commit()
     #adsgutuser=User(name='adsgut', email='adsgut@adslabs.org')
     adsuser=whosdb.addUser(currentuser, dict(nick='ads', email='ads@adslabs.org'))
-    adsdefault=whosdb.addGroup(currentuser, dict(name='default', creator=adsuser))
     #adsuser=User(name='ads', email='ads@adslabs.org')
     whosdb.commit()
     
@@ -22,21 +19,12 @@ def initialize_application():
     whosdb.commit()
 
     rahuldave=whosdb.addUser(currentuser, dict(nick='rahuldave', email="rahuldave@gmail.com"))
-    whosdb.addUserToGroup(currentuser, 'adsgut/public', rahuldave, None)
-    #rahuldave.groupsin.append(public)
-    rahuldavedefault=whosdb.addGroup(currentuser, dict(name='default', creator=rahuldave))
-    rahuldave.groupsin.append(rahuldavedefault)
     whosdb.addUserToApp(currentuser, 'ads/publications', rahuldave, None)
     #rahuldave.applicationsin.append(adspubsapp)
 
     mlg=whosdb.addGroup(currentuser, dict(name='ml', description="Machine Learning Group", creator=rahuldave))
-    rahuldave.groupsin.append(mlg)
     whosdb.commit()
     jayluker=whosdb.addUser(currentuser, dict(nick='jayluker', email="jluker@gmail.com"))
-    whosdb.addUserToGroup(currentuser, 'adsgut/public', jayluker, None)
-    #jayluker.groupsin.append(public)
-    jaylukerdefault=whosdb.addGroup(currentuser, dict(name='default', creator=jayluker))
-    jayluker.groupsin.append(jaylukerdefault)
     whosdb.addUserToApp(currentuser, 'ads/publications', jayluker, None)
     #jayluker.applicationsin.append(adspubsapp)
     whosdb.commit()
@@ -45,7 +33,7 @@ def initialize_application():
     whosdb.acceptInviteToGroup(currentuser, 'rahuldave/ml', jayluker, None)
     whosdb.addGroupToApp(currentuser, 'ads/publications', 'adsgut/public', None )
     #public.applicationsin.append(adspubsapp)
-    rahuldavedefault.applicationsin.append(adspubsapp)
+    #rahuldavedefault.applicationsin.append(adspubsapp)
     whosdb.commit()
 
 app = Flask(__name__)

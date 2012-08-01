@@ -43,6 +43,12 @@ class Whosdb(dbase.Database):
         #print vspec
         newuser=User(**vspec)
         self.session.add(newuser)
+        #Also add user to private default group and public group
+        self.addGroup(currentuser, dict(name='default', creator=newuser))
+        if newuser.nick == 'adsgut':            
+            self.addGroup(currentuser, dict(name='public', creator=newuser))
+        else:
+            self.addUserToGroup(currentuser, 'adsgut/public', newuser, None)
         return newuser
 
     def removeUser(self, currentuser, usertoberemovednick):
@@ -53,6 +59,9 @@ class Whosdb(dbase.Database):
     def addGroup(self, currentuser, groupspec):
         newgroup=Group(**validatespec(groupspec, "group"))
         self.session.add(newgroup)
+        self.commit()#needed as in addUserToGroup you do a full lookup
+        print newgroup.fqin, newgroup.creator.info(), '<<<<<<'
+        self.addUserToGroup(currentuser, newgroup.fqin, newgroup.creator, None)
         return newgroup
 
     def removeGroup(self,currentuser, fullyQualifiedGroupName):
@@ -66,6 +75,8 @@ class Whosdb(dbase.Database):
     def addApp(self, currentuser, appspec):
         newapp=Application(**validatespec(appspec, "app"))
         self.session.add(newapp)
+        self.commit()#needed due to full lookup in addUserToApp
+        self.addUserToApp(currentuser, newapp.fqin, newapp.creator, None)
         return newapp
 
     def removeApp(self,currentuser, fullyQualifiedAppName):
