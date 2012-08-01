@@ -35,6 +35,7 @@ def initialize_application():
     #public.applicationsin.append(adspubsapp)
     #rahuldavedefault.applicationsin.append(adspubsapp)
     whosdb.commit()
+    print "=====", mlg.appgroup, adspubsapp.appgroup
 
 app = Flask(__name__)
 

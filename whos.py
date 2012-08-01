@@ -44,9 +44,10 @@ class Whosdb(dbase.Database):
         newuser=User(**vspec)
         self.session.add(newuser)
         #Also add user to private default group and public group
-        self.addGroup(currentuser, dict(name='default', creator=newuser))
-        if newuser.nick == 'adsgut':            
-            self.addGroup(currentuser, dict(name='public', creator=newuser))
+        self.addGroup(currentuser, dict(name='default', creator=newuser, personalgroup=True))
+        if newuser.nick == 'adsgut':
+            newuser.systemuser=True          
+            self.addGroup(currentuser, dict(name='public', description="Public Items", creator=newuser))
         else:
             self.addUserToGroup(currentuser, 'adsgut/public', newuser, None)
         return newuser
@@ -60,7 +61,7 @@ class Whosdb(dbase.Database):
         newgroup=Group(**validatespec(groupspec, "group"))
         self.session.add(newgroup)
         self.commit()#needed as in addUserToGroup you do a full lookup
-        print newgroup.fqin, newgroup.creator.info(), '<<<<<<'
+        #print newgroup.fqin, newgroup.creator.info(), '<<<<<<'
         self.addUserToGroup(currentuser, newgroup.fqin, newgroup.creator, None)
         return newgroup
 
@@ -73,6 +74,7 @@ class Whosdb(dbase.Database):
         return OK
 
     def addApp(self, currentuser, appspec):
+        appspec['appgroup']=True
         newapp=Application(**validatespec(appspec, "app"))
         self.session.add(newapp)
         self.commit()#needed due to full lookup in addUserToApp
@@ -121,15 +123,15 @@ class Whosdb(dbase.Database):
     #INFORMATIONAL
 
     def allUsers(self, currentuser):
-        users=self.session.query(User).all()
+        users=self.session.query(User).filter_by(systemuser=False).all()
         return [e.info() for e in users]
 
     def allGroups(self, currentuser):
-        groups=self.session.query(Group).all()
+        groups=self.session.query(Group).filter_by(appgroup=False, personalgroup=False).all()
         return [e.info() for e in groups]
 
     def allApps(self, currentuser):
-        apps=self.session.query(Application).all()
+        apps=self.session.query(Application).filter_by(appgroup=True).all()
         return [e.info() for e in apps]
 
 
@@ -190,7 +192,7 @@ class Whosdb(dbase.Database):
 
     def ownerOfGroups(self, currentuser, userwanted):
         groups=userwanted.groupsowned
-        print "GROUPS", groups
+        #print "GROUPS", groups
         return [e.info() for e in groups]
 
     def ownerOfApps(self, currentuser, userwanted):

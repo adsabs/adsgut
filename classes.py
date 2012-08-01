@@ -75,6 +75,7 @@ class User(DaBase):
     password = Column(String)
     nick = Column(String, unique=True, nullable=False)#expect unique
     email = Column(String, unique=True, nullable=False)#expect unique
+    systemuser = Column(Boolean, default=False)
     groupsin = relationship('Group', secondary=UserGroup,
                             backref=backref('groupusers', lazy='dynamic'))
     groupsinvitedto = relationship('Group', secondary=InvitationGroup,
@@ -190,6 +191,8 @@ class Group(Tag):
     lastupdated = Column(DateTime, server_default=text(THENOW))
     owner = relationship('User', primaryjoin='Group.owner_id == User.id', backref=backref('groupsowned', lazy='dynamic'))
     existence_public = Column(Boolean, default=False)
+    personalgroup = Column(Boolean, default=False)
+    appgroup = Column(Boolean, default=False)
 
     def __repr__(self):
         return "<Grp:%s,%s>" % (self.owner.nick, self.fqin)
@@ -205,6 +208,7 @@ class Application(Group):
     group_id = Column(Integer, ForeignKey('groups.group_id'))
     #Not sure what the effect of having the column down there is.
     owner_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    #WONDER HOW BELOW WORKS. IF IT DOES
     owner = relationship('User', primaryjoin='Application.owner_id == User.id', backref=backref('appsowned', lazy='dynamic'))
 
     def __repr__(self):
