@@ -1,0 +1,98 @@
+<!doctype html>
+<html>
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <title>ADS POAL</title>
+
+    <link rel="stylesheet" type="text/css" href="external/bootstrap/css/bootstrap.min.css">
+    <link rel="stylesheet" type="text/css" href="css/search-engine.css">
+    <script type="text/javascript" src="external/underscore-min.js"></script>
+    <script src="external/jquery/jquery-1.7.2.min.js"></script>
+    <script src="external/jquery-ui-bootstrap/js/jquery-ui-1.8.16.custom.min.js"></script>
+    <!--script src="external/d3/d3.v2.min.js"></script-->
+    <link rel="stylesheet" type="text/css" href="external/jquery-ui-bootstrap/css/custom-theme/jquery-ui-1.8.16.custom.css" />
+    <script type="text/javascript" src="external/bootstrap/js/bootstrap.min.js"></script>
+    <script type="text/javascript" src="external/sprintf.js"></script>
+    <script type="text/javascript" src="ajax-solr/core/Core.js"></script>
+    <script type="text/javascript" src="ajax-solr/core/AbstractManager.js"></script>
+    <script type="text/javascript" src="ajax-solr/managers/Manager.jquery.js"></script>
+    <script type="text/javascript" src="ajax-solr/core/Parameter.js"></script>
+    <script type="text/javascript" src="ajax-solr/core/ParameterStore.js"></script>
+    <script type="text/javascript" src="ajax-solr/core/ParameterHashStore.js"></script>
+    <script type="text/javascript" src="js/ExtHashStore.js"></script>
+    <script type="text/javascript" src="ajax-solr/core/AbstractWidget.js"></script>
+    <script type="text/javascript" src="widgets/ResultWidget.js"></script>
+    <script type="text/javascript" src="ajax-solr/helpers/jquery/ajaxsolr.theme.js"></script>
+    <script type="text/javascript" src="js/poal.theme.js"></script>
+    <script type="text/javascript" src="js/jquery.livequery.js"></script>
+    <script type="text/javascript" src="widgets/PagerWidget.js"></script>
+    <script type="text/javascript" src="ajax-solr/core/AbstractFacetWidget.js"></script>
+    <script type="text/javascript" src="widgets/CurrentSearchWidget.js"></script>
+    <script type="text/javascript" src="ajax-solr/helpers/ajaxsolr.support.js"></script>
+    <script type="text/javascript" src="ajax-solr/helpers/ajaxsolr.theme.js"></script>
+    <!--script type="text/javascript" src="ext/jquery-ui-1.8.1.custom.min.js"></script-->
+    <link rel="stylesheet" type="text/css" href="external/jquery.autocomplete.css" media="screen"/>
+    <script type="text/javascript" src="external/jquery.autocomplete.js"></script>
+    <script type="text/javascript" src="widgets/AutocompleteWidget.js"></script>
+    <script type="text/javascript" src="widgets/TagcloudWidget.js"></script>
+    <script type="text/javascript" src="js/poal.js"></script>
+
+</head>
+<body>
+    <div class="navbar navbar-fixed-top">
+        <div class="navbar-inner">
+            <div class="container-fluid">
+                <a class="brand logo" href="#" style="padding: 5px; padding-left: 40px;">
+                    <img src="images/adslogo_labs.jpg" alt="" height="40" width="133" />
+                </a>
+                <form id="search" class="form-search search-fixed">
+                    <input type="text" id="query" class="input-medium search-query search-input">
+                    <button type="submit" class="btn">Search</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="container-fluid">
+        <div class="row-fluid row">
+            <div class="span4">
+                <div class="sidebar-nav">
+                    <ul class="nav nav-list">
+                        <li class="nav-header">Author</li>
+                        <div class="tagcloud" id="author_facet"></div>
+                        <li><br/></li>
+                        <li class="nav-header">Keyword</li>
+                        <div class="tagcloud" id="keyword_facet"></div>
+                        <!--li>
+                            <div class="tagcloud" id="author_facet"></div><br/><br/>
+                        </li>
+
+                        <li class="nav-header">Keyword</li><br/>
+                            <div class="tagcloud" id="keyword_facet"></div><br/><br/>
+                        </li-->
+                        <!--li>
+                            <div class="clear"></div><br/><br/>
+                        </li-->
+                    </ul>
+                </div><!--/.well -->
+            </div><!--/span-->
+
+            <div class="span8">
+                <br/>
+                <div class="row-fluid span12">
+                    <ul id="selection" class="breadcrumb"></ul>
+                </div>
+                <div class="row-fluid span12">
+                    <div id="result">
+                        <div id="navigation" class="pagination">
+                          <ul id="pager"></ul>
+                        </div>
+                         <div id="pager-header"></div>
+                        <div id="docs"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div><!--/.fluid-container-->
+
+</body>
+</html>

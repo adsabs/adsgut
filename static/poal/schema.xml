@@ -1,0 +1,398 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<schema name="adsabs" version="1.3">
+
+  <types>
+    <fieldType name="string" class="solr.StrField" sortMissingLast="true" omitNorms="true"/>
+    <fieldType name="boolean" class="solr.BoolField" sortMissingLast="true" omitNorms="true"/>
+    <fieldType name="int" class="solr.TrieIntField" precisionStep="0" omitNorms="true" positionIncrementGap="0"/>
+    <fieldType name="float" class="solr.TrieFloatField" precisionStep="0" omitNorms="true" positionIncrementGap="0"/>
+    <fieldType name="long" class="solr.TrieLongField" precisionStep="0" omitNorms="true" positionIncrementGap="0"/>
+    <fieldType name="double" class="solr.TrieDoubleField" precisionStep="0" omitNorms="true" positionIncrementGap="0"/>
+
+    <fieldType name="tint" class="solr.TrieIntField" precisionStep="8" omitNorms="true" positionIncrementGap="0"/>
+    <fieldType name="tfloat" class="solr.TrieFloatField" precisionStep="8" omitNorms="true" positionIncrementGap="0"/>
+    <fieldType name="tlong" class="solr.TrieLongField" precisionStep="8" omitNorms="true" positionIncrementGap="0"/>
+    <fieldType name="tdouble" class="solr.TrieDoubleField" precisionStep="8" omitNorms="true" positionIncrementGap="0"/>
+
+    <fieldType name="date" class="solr.TrieDateField" omitNorms="true" precisionStep="0" positionIncrementGap="0"/>
+    <fieldType name="tdate" class="solr.TrieDateField" omitNorms="true" precisionStep="6" positionIncrementGap="0"/>
+    
+    <fieldtype name="ignored" stored="false" indexed="false" multiValued="true" class="solr.StrField" />
+
+    <!--  MontySolr special Python fields -->
+    <fieldType name="fulltext" class="solr.MongoDataField" positionIncrementGap="100" databaseName="solr4ads" collectionName="docs">
+       <analyzer type="index">
+        <tokenizer class="solr.PatternTokenizerFactory" pattern="(?&lt;![-\s])\s+(?!-)" group="-1" />
+        <filter class="solr.PatternReplaceFilterFactory" pattern="-?\s+-?" replacement="-" replace="all"/>
+        <filter class="solr.PatternReplaceFilterFactory" pattern="^(\p{Punct}*)(.*?)(\p{Punct}*)$" replacement="$2"/>
+        <filter class="solr.ASCIIFoldingFilterFactory"/>
+        <filter class="solr.WordDelimiterFilterFactory" generateWordParts="1" generateNumberParts="1" catenateWords="1" catenateNumbers="1" catenateAll="1" splitOnCaseChange="0" splitOnNumerics="1" stemEnglishPossessive="1" preserveOriginal="1"/>
+        <filter class="org.adsabs.solr.analysis.AcronymTokenFilterFactory"/>
+        <filter class="solr.SynonymFilterFactory" synonyms="text.synonyms" ignoreCase="false" expand="false"/>
+        <filter class="solr.StopFilterFactory" ignoreCase="true" words="text.kill" enablePositionIncrements="true" />
+        <filter class="solr.StopFilterFactory" ignoreCase="false" words="text.kill_sens" enablePositionIncrements="true" />
+        <filter class="solr.TrimFilterFactory"/>
+      </analyzer>
+      <analyzer type="query">
+        <tokenizer class="solr.WhitespaceTokenizerFactory"/>
+        <filter class="solr.ASCIIFoldingFilterFactory"/>
+        <filter class="solr.WordDelimiterFilterFactory" generateWordParts="1" generateNumberParts="1" catenateWords="1" catenateNumbers="1" catenateAll="1" splitOnCaseChange="0" splitOnNumerics="1" stemEnglishPossessive="1" preserveOriginal="1"/>
+        <filter class="org.adsabs.solr.analysis.AcronymTokenFilterFactory" emitBoth="false" lowercaseAcronyms="false"/>
+        <filter class="solr.SynonymFilterFactory" synonyms="text.synonyms" ignoreCase="false" expand="false"/>
+        <filter class="solr.StopFilterFactory" ignoreCase="true" words="text.kill" enablePositionIncrements="true" />
+        <filter class="solr.StopFilterFactory" ignoreCase="false" words="text.kill_sens" enablePositionIncrements="true" />
+        <filter class="solr.TrimFilterFactory"/>
+      </analyzer>
+    </fieldType>
+    
+    <fieldType name="reader_data" class="solr.MongoDataField" omitNorms="true" databaseName="solr4ads" collectionName="docs" mongoFieldName="readers" isPolyField="true" />
+
+     <fieldType name="ads_author" class="solr.TextField" positionIncrementGap="100">
+      <analyzer type="index">
+        <tokenizer class="solr.KeywordTokenizerFactory"/>
+        <filter class="org.adsabs.solr.analysis.AuthorNormalizeFilterFactory"/>
+        <filter class="org.adsabs.solr.analysis.AuthorNameVariantsFilterFactory" outFile="author_indexed.variants" />
+      </analyzer>
+      <analyzer type="query">
+        <tokenizer class="solr.KeywordTokenizerFactory"/>
+        <filter class="org.adsabs.solr.analysis.AuthorNormalizeFilterFactory"/>
+        <filter class="org.adsabs.solr.analysis.AuthorVariationFilterFactory"/>
+        <filter class="org.adsabs.solr.analysis.AuthorNameVariantsFilterFactory"/>
+        <filter class="solr.SynonymFilterFactory" synonyms="author_indexed.variants" ignoreCase="true" expand="true"/>
+        <filter class="solr.SynonymFilterFactory" synonyms="author.synonyms" ignoreCase="true" expand="true"/>
+        <filter class="org.adsabs.solr.analysis.AuthorSynonymFilterFactory" synonyms="author_curated.synonyms" />
+      </analyzer>
+    </fieldType>
+    
+    
+    <fieldType name="doi_string" class="solr.TextField">
+      <analyzer type="index">
+        <tokenizer class="solr.KeywordTokenizerFactory"/>
+        <filter class="solr.LowerCaseFilterFactory"/>
+        <filter class="solr.PatternReplaceFilterFactory" pattern="doi:" replacement="" replace="all"/>
+        <filter class="solr.TrimFilterFactory"/>
+      </analyzer>
+      <analyzer type="query">
+        <tokenizer class="solr.KeywordTokenizerFactory"/>
+        <filter class="solr.LowerCaseFilterFactory"/>
+        <filter class="solr.PatternReplaceFilterFactory" pattern="doi:" replacement="" replace="all"/>
+        <filter class="solr.TrimFilterFactory"/>
+      </analyzer>
+    </fieldType>
+    
+    <!--  as opposed to doi_string, identifier is only ascii -->
+    <fieldType name="identifier_normalized_string_ascii" class="solr.TextField">
+      <analyzer type="index">
+        <tokenizer class="solr.KeywordTokenizerFactory"/>
+        <filter class="solr.ASCIIFoldingFilterFactory"/>
+        <filter class="solr.LowerCaseFilterFactory"/>
+        <filter class="solr.PatternReplaceFilterFactory" pattern="(doi:|arxiv:)" replacement="" replace="all"/>
+        <filter class="solr.TrimFilterFactory"/>
+      </analyzer>
+      <analyzer type="query">
+        <tokenizer class="solr.KeywordTokenizerFactory"/>
+        <filter class="solr.ASCIIFoldingFilterFactory"/>
+        <filter class="solr.LowerCaseFilterFactory"/>
+        <filter class="solr.PatternReplaceFilterFactory" pattern="(doi:|arxiv:)" replacement="" replace="all"/>
+        <filter class="solr.TrimFilterFactory"/>
+      </analyzer>
+    </fieldType>
+    
+    
+    <fieldType name="first_string" class="solr.TextField">
+      <analyzer type="index">
+        <tokenizer class="solr.PatternTokenizerFactory" pattern=";" group="-1" />
+        <filter class="solr.PatternReplaceFilterFactory" pattern="(\-| )*([^- ,]+)(.*)" replacement="$2" replace="all"/>
+        <filter class="solr.LowerCaseFilterFactory"/>
+        <filter class="solr.TrimFilterFactory"/>
+      </analyzer>
+      <analyzer type="query">
+        <tokenizer class="solr.PatternTokenizerFactory" pattern=";" group="-1" />
+        <filter class="solr.PatternReplaceFilterFactory" pattern="(\-| )*([^- ,]+)(.*)" replacement="$2" replace="all"/>
+        <filter class="solr.LowerCaseFilterFactory"/>
+        <filter class="solr.TrimFilterFactory"/>
+      </analyzer>
+    </fieldType>
+    
+    
+    <fieldType name="normalized_text" class="solr.TextField">
+      <analyzer type="index">
+        <tokenizer class="solr.WhitespaceTokenizerFactory"/>
+        <filter class="solr.LowerCaseFilterFactory"/>
+      </analyzer>
+      <analyzer type="query">
+        <tokenizer class="solr.WhitespaceTokenizerFactory"/>
+        <filter class="solr.LowerCaseFilterFactory"/>
+      </analyzer>
+    </fieldType>
+    
+    <fieldType name="normalized_text_ascii" class="solr.TextField">
+      <analyzer type="index">
+        <tokenizer class="solr.WhitespaceTokenizerFactory"/>
+        <filter class="solr.ASCIIFoldingFilterFactory"/>
+        <filter class="solr.LowerCaseFilterFactory"/>
+      </analyzer>
+      <analyzer type="query">
+        <tokenizer class="solr.WhitespaceTokenizerFactory"/>
+        <filter class="solr.ASCIIFoldingFilterFactory"/>
+        <filter class="solr.LowerCaseFilterFactory"/>
+      </analyzer>
+    </fieldType>
+    
+    
+    
+    
+    <fieldType name="normalized_string_ascii" class="solr.TextField">
+      <analyzer type="index">
+        <tokenizer class="solr.KeywordTokenizerFactory"/>
+        <filter class="solr.ASCIIFoldingFilterFactory"/>
+        <filter class="solr.LowerCaseFilterFactory"/>
+        <filter class="solr.TrimFilterFactory"/>
+      </analyzer>
+      <analyzer type="query">
+        <tokenizer class="solr.KeywordTokenizerFactory"/>
+        <filter class="solr.ASCIIFoldingFilterFactory"/>
+        <filter class="solr.LowerCaseFilterFactory"/>
+        <filter class="solr.TrimFilterFactory"/>
+      </analyzer>
+    </fieldType>
+
+    <fieldType name="affiliation_text" class="solr.TextField" positionIncrementGap="100">
+      <analyzer type="index">
+        <tokenizer class="solr.WhitespaceTokenizerFactory"/>
+        <filter class="solr.PatternReplaceFilterFactory" pattern="^(\p{Punct}*)(.*?)(\p{Punct}*)$" replacement="$2"/>
+        <filter class="solr.ASCIIFoldingFilterFactory"/>
+        <filter class="solr.WordDelimiterFilterFactory" generateWordParts="1" generateNumberParts="1" catenateWords="1" catenateNumbers="1" catenateAll="1" splitOnCaseChange="0" splitOnNumerics="1" stemEnglishPossessive="1" preserveOriginal="1"/>
+        <filter class="org.adsabs.solr.analysis.AcronymTokenFilterFactory"/>
+        <filter class="solr.TrimFilterFactory"/>
+      </analyzer>
+      <analyzer type="query">
+        <tokenizer class="solr.WhitespaceTokenizerFactory"/>
+        <filter class="solr.ASCIIFoldingFilterFactory"/>
+        <filter class="solr.WordDelimiterFilterFactory" generateWordParts="1" generateNumberParts="1" catenateWords="1" catenateNumbers="1" catenateAll="1" splitOnCaseChange="0" splitOnNumerics="1" stemEnglishPossessive="1" preserveOriginal="1"/>
+        <filter class="org.adsabs.solr.analysis.AcronymTokenFilterFactory" emitBoth="false" lowercaseAcronyms="false"/>
+        <filter class="solr.TrimFilterFactory"/>
+      </analyzer>
+    </fieldType>
+    
+    <fieldType name="ads_text" class="solr.TextField" positionIncrementGap="100">
+      <analyzer type="index">
+        <tokenizer class="solr.PatternTokenizerFactory" pattern="(?&lt;![-\s])\s+(?!-)" group="-1" />
+        <filter class="solr.PatternReplaceFilterFactory" pattern="-?\s+-?" replacement="-" replace="all"/>
+        <filter class="solr.PatternReplaceFilterFactory" pattern="^(\p{Punct}*)(.*?)(\p{Punct}*)$" replacement="$2"/>
+        <filter class="solr.ASCIIFoldingFilterFactory"/>
+        <filter class="solr.WordDelimiterFilterFactory" generateWordParts="1" generateNumberParts="1" catenateWords="1" catenateNumbers="1" catenateAll="1" splitOnCaseChange="0" splitOnNumerics="1" stemEnglishPossessive="1" preserveOriginal="1"/>
+        <filter class="solr.StopFilterFactory" ignoreCase="true" words="text.kill" enablePositionIncrements="true" />
+        <filter class="solr.StopFilterFactory" ignoreCase="false" words="text.kill_sens" enablePositionIncrements="true" />
+        <filter class="org.adsabs.solr.analysis.AcronymTokenFilterFactory"/>
+        <filter class="solr.TrimFilterFactory"/>
+      </analyzer>
+      <analyzer type="query">
+        <tokenizer class="solr.WhitespaceTokenizerFactory"/>
+        <filter class="solr.ASCIIFoldingFilterFactory"/>
+        <filter class="solr.WordDelimiterFilterFactory" generateWordParts="1" generateNumberParts="1" catenateWords="1" catenateNumbers="1" catenateAll="1" splitOnCaseChange="0" splitOnNumerics="1" stemEnglishPossessive="1" preserveOriginal="1"/>
+        <filter class="solr.StopFilterFactory" ignoreCase="true" words="text.kill" enablePositionIncrements="true" />
+        <filter class="solr.StopFilterFactory" ignoreCase="false" words="text.kill_sens" enablePositionIncrements="true" />
+        <filter class="org.adsabs.solr.analysis.AcronymTokenFilterFactory" emitBoth="false" lowercaseAcronyms="false"/>
+        <filter class="solr.TrimFilterFactory"/>
+      </analyzer>
+    </fieldType>
+
+    <fieldType name="ads_text_syn" class="solr.TextField" positionIncrementGap="100">
+      <analyzer type="index">
+        <tokenizer class="solr.PatternTokenizerFactory" pattern="(?&lt;![-\s])\s+(?!-)" group="-1" />
+        <filter class="solr.PatternReplaceFilterFactory" pattern="-?\s+-?" replacement="-" replace="all"/>
+        <filter class="solr.PatternReplaceFilterFactory" pattern="^(\p{Punct}*)(.*?)(\p{Punct}*)$" replacement="$2"/>
+        <filter class="solr.ASCIIFoldingFilterFactory"/>
+        <filter class="solr.WordDelimiterFilterFactory" generateWordParts="1" generateNumberParts="1" catenateWords="1" catenateNumbers="1" catenateAll="1" splitOnCaseChange="0" splitOnNumerics="1" stemEnglishPossessive="1" preserveOriginal="1"/>
+        <filter class="org.adsabs.solr.analysis.AcronymTokenFilterFactory"/>
+        <filter class="solr.SynonymFilterFactory" synonyms="text.synonyms" ignoreCase="false" expand="false"/>
+        <filter class="solr.StopFilterFactory" ignoreCase="true" words="text.kill" enablePositionIncrements="true" />
+        <filter class="solr.StopFilterFactory" ignoreCase="false" words="text.kill_sens" enablePositionIncrements="true" />
+        <filter class="solr.TrimFilterFactory"/>
+      </analyzer>
+      <analyzer type="query">
+        <tokenizer class="solr.WhitespaceTokenizerFactory"/>
+        <filter class="solr.ASCIIFoldingFilterFactory"/>
+        <filter class="solr.WordDelimiterFilterFactory" generateWordParts="1" generateNumberParts="1" catenateWords="1" catenateNumbers="1" catenateAll="1" splitOnCaseChange="0" splitOnNumerics="1" stemEnglishPossessive="1" preserveOriginal="1"/>
+        <filter class="org.adsabs.solr.analysis.AcronymTokenFilterFactory" emitBoth="false" lowercaseAcronyms="false"/>
+        <filter class="solr.SynonymFilterFactory" synonyms="text.synonyms" ignoreCase="false" expand="false"/>
+        <filter class="solr.StopFilterFactory" ignoreCase="true" words="text.kill" enablePositionIncrements="true" />
+        <filter class="solr.StopFilterFactory" ignoreCase="false" words="text.kill_sens" enablePositionIncrements="true" />
+        <filter class="solr.TrimFilterFactory"/>
+      </analyzer>
+    </fieldType>
+
+    
+    <fieldType name="bibstem_facet" class="solr.TextField" sortMissingLast="true" omitNorms="true">
+        <analyzer type="index">
+            <tokenizer class="solr.KeywordTokenizerFactory"/>
+            <filter class="org.adsabs.solr.analysis.BibstemFilterFactory" facetMode="true"/>
+        </analyzer>
+        <analyzer type="query">
+            <tokenizer class="solr.KeywordTokenizerFactory"/>
+            <filter class="solr.PatternReplaceFilterFactory" pattern="^(\p{Punct}*)(.*?)(\p{Punct}*)$" replacement="$2"/>
+        </analyzer>
+    </fieldType>
+    
+    <fieldType name="bibstem" class="solr.TextField" sortMissingLast="true" omitNorms="true">
+        <analyzer type="index">
+            <tokenizer class="solr.KeywordTokenizerFactory"/>
+            <filter class="org.adsabs.solr.analysis.BibstemFilterFactory" facetMode="false"/>
+	        <filter class="solr.LowerCaseFilterFactory"/>
+        </analyzer>
+        <analyzer type="query">
+            <tokenizer class="solr.KeywordTokenizerFactory"/>
+         <filter class="solr.PatternReplaceFilterFactory" pattern="^(.*?)(\.*)$" replacement="$1"/> 
+	        <filter class="solr.LowerCaseFilterFactory"/>
+	        <!-- note: do not use BibstemFFF in the query phase, we cannot assume the input has bibcode form -->
+        </analyzer>
+    </fieldType>
+    
+    <fieldType name="pubdate_sort" class="solr.TextField" sortMissingLast="true" omitNorms="true">
+    <analyzer type="index">
+        <tokenizer class="solr.KeywordTokenizerFactory"/>
+        <filter class="org.adsabs.solr.analysis.PubdateSortFilterFactory"/>
+    </analyzer>
+    </fieldType>
+    
+</types>
+
+<fields>
+ 
+   <!-- 
+    The uniqueKey index must be implemented using StrField therefore we cannot use bibcode (and have
+    it lowercased). And for the same reasons, we cannot have recid to be int. We are getting an 
+    error:
+    
+    QueryElevationComponent requires the schema to have a uniqueKeyField implemented using StrField
+   
+    -->
+   <field name="id" type="string" indexed="true" stored="true" required="true" />
+   <field name="recid" type="int" indexed="true" stored="true" required="true" />
+   <field name="bibcode" type="normalized_string_ascii" indexed="true" stored="true" required="true" />
+   
+   
+   <field name="doi" type="doi_string" indexed="true" stored="true" required="false" multiValued="true"/>
+   <field name="identifier" type="identifier_normalized_string_ascii" indexed="true" stored="true" required="false" multiValued="true"/>
+   
+   <field name="bibstem" type="bibstem" indexed="true" stored="${storeAll:false}" multiValued="true"/>
+   <field name="bibstem_facet" type="bibstem_facet" indexed="true" stored="${storeAll:false}" multiValued="false"/>
+   
+   <field name="pub" type="normalized_text_ascii" indexed="true" stored="true" omitNorms="true" multiValued="true"/>
+   <field name="pub_raw" type="normalized_text_ascii" indexed="true" stored="${storeAll:false}" omitNorms="true" multiValued="true"/>
+   
+   <field name="page" type="first_string" indexed="true" stored="true" multiValued="false"/> <!--  really? -->
+   <field name="year" type="first_string" stored="true" indexed="true" multiValued="false"/>
+   <field name="volume" type="normalized_string_ascii" stored="true" indexed="true" multiValued="false"/>
+   <field name="issue" type="normalized_string_ascii" stored="true" indexed="true" multiValued="false"/>
+   
+   
+   <field name="issn" type="normalized_string_ascii" stored="true" indexed="true" multiValued="true"/>
+   <field name="isbn" type="normalized_string_ascii" stored="true" indexed="true" multiValued="true"/>
+   <field name="lang" type="normalized_string_ascii" stored="${storeAll:false}" indexed="true"/>
+   
+       
+   <!-- using temporary type of "string". 
+        pubdate should be date field that allows e.g. "00" for month or day values - but that requires more work -->
+   <field name="pubdate" type="string" stored="true" indexed="true"/>
+   <field name="pubdate_sort" type="pubdate_sort" stored="${storeAll:false}" indexed="true"/>
+
+
+   <field name="title" type="ads_text" indexed="true" stored="true" multiValued="true"/>
+   
+   <field name="abstract" type="ads_text" indexed="true" stored="true" termVectors="true" termOffsets="true" termPositions="true"/>
+   
+   
+   <field name="author" type="ads_author" indexed="true" stored="true" multiValued="true"/>
+   <field name="author_norm" type="normalized_string_ascii" indexed="true" stored="true" multiValued="true"/>
+   <field name="author_facet" type="string" indexed="true" stored="${storeAll:false}" multiValued="true"/>
+   
+   <!-- tmp fix for markus, should be handled with positional search -->
+   <field name="first_author" type="ads_author" indexed="true" stored="true" multiValued="true"/>
+   <field name="first_author_norm" type="normalized_string_ascii" indexed="true" stored="true" multiValued="true"/>
+   <field name="first_author_surname" type="first_string" indexed="true" stored="true" multiValued="true"/>
+   <field name="author_surname" type="first_string" indexed="true" stored="true" multiValued="true"/>
+
+   
+   <field name="aff" type="affiliation_text" indexed="true" stored="true" multiValued="true"/>
+   <field name="email" type="first_string" indexed="true" stored="true" multiValued="true"/>
+   
+   <field name="keyword" type="normalized_string_ascii" indexed="true" stored="true" multiValued="true"/>
+   <field name="keyword_norm" type="normalized_string_ascii" indexed="true" stored="true" multiValued="true"/>
+   <field name="keyword_facet" type="string" indexed="true" stored="true" multiValued="true"/>
+   
+   <field name="property" type="normalized_string_ascii" indexed="true" stored="true" omitNorms="true" multiValued="true"/>
+   <field name="database" type="normalized_string_ascii" indexed="true" stored="true" omitNorms="true" multiValued="true"/>
+   <field name="bibgroup" type="normalized_string_ascii" indexed="true" stored="true" omitNorms="true" multiValued="true"/>
+   
+   <field name="thesis" type="affiliation_text" indexed="true" stored="true" multiValued="true"/>
+   <field name="copyright" type="affiliation_text" indexed="true" stored="true" multiValued="true"/>
+   
+   <!--  this is just a fake field (for the moment) -->
+   <field name="all" type="ads_text" indexed="true" stored="true" multiValued="false"/>
+
+   
+   <!-- MontySolr: needed when InvneioParser is used in maxinv mode
+        but now we don't use InvenioParser in that mode
+        <dynamicField name="*" type="text" multiValued="true" />   
+    -->
+
+   <!-- this is just a fake field, we use it to recognize (old-style) invenio queries -->
+   <dynamicField name="inv_*" type="ignored" indexed="false" stored="false" multiValued="true"/>
+   
+   <!-- MontySolr: Fields where value is fetched from Mongo text -->
+   <field name="full" type="fulltext" indexed="true" stored="true" termVectors="true" termOffsets="true" termPositions="true"/>
+   <field name="ack" type="fulltext" indexed="true" stored="true" />
+   <field name="reader" type="reader_data" indexed="true" stored="true" multiValued="true" />
+
+   <!-- Uncommenting the following will create a "timestamp" field using
+        a default value of "NOW" to indicate when each document was indexed.
+     -->
+   <field name="indexstamp" type="date" indexed="true" stored="true" default="NOW" multiValued="false"/>
+   
+   <!--  MontySolr: have some dynamic Pythonic fields -->
+   <!--   <dynamicField name="*_py" type="textgen_py" indexed="true" stored="true"/> -->
+
+   <!-- uncomment the following to ignore any fields that don't already match an existing 
+        field name or dynamic field, rather than reporting them as an error. 
+        alternately, change the type="ignored" to some other type e.g. "text" if you want 
+        unknown fields indexed and/or stored by default --> 
+   <!--dynamicField name="*" type="ignored" multiValued="true" /-->
+   
+ </fields>
+
+ <uniqueKey>id</uniqueKey>
+
+ <!-- field for the QueryParser to use when an explicit fieldname is absent -->
+ <defaultSearchField>all</defaultSearchField>
+
+ <!-- SolrQueryParser configuration: defaultOperator="AND|OR" -->
+ <solrQueryParser defaultOperator="AND"/>
+
+   <copyField source="id" dest="recid"/>
+   <copyField source="bibcode" dest="bibstem"/>
+   <copyField source="bibcode" dest="bibstem_facet"/>
+   
+   <copyField source="pubdate" dest="pubdate_sort"/>
+   <copyField source="keyword" dest="keyword_facet"/>
+   
+   <copyField source="author" dest="author_surname"/>
+   <copyField source="first_author" dest="author"/>
+   <copyField source="first_author" dest="author_surname"/>
+   <copyField source="first_author" dest="first_author_surname"/>
+   <copyField source="first_author_norm" dest="author_facet"/>
+   <copyField source="first_author_norm" dest="author_norm"/>
+   <copyField source="author_norm" dest="author_facet"/>
+   
+   <copyField source="pub" dest="pub_raw"/>
+
+ <similarity class="org.adsabs.solr.SweetSpotSimilarityFactory">
+    <str name="min">1000</str>
+    <str name="max">20000</str>
+    <str name="steepness">0.5</str>
+ </similarity>
+	
+
+</schema>

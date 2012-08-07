@@ -1,0 +1,225 @@
+<!doctype html>
+<html>
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <title>Datalanche Search</title>
+
+    <link rel="stylesheet" type="text/css" href="external/bootstrap/css/bootstrap.min.css">
+    <link rel="stylesheet" type="text/css" href="css/search-engine.css">
+    <script type="text/javascript" src="external/underscore-min.js"></script>
+    <script src="external/jquery/jquery-1.7.2.min.js"></script>
+    <script src="external/jquery-ui-bootstrap/js/jquery-ui-1.8.16.custom.min.js"></script>
+    <!--script src="external/d3/d3.v2.min.js"></script-->
+    <link rel="stylesheet" type="text/css" href="external/jquery-ui-bootstrap/css/custom-theme/jquery-ui-1.8.16.custom.css" />
+    <script type="text/javascript" src="external/bootstrap/js/bootstrap.min.js"></script>
+    <script type="text/javascript" src="ajax-solr/core/Core.js"></script>
+    <script type="text/javascript" src="ajax-solr/core/AbstractManager.js"></script>
+    <!--script type="text/javascript" src="ajax-solr/managers/Manager.jquery.js"></script-->
+    <script type="text/javascript" src="js/FrameManager.js"></script>
+
+    <script type="text/javascript" src="ajax-solr/core/Parameter.js"></script>
+    <script type="text/javascript" src="ajax-solr/core/ParameterStore.js"></script>
+    <script type="text/javascript" src="ajax-solr/core/ParameterHashStore.js"></script>
+    <script type="text/javascript" src="js/ExtHashStore.js"></script>
+    <script type="text/javascript" src="ajax-solr/core/AbstractWidget.js"></script>
+    <script type="text/javascript" src="ajax-solr/helpers/jquery/ajaxsolr.theme.js"></script>
+    <script type="text/javascript" src="js/sprintf.js"></script>
+    <script type="text/javascript" src="js/test1.theme.js"></script>
+    <script type="text/javascript" src="ajax-solr/core/AbstractFacetWidget.js"></script>
+    <script type="text/javascript" src="js/HfTagcloudWidget.js"></script>
+    <script type="text/javascript" src="widgets/d3histo.js"></script>
+    <script type="text/javascript" src="js/HfBarWidget.js"></script>
+
+    <script type="text/javascript" src="js/HfTagButtonWidget.js"></script>
+    <script type="text/javascript" src="js/CurrentSearchWidget.js"></script>
+    <script type="text/javascript" src="ajax-solr/helpers/ajaxsolr.support.js"></script>
+    <script type="text/javascript" src="ajax-solr/helpers/ajaxsolr.theme.js"></script>
+    <!--script type="text/javascript" src="ext/jquery-ui-1.8.1.custom.min.js"></script-->
+    <script type="text/javascript" src="js/HfDualSlider.js"></script>
+    <link rel="stylesheet" type="text/css" href="ext/jquery.autocomplete.css" media="screen"/>
+    <script type="text/javascript" src="ext/jquery.autocomplete.js"></script>
+    <script type="text/javascript" src="widgets/AutocompleteWidget.js"></script>
+    <script type="text/javascript" src="dataframe.js"></script>
+    <script type="text/javascript" src="solr2df.js"></script>
+    <script type="text/javascript" src="js/publications.js"></script>
+
+</head>
+<body>
+    <!--div class="header">
+        <img src="images/datalanche-logo.png" alt="" height="60" width="200" />
+        <form id="search" class="form-search search-fixed">
+            <input type="text" id="query" name="query" class="input-medium search-query search-input">
+            <button type="submit" class="btn">Search</button>
+        </form>
+    </div-->
+    <div class="navbar navbar-fixed-top">
+        <div class="navbar-inner">
+            <div class="container-fluid">
+                <a class="brand logo" href="#" style="padding: 5px; padding-left: 40px;">
+                    <img src="images/datalanche-logo.png" alt="" height="40" width="133" />
+                </a>
+                <form id="search" class="form-search search-fixed">
+                    <input type="text" id="query" class="input-medium search-query search-input">
+                    <button type="submit" class="btn">Search</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="container-fluid">
+        <div class="row-fluid row">
+            <div class="span3">
+                <div class="sidebar-nav-fixed">
+                    <ul class="nav nav-list" style="font-size: 10pt">
+                        <li class="nav-header">Gender</li>
+                        <li>
+                            <div id="leftsidebuttonsGender" class="btn-group" data-toggle="buttons-radio">
+                            </div>
+                            <!--div class="tagcloud" id="leftsideGender"></div-->
+                            <div class="clear"></div><br/>
+                        </li>
+                        <div class="clear"></div><br/><br/>
+                        <!--li class="nav-header">Race</li>
+                        <li><input type="checkbox" name="race-all" checked />All</li>
+                        <li><input type="checkbox" name="race-asian" checked />Asian</li>
+                        <li><input type="checkbox" name="race-asian" checked />Black</li>
+                        <li><input type="checkbox" name="race-asian" checked />Hispanic</li>
+                        <li><input type="checkbox" name="race-asian" checked />White</li-->
+
+                        <li class="nav-header">Age</li><br/>
+                        <li>
+                            <div id="leftsideYearOfBirth"></div>
+                            <span id="leftsideYearOfBirth_amount" class="rangevalues"></span>
+                            <div class="clear"></div><br/>
+                        </li>
+
+                        <li class="nav-header">Related Searches</li>
+                        <li><a href="#">lipitor</a></li>
+                        <li><a href="#">obesity</a></li>
+                        <li><a href="#">stroke</a></li>
+                        <li><a href="#">heart disease</a></li>
+                        <li><a href="#">lipid disorder</a></li>
+                        <li><a href="#">diabetes</a></li>
+                    </ul>
+                </div><!--/.well -->
+            </div><!--/span-->
+
+            <div class="span9 span-fixed-sidebar">
+                <div class="row-fluid span12">
+                    <ul id="selection" class="well"></ul>
+                </div>
+                <div class="row-fluid span12">
+                    The medical term for high blood cholesterol is lipid disorder, or hyperlipidemia.
+                    <a href="http://www.ncbi.nlm.nih.gov/pubmedhealth/PMH0001440/">PubMed</a>
+                    <a href="http://en.wikipedia.org/wiki/Hyperlipidemia">Wikipedia</a>
+
+                    <br><br>
+
+                    <ul>
+                        <li class="list-item">Hyperlipidemia is diagnosed by a blood test.</li>
+                        <li class="list-item"><a href="">Lipitor</a> is prescribed in 69% of cases.</li>
+                        <li>34% of patients are diagnosed with <a href="">heart disease</a> within 5 years.</li>
+                    </ul>
+
+                    <br>
+
+                    <div class="row-fluid">
+                        <div class="span6">
+                            <div class="well section-head">How is hyperlipidemia diagnosed?</div>
+                            A cholesterol test is done to diagnose a lipid disorder. Some national guidelines
+                            recommend having your first screening cholesterol test at age 20. Everyone should
+                            have their first screening test by age 35 in men, and age 45 in women.
+                            <a href="http://www.ncbi.nlm.nih.gov/pubmedhealth/PMH0001440/">PubMed</a>
+                            <a href="http://en.wikipedia.org/wiki/Hyperlipidemia">Wikipedia</a>
+                        </div>
+                        <div class="span6">
+                            <div class="well section-head">How is hyperlipidemia prevented?</div>
+                            Excerpt from <a href="http://www.ncbi.nlm.nih.gov/pubmedhealth/PMH0001440/">PubMed</a>:<br><br>
+                            <ul>
+                                <li class="list-item">Eat foods low in fat such as whole grains, fruits, and vegetables.
+                                <li class="list-item">Avoid foods high in saturated fat.</li>
+                                <li class="list-item">Exercise regularly.</li>
+                                <li class="list-item">Lose weight if overweight.</li>
+                                <li>Quit smoking.</li>
+                            </ul>
+                            Also see <a href="http://en.wikipedia.org/wiki/Hyperlipidemia">Wikipedia</a>
+                        </div>
+                    </div>
+
+                    <br>
+
+                    <div class="row-fluid">
+                        <div class="span6">
+                            <div class="well section-head">What are the symptoms?</div>
+                            <div id="symptoms">No known symptoms.</div>
+                        </div>
+                        <div class="span6">
+                            <div class="well section-head">Treatments</div>
+                            <div id="treatments">
+                                <div class="tagcloud" id="MedicationName_string"></div>
+                                <div class="clear"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <br>
+                    
+                    <div class="row-fluid">
+                        <div class="span6">
+                            <div class="well section-head">Coincidental Conditions</div>
+                            <div id="conditions">
+                                <div class="tagcloud" id="DiagnosisDescription_string"></div>
+                                 <div class="clear"></div>
+                            </div>
+
+                        </div>
+                        <div class="span6">
+                            <div class="well section-head">Who?</div><br/>
+                            <div id="treatments-who">
+                                <div class="subsection-head">Gender</div>
+                                <div class="tagcloud" id="Gender"></div>
+                                <div class="clear"></div><br/>
+
+                                <div class="subsection-head">State</div>
+                                <div class="tagcloud" id="State"></div>
+                                <div class="clear"></div><br/><br/>
+                                <br/>
+                                <div class="subsection-head">Age</div>
+                                <div id="YearOfBirthdiv" class="nocollapse">
+                                    <div id="YearOfBirth"></div>
+                                    <span id="YearOfBirth_amount" class="rangevalues"></span>
+                                </div>
+                                <div class="clear"></div><br/>
+
+                                <div class="subsection-head">Height</div>
+                                <div id="Height_floatdiv" class="nocollapse">
+                                    <div id="Height_float"></div>
+                                    <span id="Height_float_amount" class="rangevalues"></span>
+                                </div>
+                                <div class="clear"></div><br/>
+
+                                <div class="subsection-head">Weight</div>
+                                <div id="Weight_floatdiv" class="nocollapse">
+                                    <div id="Weight_float"></div>
+                                    <span id="Weight_float_amount" class="rangevalues"></span>
+                                </div>
+                                <div class="clear"></div><br/>
+
+                                <div class="subsection-head">BMI</div>
+                                <div id="BMI_floatdiv" class="nocollapse">
+                                    <div id="BMI_float"></div>
+                                    <span id="BMI_float_amount" class="rangevalues"></span>
+                                </div>
+                                <div class="clear"></div><br/>
+                            </div>
+                        </div>
+                    </div>
+
+                    
+                </div>
+            </div>
+        </div>
+    </div><!--/.fluid-container-->
+
+</body>
+</html>
+

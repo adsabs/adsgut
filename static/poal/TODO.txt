@@ -1,0 +1,3 @@
+Change Resultswidget to not have example stuff in it
+fix the 1 to N problem
+fix the layout

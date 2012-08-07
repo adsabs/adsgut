@@ -1,0 +1,164 @@
+body {
+    padding-bottom: 40px;
+    padding-top: 50px;
+    font-size: 11pt;
+}
+
+.sidebar-nav-fixed {
+    padding: 9px 0;
+    position: absolute;
+    left:10px;
+    top:60px;
+    width:220px;
+}
+
+.row-fluid > .span-fixed-sidebar {
+    margin-left: 230px;
+}
+
+.header {
+    padding-left: 22px;
+}
+
+.logo {
+    padding: 5px;
+    padding-left: 40px;
+}
+
+.search-fixed {
+    position: absolute;
+    left: 230px;
+    top: 5px;
+}
+
+.search-input {
+    width: 450px;
+    font-size: 12pt;
+}
+
+.bookmark {
+    font-size: 11pt;
+}
+
+.section-head {
+    font-size: 11pt;
+    font-weight: bold;
+    padding: 3px;
+    padding-left: 6px;
+}
+
+.section-div {
+    padding: 0px 6px 3px 6px;
+}
+
+.subsection-head {
+    font-size: 8pt;
+    font-weight: bold;
+    padding: 3px;
+    padding-left: 6px;
+}
+
+.list-item {
+    margin-bottom: 6px;
+}
+
+.input-custom {
+    margin: 0px;
+    padding: 1px 4px 1px 4px !important;
+    margin-left: 4px;
+    width: 24px;
+    text-align: right;
+}
+
+.input-slider {
+    margin-top: 8px;
+}
+
+.chart {
+    position: relative;
+    left: 0px;
+    top: 0px;
+}
+
+.chart rect {
+    stroke: white;
+    fill: #7a43b6;
+}
+
+.chart text {
+    fill: #333333;
+}
+
+.chart text.bar {
+  font-size: 10pt;
+}
+
+.chart text.labelname {
+  cursor: pointer;
+  fill: #08C;
+}
+
+.seclabel {
+   font-size: 8pt; 
+}
+
+.tagcloud {
+  padding: 10px 15px 0;
+}
+.tagcloud_item {
+  float: left;
+  display: block;
+  margin-right: 4px;
+  color: #6998f0;
+}
+.tagcloud_item:hover {
+  color: #f00;
+}
+
+/* tagcloud */
+
+a.tagcloud_size_0 {
+font-size: 60%;
+}
+a.tagcloud_size_1 {
+font-size: 70%;
+}
+a.tagcloud_size_2 {
+font-size: 80%;
+}
+a.tagcloud_size_3 {
+font-size: 90%;
+}
+a.tagcloud_size_4 {
+font-size: 100%;
+}
+a.tagcloud_size_5 {
+font-size: 110%;
+}
+a.tagcloud_size_6 {
+font-size: 120%;
+}
+a.tagcloud_size_7 {
+font-size: 130%
+}
+a.tagcloud_size_8 {
+font-size: 140%;
+}
+a.tagcloud_size_9 {
+font-size: 150%;
+}
+a.tagcloud_size_10 {
+font-size: 160%;
+}
+
+#selection {
+  padding: 10px 15px 0;
+}
+#selection li {
+  list-style-type: none;
+}
+
+#docs {
+  border: solid 1px;
+  padding: 10px 15px 0;
+}

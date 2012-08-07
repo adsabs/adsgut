@@ -1,0 +1,166 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+  <title>AJAX Solr</title>
+  <link rel="stylesheet" type="text/css" href="css/reuters.css" media="screen" />
+  <script type="text/javascript" src="ext/underscore-min.js"></script>
+  <script type="text/javascript" src="ext/jquery-1.7.1.min.js"></script>
+  <script type="text/javascript" src="ext/jquery-ui-1.8.1.custom.min.js"></script>
+  <link rel="stylesheet" type="text/css" href="ext/smoothness/jquery-ui.css" media="screen" />
+  <script type="text/javascript" src="js/reuters.js"></script>
+  <script type="text/javascript" src="ajax-solr/core/Core.js"></script>
+  <script type="text/javascript" src="ajax-solr/core/AbstractManager.js"></script>
+  <script type="text/javascript" src="ajax-solr/managers/Manager.jquery.js"></script>
+  <script type="text/javascript" src="ajax-solr/core/Parameter.js"></script>
+  <script type="text/javascript" src="ajax-solr/core/ParameterStore.js"></script>
+  <script type="text/javascript" src="ajax-solr/core/ParameterHashStore.js"></script>
+  <script type="text/javascript" src="widgets/AstroExplorerStore.js"></script>
+  <script type="text/javascript" src="ajax-solr/core/AbstractWidget.js"></script>
+  <script type="text/javascript" src="widgets/ResultWidget.js"></script>
+  <script type="text/javascript" src="ajax-solr/helpers/jquery/ajaxsolr.theme.js"></script>
+  <script type="text/javascript" src="js/reuters.theme.js"></script>
+  <script type="text/javascript" src="js/jquery.livequery.js"></script>
+  <script type="text/javascript" src="ajax-solr/widgets/jquery/PagerWidget.js"></script>
+  <script type="text/javascript" src="ajax-solr/core/AbstractFacetWidget.js"></script>
+  <script type="text/javascript" src="widgets/TagcloudWidget.js"></script>
+  <script type="text/javascript" src="widgets/CurrentSearchWidget.9.js"></script>
+  <link rel="stylesheet" type="text/css" href="ext/jquery.autocomplete.css" media="screen" />
+  <script type="text/javascript" src="ext/jquery.autocomplete.js"></script>
+  <script type="text/javascript" src="widgets/AutocompleteWidget.js"></script>
+  <script type="text/javascript" src="ajax-solr/helpers/ajaxsolr.support.js"></script>
+  <script type="text/javascript" src="ajax-solr/helpers/ajaxsolr.theme.js"></script>
+  <script type="text/javascript" src="ext/jquery-ui-1.8.1.custom.min.js"></script>
+  <script type="text/javascript" src="widgets/DualSlider.js"></script>
+</head>
+<body>
+  <div id="wrap"> 
+    <div id="header">
+      <h1>Practice Fussion SOLR Test Application</h1>
+      <h2>Only Charts for now</h2>
+    </div>
+
+    <div class="right">
+      <div id="result">
+        <div id="navigation">
+          <ul id="pager"></ul>
+          <div id="pager-header"></div>
+        </div>
+        <div id="docs"></div>
+      </div>
+    </div>
+
+    <div class="left">
+      <h2>Current Selection</h2>
+      <ul id="selection"></ul>
+
+      <h2>Search</h2>
+      <span id="search_help">(press ESC to close suggestions)</span>
+      <ul id="search">
+        <input type="text" id="query" name="query"/>
+      </ul>
+
+      <h2>Gender</h2>
+      <div class="tagcloud" id="Gender"></div>
+
+      <h2>State</h2>
+      <div class="tagcloud" id="State"></div>
+
+      <h2>Year of Birth</h2>
+      <div id="YearOfBirthdiv" class="nocollapse">
+        <div id="YearOfBirth"></div>
+        <span id="YearOfBirth_amount" class="rangevalues"></span>
+      </div>
+
+      <br/>
+      <hr/>
+      <h2>Physician Speciality</h2>
+      <div class="tagcloud" id="PhysicianSpecialty_string"></div>
+
+      
+      <h2>Year of Visit</h2>
+      <div id="VisitYear_intdiv" class="nocollapse">
+        <div id="VisitYear_int"></div>
+        <span id="VisitYear_int_amount" class="rangevalues"></span>
+      </div>
+
+      <h2>Height</h2>
+      <div id="Height_floatdiv" class="nocollapse">
+        <div id="Height_float"></div>
+        <span id="Height_float_amount" class="rangevalues"></span>
+      </div>
+      <h2>Weight</h2>
+      <div id="Weight_floatdiv" class="nocollapse">
+        <div id="Weight_float"></div>
+        <span id="Weight_float_amount" class="rangevalues"></span>
+      </div>
+      
+      <h2>Respiratory Rate</h2>
+      <div id="RespiratoryRate_intdiv" class="nocollapse">
+        <div id="RespiratoryRate_int"></div>
+        <span id="RespiratoryRate_int_amount" class="rangevalues"></span>
+      </div>
+      <h2>Systolic BP</h2>
+      <div id="SystolicBP_intdiv" class="nocollapse">
+        <div id="SystolicBP_int"></div>
+        <span id="SystolicBP_int_amount" class="rangevalues"></span>
+      </div>
+      <h2>Diastolic BP</h2>
+      <div id="DiastolicBP_intdiv" class="nocollapse">
+        <div id="DiastolicBP_int"></div>
+        <span id="DiastolicBP_int_amount" class="rangevalues"></span>
+      </div>
+      <h2>Temperature</h2>
+      <div id="Temperature_floatdiv" class="nocollapse">
+        <div id="Temperature_float"></div>
+        <span id="Temperature_float_amount" class="rangevalues"></span>
+      </div>
+      <h2>BMI</h2>
+      <div id="BMI_floatdiv" class="nocollapse">
+        <div id="BMI_float"></div>
+        <span id="BMI_float_amount" class="rangevalues"></span>
+      </div>
+      <br/>
+      <hr/>
+      <!-- var fields = [ 'Gender', 'State', 'PhysicianSpecialty_string', 'DiagnosisDescription_string', 
+      'MedicationName_string' , 'Acute_bool'];
+    var autocomplete_fields = [ 'Gender', 'State', 'PhysicianSpecialty_string', 'DiagnosisDescription_string', 
+      'MedicationName_string'];
+    var numeric_fields = ['YearOfBirth', 'VisitYear_int', 'Height_float', 'Weight_float', 'BMI_float', 'SystolicBP_int', 
+      'DiastolicBP_int', 'RespiratoryRate_int', 'Temperature_float', 
+      'StartYear.diagnosis_int', 'StartYear.medication_int', 'PrescriptionYear_int' ];
+    -->
+      <h2>Diagnosis Description</h2>
+      <div class="tagcloud" id="DiagnosisDescription_string"></div>
+
+      <h2>Diagnosis Start Year</h2>
+      <div id="StartYear_diagnosis_intdiv" class="nocollapse">
+        <div id="StartYear_diagnosis_int"></div>
+        <span id="StartYear_diagnosis_int_amount" class="rangevalues"></span>
+      </div>
+
+      <h2>Acute</h2>
+      <div class="tagcloud" id="Acute_bool"></div>
+      <br/>
+      <hr/>
+
+      <h2>Medication Name</h2>
+      <div class="tagcloud" id="MedicationName_string"></div>
+
+      <h2>Medication Start Year</h2>
+      <div id="StartYear_medication_intdiv" class="nocollapse">
+        <div id="StartYear_medication_int"></div>
+        <span id="StartYear_medication_int_amount" class="rangevalues"></span>
+      </div>
+
+      <h2>Prescription Year</h2>
+      <div id="PrescriptionYear_intdiv" class="nocollapse">
+        <div id="PrescriptionYear_int"></div>
+        <span id="PrescriptionYear_int_amount" class="rangevalues"></span>
+      </div>
+
+      <div class="clear"></div>
+    </div>
+    <div class="clear"></div>
+  </div>  
+</body>
+</html>
