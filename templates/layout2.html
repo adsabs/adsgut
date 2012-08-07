@@ -1,0 +1,12 @@
+{% extends "layout.html" %}
+{% block layoutbody %}
+<div class="span4">
+    <div class="sidebar-nav">
+    {% block navbody %}{% endblock %}                  
+    </div><!--/.well -->
+</div>
+
+<div class="span8">
+   {% block pagebody %}{% endblock %}  
+</div>
+{% endblock %}

@@ -1,98 +1,37 @@
-<!doctype html>
-<html>
-<head>
-    <meta http-equiv="content-type" content="text/html; charset=utf-8">
-    <title>ADS POAL</title>
+{% extends "layout2.html" %}
+{% block navbody %}
+<ul class="nav nav-list">
+    <li class="nav-header">Author</li>
+    <div class="tagcloud" id="author_facet"></div>
+    <li><br/></li>
+    <li class="nav-header">Keyword</li>
+    <div class="tagcloud" id="keyword_facet"></div>
+    <!--li>
+        <div class="tagcloud" id="author_facet"></div><br/><br/>
+    </li>
 
-    <link rel="stylesheet" type="text/css" href="static/poal/external/bootstrap/css/bootstrap.min.css">
-    <link rel="stylesheet" type="text/css" href="static/poal/css/search-engine.css">
-    <script type="text/javascript" src="static/poal/external/underscore-min.js"></script>
-    <script src="static/poal/external/jquery/jquery-1.7.2.min.js"></script>
-    <script src="static/poal/external/jquery-ui-bootstrap/js/jquery-ui-1.8.16.custom.min.js"></script>
-    <!--script src="external/d3/d3.v2.min.js"></script-->
-    <link rel="stylesheet" type="text/css" href="static/poal/external/jquery-ui-bootstrap/css/custom-theme/jquery-ui-1.8.16.custom.css" />
-    <script type="text/javascript" src="static/poal/external/bootstrap/js/bootstrap.min.js"></script>
-    <script type="text/javascript" src="static/poal/external/sprintf.js"></script>
-    <script type="text/javascript" src="static/poal/ajax-solr/core/Core.js"></script>
-    <script type="text/javascript" src="static/poal/ajax-solr/core/AbstractManager.js"></script>
-    <script type="text/javascript" src="static/poal/ajax-solr/managers/Manager.jquery.js"></script>
-    <script type="text/javascript" src="static/poal/ajax-solr/core/Parameter.js"></script>
-    <script type="text/javascript" src="static/poal/ajax-solr/core/ParameterStore.js"></script>
-    <script type="text/javascript" src="static/poal/ajax-solr/core/ParameterHashStore.js"></script>
-    <script type="text/javascript" src="static/poal/js/ExtHashStore.js"></script>
-    <script type="text/javascript" src="static/poal/ajax-solr/core/AbstractWidget.js"></script>
-    <script type="text/javascript" src="static/poal/widgets/ResultWidget.js"></script>
-    <script type="text/javascript" src="static/poal/ajax-solr/helpers/jquery/ajaxsolr.theme.js"></script>
-    <script type="text/javascript" src="static/poal/js/poal.theme.js"></script>
-    <script type="text/javascript" src="static/poal/js/jquery.livequery.js"></script>
-    <script type="text/javascript" src="static/poal/widgets/PagerWidget.js"></script>
-    <script type="text/javascript" src="static/poal/ajax-solr/core/AbstractFacetWidget.js"></script>
-    <script type="text/javascript" src="static/poal/widgets/CurrentSearchWidget.js"></script>
-    <script type="text/javascript" src="static/poal/ajax-solr/helpers/ajaxsolr.support.js"></script>
-    <script type="text/javascript" src="static/poal/ajax-solr/helpers/ajaxsolr.theme.js"></script>
-    <!--script type="text/javascript" src="ext/jquery-ui-1.8.1.custom.min.js"></script-->
-    <link rel="stylesheet" type="text/css" href="static/poal/external/jquery.autocomplete.css" media="screen"/>
-    <script type="text/javascript" src="static/poal/external/jquery.autocomplete.js"></script>
-    <script type="text/javascript" src="static/poal/widgets/AutocompleteWidget.js"></script>
-    <script type="text/javascript" src="static/poal/widgets/TagcloudWidget.js"></script>
-    <script type="text/javascript" src="static/poal/js/poal.js"></script>
+    <li class="nav-header">Keyword</li><br/>
+        <div class="tagcloud" id="keyword_facet"></div><br/><br/>
+    </li-->
+    <!--li>
+        <div class="clear"></div><br/><br/>
+    </li-->
+</ul>
+{% endblock %}
 
-</head>
-<body>
-    <div class="navbar navbar-fixed-top">
-        <div class="navbar-inner">
-            <div class="container-fluid">
-                <a class="brand logo" href="#" style="padding: 5px; padding-left: 40px;">
-                    <img src="images/adslogo_labs.jpg" alt="" height="40" width="133" />
-                </a>
-                <form id="search" class="form-search search-fixed">
-                    <input type="text" id="query" class="input-medium search-query search-input">
-                    <button type="submit" class="btn">Search</button>
-                </form>
-            </div>
+{% block pagebody %}
+<br/>
+<div class="row-fluid span12">
+    <ul id="selection" class="breadcrumb"></ul>
+</div>
+<div class="row-fluid span12">
+    <div id="result">
+        <div id="navigation" class="pagination">
+          <ul id="pager"></ul>
         </div>
+         <div id="pager-header"></div>
+        <div id="docs"></div>
     </div>
-    <div class="container-fluid">
-        <div class="row-fluid row">
-            <div class="span4">
-                <div class="sidebar-nav">
-                    <ul class="nav nav-list">
-                        <li class="nav-header">Author</li>
-                        <div class="tagcloud" id="author_facet"></div>
-                        <li><br/></li>
-                        <li class="nav-header">Keyword</li>
-                        <div class="tagcloud" id="keyword_facet"></div>
-                        <!--li>
-                            <div class="tagcloud" id="author_facet"></div><br/><br/>
-                        </li>
+</div>
+{% endblock %}
 
-                        <li class="nav-header">Keyword</li><br/>
-                            <div class="tagcloud" id="keyword_facet"></div><br/><br/>
-                        </li-->
-                        <!--li>
-                            <div class="clear"></div><br/><br/>
-                        </li-->
-                    </ul>
-                </div><!--/.well -->
-            </div><!--/span-->
-
-            <div class="span8">
-                <br/>
-                <div class="row-fluid span12">
-                    <ul id="selection" class="breadcrumb"></ul>
-                </div>
-                <div class="row-fluid span12">
-                    <div id="result">
-                        <div id="navigation" class="pagination">
-                          <ul id="pager"></ul>
-                        </div>
-                         <div id="pager-header"></div>
-                        <div id="docs"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div><!--/.fluid-container-->
-
-</body>
-</html>

@@ -2,7 +2,7 @@
 
 AjaxSolr.ResultWidget = AjaxSolr.AbstractWidget.extend({
   beforeRequest: function () {
-    $(this.target).html($('<img/>').attr('src', 'images/ajax-loader.gif'));
+    $(this.target).html($('<img/>').attr('src', 'static/poal/images/ajax-loader.gif'));
   },
 
   facetLinks: function (facet_field, facet_values) {
@@ -36,11 +36,11 @@ AjaxSolr.ResultWidget = AjaxSolr.AbstractWidget.extend({
       var doc = this.manager.response.response.docs[i];
       $(this.target).append(AjaxSolr.theme('result', doc, AjaxSolr.theme('snippet', doc)));
 
-      var items = [];
-      items = items.concat(this.facetLinks('topics', doc.topics));
-      items = items.concat(this.facetLinks('organisations', doc.organisations));
-      items = items.concat(this.facetLinks('exchanges', doc.exchanges));
-      AjaxSolr.theme('list_items', '#links_' + doc.id, items);
+      // var items = [];
+      // items = items.concat(this.facetLinks('topics', doc.topics));
+      // items = items.concat(this.facetLinks('organisations', doc.organisations));
+      // items = items.concat(this.facetLinks('exchanges', doc.exchanges));
+      // AjaxSolr.theme('list_items', '#links_' + doc.id, items);
     }
   },
 
