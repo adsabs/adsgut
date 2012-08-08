@@ -68,6 +68,26 @@ TagApplication = Table('tag_application', DaBase.metadata,
     Column('application_id', Integer, ForeignKey('applications.application_id'))
 )
 
+#  the group below is for groups, and apps. Posting too anything posts to users private group.
+# so any in not starting with users private group lands up with a posting to users private group.
+#How do we check against recursion? we must check to see (a) if reasoning payload has private group nothing needs be done
+#(b) if reasoning payload dosent havee private check if item is in private and if not put it into private
+#Now the access pubsubs will be triggered. We will (c) need to make sure we are not double posting using (user, item, group) tuple
+
+#We will also need to create intype id's representing things like ads:all or all:all .
+#Or should that column not be in intype id. I think intypes\#should be used. 
+#Only apps need to define appnick:all
+
+REASONINGS=[]
+
+AccessTable = Table('accesstable', DaBase.metadata,
+    Column('user_id', Integer, ForeignKey('users.id')),
+    Column('ingroup_id', Integer, ForeignKey('groups.group_id')),#includes apps. could this generally be used with tags?
+    Column('intype_id', Integer, ForeignKey('itemtypes.id')),
+    Column('outgroup_id', Integer, ForeignKey('groups.group_id')),
+    Column('reasoning_id', Integer)
+)
+
 class User(DaBase):
     __tablename__='users'
     id = Column(Integer, primary_key=True)
@@ -129,9 +149,7 @@ class Item(DaBase):
     groupsin = relationship('Group', secondary=ItemGroup,
                             backref=backref('groupitems', lazy='dynamic'))
     applicationsin = relationship('Application', secondary=ItemApplication,
-                            backref=backref('applicationitems', lazy='dynamic'))
-    #tags = relationship('Tag', secondary=ItemTag,
-    #                        backref=backref('items', lazy='dynamic'))
+                             backref=backref('applicationitems', lazy='dynamic'))
 
     def __repr__(self):
         return "<Item:%s,%s>" % (self.itemtype.name, self.name)
@@ -156,7 +174,7 @@ class Tag(Item):
     groupsin = relationship('Group', secondary=TagGroup,
                             backref=backref('grouptags', lazy='dynamic'))
     applicationsin = relationship('Application', secondary=TagApplication,
-                            backref=backref('applicationtags', lazy='dynamic'))
+                             backref=backref('applicationtags', lazy='dynamic'))
     __mapper_args__ = {'polymorphic_on': 'type', 'polymorphic_identity': 'tag', 'inherit_condition':Item.id==item_id}
 
     def __repr__(self):
@@ -210,6 +228,7 @@ class Application(Group):
     owner_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     #WONDER HOW BELOW WORKS. IF IT DOES
     owner = relationship('User', primaryjoin='Application.owner_id == User.id', backref=backref('appsowned', lazy='dynamic'))
+    subscriptionjson = Column(Text, default="", nullable=False)
 
     def __repr__(self):
         return "<App:%s,%s>" % (self.owner.nick, self.fqin)
