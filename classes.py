@@ -48,6 +48,11 @@ GroupApplication = Table('group_application', DaBase.metadata,
     Column('application_id', Integer, ForeignKey('applications.application_id'))
 )
 
+ItemTag = Table('item_tag', DaBase.metadata,
+    Column('item_id', Integer, ForeignKey('items.id')),
+    Column('tag_id', Integer, ForeignKey('tags.tag_id'))
+)
+
 ItemGroup = Table('item_group', DaBase.metadata,
     Column('item_id', Integer, ForeignKey('items.id')),
     Column('group_id', Integer, ForeignKey('groups.group_id'))
@@ -83,9 +88,13 @@ REASONINGS=[]
 AccessTable = Table('accesstable', DaBase.metadata,
     Column('user_id', Integer, ForeignKey('users.id')),
     Column('intag_id', Integer, ForeignKey('tags.tag_id')),#includes apps. could this generally be used with tags?
+    Column('inisgroup', Boolean, default=False),
+    Column('inisapp', Boolean, default=False),
     Column('intype_id', Integer, ForeignKey('itemtypes.id')),
     Column('outtag_id', Integer, ForeignKey('tags.tag_id')),
-    Column('reasoning_id', Integer)
+    Column('outisgroup', Boolean, default=False),
+    Column('outisapp', Boolean, default=False),
+    Column('reasoning_id', Integer, default=0)
 )
 
 class User(DaBase):
@@ -160,17 +169,16 @@ class Item(DaBase):
 class Tag(Item):
     __tablename__='tags'
     tag_id = Column(Integer, primary_key=True)
-    #the item corresponding to tis tag, not the item tagged
+    #the item corresponding to this tag, not the item tagged
     item_id = Column(Integer, ForeignKey('items.id'))
-    taggeditem_id = Column(Integer, ForeignKey('items.id'))
     tagtype_id = Column(Integer, ForeignKey('tagtypes.tagtype_id'))
     tagtype = relationship('TagType', backref=backref('tagsofthistype', lazy='dynamic'))
     #is above redundant with itemtype?
     #Description is the tagtext. along with the name, the description (arguments etc)
     #form the complete tag: tagtype:name, description
     description = Column(Text)
-    taggeditem=relationship("Item", primaryjoin=taggeditem_id == Item.id, 
-        backref=backref('tags', lazy='dynamic'))
+    taggeditems=relationship("Item", secondary=ItemTag, 
+        backref=backref('itemtags', lazy='dynamic'))
     groupsin = relationship('Group', secondary=TagGroup,
                             backref=backref('grouptags', lazy='dynamic'))
     applicationsin = relationship('Application', secondary=TagApplication,

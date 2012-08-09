@@ -2,6 +2,7 @@
 from classes import *
 import tbase
 import dbase
+import config
 #wont worry about permissions right now
 #wont worry about cascade deletion right now either.
 #what about permissions? MUCH LATER
@@ -218,6 +219,38 @@ class Whosdb(dbase.Database):
         return [e.info() for e in apps]
 #BUG: why cant arguments be specified via destructuring as in coffeescript
     
+def initialize_application(db_session):
+    currentuser=None
+    whosdb=Whosdb(db_session)
+    adsgutuser=whosdb.addUser(currentuser, dict(nick='adsgut', name="ADS GUT", email='adsgut@adslabs.org'))
+    currentuser=adsgutuser
+    whosdb.commit()
+    #adsgutuser=User(name='adsgut', email='adsgut@adslabs.org')
+    adsuser=whosdb.addUser(currentuser, dict(nick='ads', email='ads@adslabs.org'))
+    #adsuser=User(name='ads', email='ads@adslabs.org')
+    whosdb.commit()
+    
+    adspubsapp=whosdb.addApp(currentuser, dict(name='publications', description="ADS's flagship publication app", creator=adsuser))
+    whosdb.commit()
+
+    rahuldave=whosdb.addUser(currentuser, dict(nick='rahuldave', email="rahuldave@gmail.com"))
+    whosdb.addUserToApp(currentuser, 'ads/app:publications', rahuldave, None)
+    #rahuldave.applicationsin.append(adspubsapp)
+
+    mlg=whosdb.addGroup(currentuser, dict(name='ml', description="Machine Learning Group", creator=rahuldave))
+    whosdb.commit()
+    jayluker=whosdb.addUser(currentuser, dict(nick='jayluker', email="jluker@gmail.com"))
+    whosdb.addUserToApp(currentuser, 'ads/app:publications', jayluker, None)
+    #jayluker.applicationsin.append(adspubsapp)
+    whosdb.commit()
+    whosdb.inviteUserToGroup(currentuser, 'rahuldave/group:ml', jayluker, None)
+    whosdb.commit()
+    whosdb.acceptInviteToGroup(currentuser, 'rahuldave/group:ml', jayluker, None)
+    whosdb.addGroupToApp(currentuser, 'ads/app:publications', 'adsgut/group:public', None )
+    #public.applicationsin.append(adspubsapp)
+    #rahuldavedefault.applicationsin.append(adspubsapp)
+    whosdb.commit()
+    print "=====", mlg.appgroup, adspubsapp.appgroup
 
 class TestA(tbase.TBase):
 
@@ -275,3 +308,11 @@ class TestA(tbase.TBase):
         print adspubsapp.applicationgroups.all()
         print whosdb.groupsForUser(currentuser, rahuldave)
         whosdb.edu()
+
+if __name__=="__main__":
+    import os, os.path
+    if os.path.exists(config.DBASE_FILE):
+        os.remove(config.DBASE_FILE)
+    engine, db_session = dbase.setup_db(config.DBASE_FILE)
+    dbase.init_db(engine)
+    initialize_application(db_session)
