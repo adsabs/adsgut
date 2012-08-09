@@ -1,3 +1,4 @@
-Change Resultswidget to not have example stuff in it
-fix the 1 to N problem
+o Change Resultswidget to not have example stuff in it
+o fix the 1 to N problem
 fix the layout
+adsgut pages should not hit solr

@@ -1,0 +1,1 @@
+get tests to use memory database, and set memory datbase to init_db like the other

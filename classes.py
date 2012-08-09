@@ -82,9 +82,9 @@ REASONINGS=[]
 
 AccessTable = Table('accesstable', DaBase.metadata,
     Column('user_id', Integer, ForeignKey('users.id')),
-    Column('ingroup_id', Integer, ForeignKey('groups.group_id')),#includes apps. could this generally be used with tags?
+    Column('intag_id', Integer, ForeignKey('tags.tag_id')),#includes apps. could this generally be used with tags?
     Column('intype_id', Integer, ForeignKey('itemtypes.id')),
-    Column('outgroup_id', Integer, ForeignKey('groups.group_id')),
+    Column('outtag_id', Integer, ForeignKey('tags.tag_id')),
     Column('reasoning_id', Integer)
 )
 
