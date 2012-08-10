@@ -251,6 +251,7 @@ def initialize_application(db_session):
     #rahuldavedefault.applicationsin.append(adspubsapp)
     whosdb.commit()
     print "=====", mlg.appgroup, adspubsapp.appgroup
+    print "ending init"
 
 class TestA(tbase.TBase):
 

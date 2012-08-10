@@ -1,5 +1,6 @@
 #sqlalchemy setup
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import relationship, backref, sessionmaker, mapper
 from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, Table, text
 from dbase import DaBase
@@ -29,7 +30,7 @@ UserGroup = Table('user_group', DaBase.metadata,
 InvitationGroup = Table('invitation_group', DaBase.metadata,
     Column('user_id', Integer, ForeignKey('users.id')),
     Column('group_id', Integer, ForeignKey('groups.group_id')),
-    Column('accepted', Boolean, default=False)
+    Column('accepted', Boolean, default=False)#use proxy?
 )
 
 UserApplication = Table('user_application', DaBase.metadata,
@@ -40,7 +41,7 @@ UserApplication = Table('user_application', DaBase.metadata,
 InvitationApplication = Table('invitation_application', DaBase.metadata,
     Column('user_id', Integer, ForeignKey('users.id')),
     Column('application_id', Integer, ForeignKey('applications.application_id')),
-    Column('accepted', Boolean, default=True)
+    Column('accepted', Boolean, default=True)#use proxy
 )
 
 GroupApplication = Table('group_application', DaBase.metadata,
@@ -48,29 +49,43 @@ GroupApplication = Table('group_application', DaBase.metadata,
     Column('application_id', Integer, ForeignKey('applications.application_id'))
 )
 
-ItemTag = Table('item_tag', DaBase.metadata,
-    Column('item_id', Integer, ForeignKey('items.id')),
-    Column('tag_id', Integer, ForeignKey('tags.tag_id'))
-)
+#To the following add user. For items add uris. For tags add the tagname.
+# ItemTag = Table('item_tag', DaBase.metadata,
+#     Column('item_id', Integer, ForeignKey('items.id')),
+#     Column('tag_id', Integer, ForeignKey('tags.tag_id')),
+#     Column('user_id', Integer, ForeignKey('users.id')),
+#     Column('itemuri', String, ForeignKey('items.uri')),
+#     Column('tagname', String, ForeignKey('items.name'))
+# )
 
-ItemGroup = Table('item_group', DaBase.metadata,
-    Column('item_id', Integer, ForeignKey('items.id')),
-    Column('group_id', Integer, ForeignKey('groups.group_id'))
-)
 
-ItemApplication = Table('item_application', DaBase.metadata,
-    Column('item_id', Integer, ForeignKey('items.id')),
-    Column('application_id', Integer, ForeignKey('applications.application_id'))
-)
 
-TagGroup = Table('tag_group', DaBase.metadata,
-    Column('tag_id', Integer, ForeignKey('tags.tag_id')),
-    Column('group_id', Integer, ForeignKey('groups.group_id'))
-)
+# ItemGroup = Table('item_group', DaBase.metadata,
+#     Column('item_id', Integer, ForeignKey('items.id')),
+#     Column('group_id', Integer, ForeignKey('groups.group_id')),
+#     Column('user_id', Integer, ForeignKey('users.id')),
+#     Column('itemuri', String, ForeignKey('items.uri'))
+# )
+
+# ItemApplication = Table('item_application', DaBase.metadata,
+#     Column('item_id', Integer, ForeignKey('items.id')),
+#     Column('application_id', Integer, ForeignKey('applications.application_id')),
+#     Column('user_id', Integer, ForeignKey('users.id')),
+#     Column('itemuri', String, ForeignKey('items.uri'))
+# )
+
+# TagGroup = Table('tag_group', DaBase.metadata,
+#     Column('tag_id', Integer, ForeignKey('tags.tag_id')),
+#     Column('group_id', Integer, ForeignKey('groups.group_id')),
+#     Column('user_id', Integer, ForeignKey('users.id')),
+#     Column('tagname', String, ForeignKey('items.name'))
+# )
 
 TagApplication = Table('tag_application', DaBase.metadata,
     Column('tag_id', Integer, ForeignKey('tags.tag_id')),
-    Column('application_id', Integer, ForeignKey('applications.application_id'))
+    Column('application_id', Integer, ForeignKey('applications.application_id')),
+    Column('user_id', Integer, ForeignKey('users.id')),
+    Column('tagname', String, ForeignKey('items.name'))
 )
 
 #  the group below is for groups, and apps. Posting too anything posts to users private group.
@@ -151,18 +166,16 @@ class Item(DaBase):
     name = Column(String, nullable=False)#this is the main text, eg for article, it could be title.
     #make it useful, make it searchable.
     fqin = Column(String, unique=True, nullable=False)
-    uri = Column(String, unique=True)
+    #DONT keep uri's uniqie as two items from different users may have the same uri
+    uri = Column(String, nullable=False, default="")
     metajson = Column(Text)
     whencreated = Column(DateTime, server_default=text(THENOW))
     __mapper_args__ = {'polymorphic_on': 'type', 'polymorphic_identity': 'item'}
-    groupsin = relationship('Group', secondary=ItemGroup,
-                            backref=backref('groupitems', lazy='dynamic'))
-    applicationsin = relationship('Application', secondary=ItemApplication,
-                             backref=backref('applicationitems', lazy='dynamic'))
+    
+    
 
     def __repr__(self):
         return "<Item:%s,%s>" % (self.itemtype.name, self.name)
-
 
 
 
@@ -177,12 +190,11 @@ class Tag(Item):
     #Description is the tagtext. along with the name, the description (arguments etc)
     #form the complete tag: tagtype:name, description
     description = Column(Text)
-    taggeditems=relationship("Item", secondary=ItemTag, 
-        backref=backref('itemtags', lazy='dynamic'))
-    groupsin = relationship('Group', secondary=TagGroup,
-                            backref=backref('grouptags', lazy='dynamic'))
-    applicationsin = relationship('Application', secondary=TagApplication,
-                             backref=backref('applicationtags', lazy='dynamic'))
+    
+    # groupsin = relationship('Group', secondary=TagGroup,
+    #                         backref=backref('grouptags', lazy='dynamic'))
+    # applicationsin = relationship('Application', secondary=TagApplication,
+    #                          backref=backref('applicationtags', lazy='dynamic'))
     __mapper_args__ = {'polymorphic_on': 'type', 'polymorphic_identity': 'tag', 'inherit_condition':Item.id==item_id}
 
     def __repr__(self):
@@ -194,6 +206,8 @@ class Tag(Item):
     #tagvisibility = Column(Boolean, default=False)
     #OK Constructor to make some restrictions from the item class...how do we do this?
     #truth is I do not know
+
+
     
 #bug: cant figure how to inherit this from itemtype
 # class TagType(DaBase):
@@ -220,6 +234,7 @@ class Group(Tag):
     personalgroup = Column(Boolean, default=False)
     appgroup = Column(Boolean, default=False)
 
+
     def __repr__(self):
         return "<Grp:%s,%s>" % (self.owner.nick, self.fqin)
 
@@ -244,11 +259,104 @@ class Application(Group):
     def info(self):
         return {'name': self.name, 'description': self.description, 'owner': self.owner.nick, 'fqan': self.fqin, 'creator': self.creator.nick, 'whencreated': self.whencreated.strftime("%Y-%m-%d %H:%M:%S")}
 
-Group.applicationsin = relationship('Application', secondary=GroupApplication, 
-                            primaryjoin=GroupApplication.c.group_id == Group.group_id,
-                            secondaryjoin=GroupApplication.c.application_id == Application.application_id,
-                            backref=backref('applicationgroups', lazy='dynamic'))
 
+# Item.groupsin = relationship('Group', secondary=ItemGroup,
+#                             secondaryjoin=ItemGroup.c.group_id==Group.group_id, 
+#                             primaryjoin=ItemGroup.c.item_id==Item.id, 
+#                             backref=backref('groupitems', lazy='dynamic'))
+
+Item.groupsin = association_proxy('items_groups', 'group')
+
+class ItemGroup(DaBase):
+    __tablename__='item_group'
+    item_id=Column(Integer, ForeignKey('items.id'), primary_key=True)
+    group_id=Column(Integer, ForeignKey('groups.group_id'), primary_key=True)
+    user_id=Column(Integer, ForeignKey('users.id'))
+    itemuri=Column(String)
+    user=relationship('User')
+    item = relationship(Item,
+                backref=backref("items_groups")
+            )
+
+ItemGroup.group = relationship(Group, primaryjoin=ItemGroup.group_id==Group.group_id)
+
+Group.itemsposted=relationship("Item", secondary=ItemGroup.__table__)
+
+# Item.applicationsin = relationship('Application', secondary=ItemApplication, 
+#                             secondaryjoin=ItemApplication.c.application_id==Application.application_id,
+#                             primaryjoin=ItemApplication.c.item_id==Item.id, 
+#                              backref=backref('applicationitems', lazy='dynamic'))
+
+
+Item.applicationsin = association_proxy('items_applications', 'application')
+
+class ItemApplication(DaBase):
+    __tablename__='item_application'
+    item_id=Column('item_id', Integer, ForeignKey('items.id'), primary_key=True)
+    application_id=Column(Integer, ForeignKey('applications.application_id'), primary_key=True)
+    user_id=Column('user_id', Integer, ForeignKey('users.id'))
+    itemuri=Column(String)
+    user=relationship('User')
+    item = relationship(Item,
+                backref=backref("items_applications")
+            )
+
+ItemApplication.application = relationship(Application, primaryjoin=ItemApplication.application_id==Application.application_id)
+
+Application.itemsposted=relationship("Item", secondary=ItemApplication.__table__)
+
+
+
+
+# Tag.taggeditems=relationship("Item", secondary=ItemTag, 
+#                             secondaryjoin=ItemTag.c.item_id==Item.id,
+#                             primaryjoin=ItemTag.c.tag_id==Tag.tag_id,
+#                             backref=backref('itemtags', lazy='dynamic'))
+
+Item.itemtags = association_proxy('items_tags', 'tag')
+class ItemTag(DaBase):
+    __tablename__ = 'item_tag'
+    item_id=Column(Integer, ForeignKey('items.id'), primary_key=True)
+    tag_id=Column(Integer, ForeignKey('tags.tag_id'), primary_key=True)
+    user_id=Column(Integer, ForeignKey('users.id'))
+    itemuri=Column(String)
+    tagname=Column(String)
+    user=relationship('User')
+    item = relationship(Item,
+                backref=backref("items_tags")
+            )
+ItemTag.tag = relationship(Tag, primaryjoin=ItemTag.tag_id==Tag.tag_id)
+
+Tag.taggeditems=relationship("Item", secondary=ItemTag.__table__)
+
+#------------------------------ NOT SURE OF THIS WHOLE IDEA BELOW
+ItemTag.groupsin = association_proxy('tagitems_groups', 'group')
+class TagitemGroup(DaBase):
+    __tablename__ = 'tagitem_group'
+    item_id=Column(Integer, ForeignKey('item_tag.item_id'), primary_key=True)
+    tag_id=Column(Integer, ForeignKey('item_tag.tag_id'), primary_key=True)
+    group_id=Column(Integer, ForeignKey('groups.group_id'), primary_key=True)
+    user_id=Column('user_id', Integer, ForeignKey('users.id'))
+    tagname=Column(String)
+    user=relationship('User')
+    
+TagitemGroup.itemtags = relationship(ItemTag, 
+                primaryjoin=TagitemGroup.item_id==ItemTag.item_id and TagitemGroup.tag_id==ItemTag.tag_id,
+                backref=backref("tagitems_groups")
+            )
+
+TagitemGroup.group = relationship(Group, primaryjoin=TagitemGroup.group_id==Group.group_id)
+#
+Group.itemtags=relationship(ItemTag, secondary=TagitemGroup.__table__, 
+        secondaryjoin=TagitemGroup.item_id==ItemTag.item_id and TagitemGroup.tag_id==ItemTag.tag_id)
+#------------------------------
+
+
+###################################################
+Group.applicationsin = relationship('Application', secondary=GroupApplication, 
+                            secondaryjoin=GroupApplication.c.application_id == Application.application_id,
+                            primaryjoin=GroupApplication.c.group_id == Group.group_id,
+                            backref=backref('applicationgroups', lazy='dynamic'))
 
 if __name__=="__main__":
     from sqlalchemy import create_engine
