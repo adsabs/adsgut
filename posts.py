@@ -51,9 +51,10 @@ class Postdb(dbase.Database):
         newtag=Tag(**validatespec(tagspec, spectype='tag'))
         self.session.add(newtag)
         newtagging=ItemTag(item=itemtobetagged, tag=newtag, user=useras, 
-            itemuri=itemtobetagged.uri, tagname=newtag.name, tagtype=tagspec['tagtype'])
+            itemuri=itemtobetagged.uri, tagname=newtag.name, tagtype=tagspec['tagtype'], itemtype=itemtobetagged.itemtype)
         self.session.add(newtagging)
-        #self.commit()
+        self.commit()
+        print "::", newtag.fqin
         #print itemtobetagged.itemtags, "WEE", newtag.taggeditems, newtagging.tagtype.name
         return OK
 
@@ -105,33 +106,56 @@ class Postdb(dbase.Database):
         return OK
 
 
-    def postTaggingIntoGroup(self, currentuser, useras, fullyQualifiedGroupName, itemspec):
-        itemspec['itemtype']=self.session.query(ItemType).filter_by(fqin=itemspec['itemtype']).one()
+    def postTaggingIntoGroup(self, currentuser, useras, fullyQualifiedGroupName, fullyQualifiedItemName, fullyQualifiedTagName):
         grp=self.session.query(Group).filter_by(fqin=fullyQualifiedGroupName).one()
+        itm=self.session.query(Item).filter_by(fqin=fullyQualifiedItemName).one()
+        tag=self.session.query(Tag).filter_by(fqin=fullyQualifiedTagName).one()
+        #The itemtag must exist at first
+        itemtag=self.session.query(ItemTag).filter_by(item=itm, tag=tag).one()
         #Information about user useras goes as namespace into newitem, but should somehow also be in main lookup table
-        newitem=Item(**validatespec(itemspec))
-        self.session.add(newitem)
-        grp.groupitems.append(newitem)
+        newitg=TagitemGroup(itemtag=itemtag, group=grp, tagname=tag.name, user=useras)
+        self.session.add(newitg)
+        #grp.groupitems.append(newitem)
+        # self.commit()
+        # print itemtag.groupsin, 'jee', grp.itemtags
+        # itgto=self.session.query(TagitemGroup).filter_by(itemtag=itemtag, group=grp).one()
+        # print itgto
         return OK
 
-    def removeTaggingFromGroup(self, currentuser, useras, fullyQualifiedGroupName, fullyQualifiedItemName):
+    def removeTaggingFromGroup(self, currentuser, useras, fullyQualifiedGroupName, fullyQualifiedItemName, fullyQualifiedTagName):
         grp=self.session.query(Group).filter_by(fqin=fullyQualifiedGroupName).one()
-        itemtoberemoved=self.session.query(Item).filter_by(fqin=fullyQualifiedItemName).one()
-        itemtoberemoved.groupsin.remove(grp)
+        itm=self.session.query(Item).filter_by(fqin=fullyQualifiedItemName).one()
+        tag=self.session.query(Tag).filter_by(fqin=fullyQualifiedTagName).one()
+        #The itemtag must exist at first
+        itemtag=self.session.query(ItemTag).filter_by(item=itm, tag=tag).one()
+        itgtoberemoved=self.session.query(TagitemGroup).filter_by(itemtag=itemtag, group=grp).one()
+        self.session.remove(itgtoberemoved)
         return OK
 
-    def postTaggingIntoApp(self, currentuser, useras, fullyQualifiedAppName, itemspec):
-        app=self.session.query(Application).filter_by(fqin=fullyQualifiedAppName).one()
+    def postTaggingIntoApp(self, currentuser, useras, fullyQualifiedAppName, fullyQualifiedItemName, fullyQualifiedTagName):
+        app=self.session.query(Group).filter_by(fqin=fullyQualifiedAppName).one()
+        itm=self.session.query(Item).filter_by(fqin=fullyQualifiedItemName).one()
+        tag=self.session.query(Tag).filter_by(fqin=fullyQualifiedTagName).one()
+        #The itemtag must exist at first
+        itemtag=self.session.query(ItemTag).filter_by(item=itm, tag=tag).one()
         #Information about user useras goes as namespace into newitem, but should somehow also be in main lookup table
-        newitem=Item(**validatespec(itemspec))
-        self.session.add(newitem)
-        app.appitems.append(newitem)
+        newita=TagitemApplication(itemtag=itemtag, application=app, tagname=tag.name, user=useras)
+        self.session.add(newita)
+        #grp.groupitems.append(newitem)
+        # self.commit()
+        # print itemtag.groupsin, 'jee', grp.itemtags
+        # itgto=self.session.query(TagitemGroup).filter_by(itemtag=itemtag, group=grp).one()
+        # print itgto
         return OK
 
-    def removeTaggingFromApp(self, currentuser, useras, fullyQualifiedAppName, fullyQualifiedItemName):
-        app=self.session.query(Application).filter_by(fqin=fullyQualifiedAppName).one()
-        itemtoberemoved=self.session.query(Item).filter_by(fqin=fullyQualifiedItemName).one()
-        itemtoberemoved.applicationsin.remove(app)
+    def removeTaggingFromApp(self, currentuser, useras, fullyQualifiedAppName, fullyQualifiedItemName, fullyQualifiedTagName):
+        app=self.session.query(Group).filter_by(fqin=fullyQualifiedAppName).one()
+        itm=self.session.query(Item).filter_by(fqin=fullyQualifiedItemName).one()
+        tag=self.session.query(Tag).filter_by(fqin=fullyQualifiedTagName).one()
+        #The itemtag must exist at first
+        itemtag=self.session.query(ItemTag).filter_by(item=itm, tag=tag).one()
+        itatoberemoved=self.session.query(TagitemGroup).filter_by(itemtag=itemtag, application=app).one()
+        self.session.remove(itatoberemoved)
         return OK
 
     def saveItem(self, currentuser, useras, itemspec):
@@ -190,5 +214,7 @@ class TestB(tbase.TBase):
         whosdb.commit()
         postdb.commit()
         postdb.tagItem(currentuser, rahuldave, "rahuldave/hello kitty", dict(tagtype="ads/tag", creator=rahuldave, name="stupid paper"))
+        postdb.commit()
+        postdb.postTaggingIntoGroup(currentuser, rahuldave, "rahuldave/group:ml", "rahuldave/hello kitty", "rahuldave/stupid paper")
         postdb.commit()
         #whosdb.edu()

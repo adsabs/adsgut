@@ -333,6 +333,9 @@ class ItemTag(DaBase):
                 backref=backref("items_tags")
             )
 
+    def __repr__(self):
+        return self.itemtype.name+":"+self.item.fqin+':::'+self.tagtype.name+":"+self.tag.fqin
+
 ItemTag.tagtype=relationship('TagType', primaryjoin=ItemTag.tagtype_id==TagType.tagtype_id)
 ItemTag.tag = relationship(Tag, primaryjoin=ItemTag.tag_id==Tag.tag_id)
 
@@ -349,7 +352,18 @@ class TagitemGroup(DaBase):
     tagname=Column(String)
     user=relationship('User')
     
-TagitemGroup.itemtags = relationship(ItemTag, 
+    def __init__(self, **indict):
+        self.tagname=indict['tagname']
+        self.itemtag=indict['itemtag']
+        self.group=indict['group']
+        self.item_id=self.itemtag.item.id
+        self.tag_id=self.itemtag.tag.tag_id
+        self.user=indict['user']
+
+    def __repr__(self):
+        return "["+self.group.name+self.itemtag.item.name+self.itemtag.tag.name+"]"
+
+TagitemGroup.itemtag = relationship(ItemTag, 
                 primaryjoin=TagitemGroup.item_id==ItemTag.item_id and TagitemGroup.tag_id==ItemTag.tag_id,
                 backref=backref("tagitems_groups")
             )
@@ -371,7 +385,18 @@ class TagitemApplication(DaBase):
     tagname=Column(String)
     user=relationship('User')
     
-TagitemApplication.itemtags = relationship(ItemTag, 
+    def __init__(self, **indict):
+        self.tagname=indict['tagname']
+        self.itemtag=indict['itemtag']
+        self.application=indict['application']
+        self.item_id=self.itemtag.item.id
+        self.tag_id=self.itemtag.tag.tag_id
+        self.user=indict['user']
+
+    def __repr__(self):
+        return "["+self.application.name+self.itemtag.item.name+self.itemtag.tag.name+"]"
+
+TagitemApplication.itemtag = relationship(ItemTag, 
                 primaryjoin=TagitemApplication.item_id==ItemTag.item_id and TagitemApplication.tag_id==ItemTag.tag_id,
                 backref=backref("tagitems_applications")
             )
