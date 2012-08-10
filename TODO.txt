@@ -1,3 +1,4 @@
 o get tests to use memory database, and set memory datbase to init_db like the other
 get itemtypes and tagtypes into the association classes
-also what we want to associate into a group is a tag posting, not a tag
+o also what we want to associate into a group is a tag posting, not a tag
+support in posts.py for the new tables

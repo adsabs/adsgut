@@ -272,8 +272,10 @@ class ItemGroup(DaBase):
     item_id=Column(Integer, ForeignKey('items.id'), primary_key=True)
     group_id=Column(Integer, ForeignKey('groups.group_id'), primary_key=True)
     user_id=Column(Integer, ForeignKey('users.id'))
+    itemtype_id=Column(Integer, ForeignKey('itemtypes.id'))
     itemuri=Column(String)
     user=relationship('User')
+    itemtype=relationship('ItemType')
     item = relationship(Item,
                 backref=backref("items_groups")
             )
@@ -295,8 +297,10 @@ class ItemApplication(DaBase):
     item_id=Column('item_id', Integer, ForeignKey('items.id'), primary_key=True)
     application_id=Column(Integer, ForeignKey('applications.application_id'), primary_key=True)
     user_id=Column('user_id', Integer, ForeignKey('users.id'))
+    itemtype_id=Column(Integer, ForeignKey('itemtypes.id'))
     itemuri=Column(String)
     user=relationship('User')
+    itemtype=relationship('ItemType')
     item = relationship(Item,
                 backref=backref("items_applications")
             )
@@ -319,12 +323,17 @@ class ItemTag(DaBase):
     item_id=Column(Integer, ForeignKey('items.id'), primary_key=True)
     tag_id=Column(Integer, ForeignKey('tags.tag_id'), primary_key=True)
     user_id=Column(Integer, ForeignKey('users.id'))
+    itemtype_id=Column(Integer, ForeignKey('itemtypes.id'))
+    tagtype_id=Column(Integer, ForeignKey('tagtypes.tagtype_id'))
     itemuri=Column(String)
     tagname=Column(String)
     user=relationship('User')
+    itemtype=relationship('ItemType')
     item = relationship(Item,
                 backref=backref("items_tags")
             )
+
+ItemTag.tagtype=relationship('TagType', primaryjoin=ItemTag.tagtype_id==TagType.tagtype_id)
 ItemTag.tag = relationship(Tag, primaryjoin=ItemTag.tag_id==Tag.tag_id)
 
 Tag.taggeditems=relationship("Item", secondary=ItemTag.__table__)
@@ -349,6 +358,28 @@ TagitemGroup.group = relationship(Group, primaryjoin=TagitemGroup.group_id==Grou
 #
 Group.itemtags=relationship(ItemTag, secondary=TagitemGroup.__table__, 
         secondaryjoin=TagitemGroup.item_id==ItemTag.item_id and TagitemGroup.tag_id==ItemTag.tag_id)
+#------------------------------
+
+#------------------------------ NOT SURE OF THIS WHOLE IDEA BELOW
+ItemTag.applicationsin = association_proxy('tagitems_applications', 'application')
+class TagitemApplication(DaBase):
+    __tablename__ = 'tagitem_application'
+    item_id=Column(Integer, ForeignKey('item_tag.item_id'), primary_key=True)
+    tag_id=Column(Integer, ForeignKey('item_tag.tag_id'), primary_key=True)
+    application_id=Column(Integer, ForeignKey('applications.application_id'), primary_key=True)
+    user_id=Column('user_id', Integer, ForeignKey('users.id'))
+    tagname=Column(String)
+    user=relationship('User')
+    
+TagitemApplication.itemtags = relationship(ItemTag, 
+                primaryjoin=TagitemApplication.item_id==ItemTag.item_id and TagitemApplication.tag_id==ItemTag.tag_id,
+                backref=backref("tagitems_applications")
+            )
+
+TagitemApplication.application = relationship(Application, primaryjoin=TagitemApplication.application_id==Application.application_id)
+#
+Application.itemtags=relationship(ItemTag, secondary=TagitemApplication.__table__, 
+        secondaryjoin=TagitemApplication.item_id==ItemTag.item_id and TagitemApplication.tag_id==ItemTag.tag_id)
 #------------------------------
 
 

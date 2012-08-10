@@ -50,10 +50,11 @@ class Postdb(dbase.Database):
         #Information about user useras goes as namespace into newitem, but should somehow also be in main lookup table
         newtag=Tag(**validatespec(tagspec, spectype='tag'))
         self.session.add(newtag)
-        newtagging=ItemTag(item=itemtobetagged, tag=newtag, user=useras, itemuri=itemtobetagged.uri, tagname=newtag.name)
+        newtagging=ItemTag(item=itemtobetagged, tag=newtag, user=useras, 
+            itemuri=itemtobetagged.uri, tagname=newtag.name, tagtype=tagspec['tagtype'])
         self.session.add(newtagging)
-        self.commit()
-        print itemtobetagged.itemtags, "WEE", newtag.taggeditems
+        #self.commit()
+        #print itemtobetagged.itemtags, "WEE", newtag.taggeditems, newtagging.tagtype.name
         return OK
 
     def untagItem(self, currentuser, useras, fullyQualifiedTagName, fullyQualifiedItemName):
@@ -69,10 +70,10 @@ class Postdb(dbase.Database):
         #Information about user useras goes as namespace into newitem, but should somehow also be in main lookup table
         newitem=Item(**validatespec(itemspec))
         self.session.add(newitem)
-        newposting=ItemGroup(item=newitem, group=grp, user=useras, itemuri=newitem.uri)
+        newposting=ItemGroup(item=newitem, group=grp, user=useras, itemuri=newitem.uri, itemtype=itemspec['itemtype'])
         self.session.add(newposting)
         #self.commit()
-        #print newitem.groupsin, "WEE", grp.itemsposted
+        #print newitem.groupsin, "WEE", grp.itemsposted, newposting.itemtype.name
         #grp.groupitems.append(newitem)
         return OK
 
@@ -89,7 +90,7 @@ class Postdb(dbase.Database):
         #Information about user useras goes as namespace into newitem, but should somehow also be in main lookup table
         newitem=Item(**validatespec(itemspec))
         self.session.add(newitem)
-        newposting=ItemApplication(item=newitem, application=app, user=useras, itemuri=newitem.uri)
+        newposting=ItemApplication(item=newitem, application=app, user=useras, itemuri=newitem.uri, itemtype=itemspec['itemtype'])
         self.session.add(newposting)
         #self.commit()
         #print newitem.groupsin, "WEE", grp.itemsposted
