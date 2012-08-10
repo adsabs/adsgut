@@ -2,6 +2,7 @@ from classes import *
 from whos import Whosdb, initialize_application
 import tbase
 import dbase
+import types
 #wont worry about permissions right now
 #wont worry about cascade deletion right now either.
 #what about permissions? MUCH LATER
@@ -66,12 +67,15 @@ class Postdb(dbase.Database):
         return OK
 
     def postItemIntoGroup(self, currentuser, useras, fullyQualifiedGroupName, itemspec):
-        itemspec['itemtype']=self.session.query(ItemType).filter_by(fqin=itemspec['itemtype']).one()
+        if type(itemspec) is types.StringType:
+            newitem=self.session.query(Item).filter_by(fqin=itemspec).one()
+        else:
+            itemspec['itemtype']=self.session.query(ItemType).filter_by(fqin=itemspec['itemtype']).one()
+            #Information about user useras goes as namespace into newitem, but should somehow also be in main lookup table
+            newitem=Item(**validatespec(itemspec))
+            self.session.add(newitem)
         grp=self.session.query(Group).filter_by(fqin=fullyQualifiedGroupName).one()
-        #Information about user useras goes as namespace into newitem, but should somehow also be in main lookup table
-        newitem=Item(**validatespec(itemspec))
-        self.session.add(newitem)
-        newposting=ItemGroup(item=newitem, group=grp, user=useras, itemuri=newitem.uri, itemtype=itemspec['itemtype'])
+        newposting=ItemGroup(item=newitem, group=grp, user=useras, itemuri=newitem.uri, itemtype=newitem.itemtype)
         self.session.add(newposting)
         #self.commit()
         #print newitem.groupsin, "WEE", grp.itemsposted, newposting.itemtype.name
@@ -86,12 +90,15 @@ class Postdb(dbase.Database):
         return OK
 
     def postItemIntoApp(self, currentuser, useras, fullyQualifiedAppName, itemspec):
-        itemspec['itemtype']=self.session.query(ItemType).filter_by(fqin=itemspec['itemtype']).one()
+        if type(itemspec) is types.StringType:
+            newitem=self.session.query(Item).filter_by(fqin=itemspec).one()
+        else:
+            itemspec['itemtype']=self.session.query(ItemType).filter_by(fqin=itemspec['itemtype']).one()
+            #Information about user useras goes as namespace into newitem, but should somehow also be in main lookup table
+            newitem=Item(**validatespec(itemspec))
+            self.session.add(newitem)
         app=self.session.query(Application).filter_by(fqin=fullyQualifiedAppName).one()
-        #Information about user useras goes as namespace into newitem, but should somehow also be in main lookup table
-        newitem=Item(**validatespec(itemspec))
-        self.session.add(newitem)
-        newposting=ItemApplication(item=newitem, application=app, user=useras, itemuri=newitem.uri, itemtype=itemspec['itemtype'])
+        newposting=ItemApplication(item=newitem, application=app, user=useras, itemuri=newitem.uri, itemtype=newitem.itemtype)
         self.session.add(newposting)
         #self.commit()
         #print newitem.groupsin, "WEE", grp.itemsposted
@@ -167,27 +174,105 @@ class Postdb(dbase.Database):
         return self.removeItemFromGroup(currentuser, useras, fqgn, fullyQualifiedItemName)
 
     def getTaggingForUser(self, currentuser, useras, context=None, fqin=None):
-        pass
+        rhash={}
+        titems={}
+        if context is None:
+            taggings=self.session.query(ItemTag).filter_by(user=useras)
+        elif context is 'group':
+            grp=self.session.query(Group).filter_by(fqin=fqin).one()
+            taggings=[ele.itemtag for ele in self.session.query(TagitemGroup).filter_by(user=useras, group=grp)]
+            rhash['group']=grp.fqin
+        elif context is 'app':
+            app=self.session.query(Application).filter_by(fqin=fqin).one()
+            taggings=[ele.itemtag for ele in self.session.query(TagitemApplication).filter_by(user=useras, application=app)]
+            rhash['app']=app.fqin
+        for ele in taggings:
+            eled=ele.info()
+            if not titems.has_key(ele.item.fqin):
+                titems[ele.item.fqin]=[]
+            titems[ele.item.fqin].append(eled)
+        rhash.update({'user':useras.nick, 'taggings':titems})
+        return rhash
 
-    def getItemsForUser(self, currentuser, useras, context=None, fqin=None):
-        pass
+    
 
     def getItemsForGroup(self, currentuser, useras, fullyQualifiedGroupName):
-        pass
+        grp=self.session.query(Group).filter_by(fqin=fullyQualifiedGroupName).one()
+        return [ele.info() for ele in grp.itemsposted]
+
+    def getItemsForUser(self, currentuser, useras, context=None, fqin=None):
+        if context is None:
+            grp=self.session.query(Group).filter_by(fqin=useras.nick+"/group:default").one()
+            items=grp.itemsposted
+        elif context is 'group':
+            grp=self.session.query(Group).filter_by(fqin=fqin).one()
+            items=[ele.item for ele in self.session.query(ItemGroup).filter_by(user=useras, group=grp)]
+        elif context is 'app':
+            app=self.session.query(Application).filter_by(fqin=fqin).one()
+            items=[ele.item for ele in self.session.query(ItemApplication).filter_by(user=useras, application=app)]
+        return [ele.info() for ele in items]
 
     def getTaggingForGroup(self, currentuser, useras, fullyQualifiedGroupName):
-        pass
+        rhash={}
+        titems={}
+        grp=self.session.query(Group).filter_by(fqin=fullyQualifiedGroupName).one()
+        taggings=[ele.itemtag for ele in self.session.query(TagitemGroup).filter_by(group=grp)]
+        rhash['group']=grp.fqin
+
+        for ele in taggings:
+            eled=ele.info()
+            if not titems.has_key(ele.item.fqin):
+                titems[ele.item.fqin]=[]
+            titems[ele.item.fqin].append(eled)
+        rhash.update({'taggings':titems})
+        return rhash
 
     def getItemsForApp(self, currentuser, useras, fullyQualifiedAppName):
-        pass
+        app=self.session.query(Application).filter_by(fqin=fullyQualifiedAppName).one()
+        return [ele.info() for ele in app.itemsposted]
 
     def getTaggingForApp(self, currentuser, useras, fullyQualifiedAppName):
-        pass
+        rhash={}
+        titems={}
+        app=self.session.query(Application).filter_by(fqin=fullyQualifiedAppName).one()
+        taggings=[ele.itemtag for ele in self.session.query(TagitemApplication).filter_by(application=app)]
+        rhash['group']=app.fqin
+
+        for ele in taggings:
+            eled=ele.info()
+            if not titems.has_key(ele.item.fqin):
+                titems[ele.item.fqin]=[]
+            titems[ele.item.fqin].append(eled)
+        rhash.update({'taggings':titems})
+        return rhash
 
     def getItemsForTag(self, currentuser, useras, fullyQualifiedTagName, context=None, fqin=None):
+        tag=self.session.query(Tag).filter_by(fqin=fullyQualifiedTagName).one()
+        if context is None:           
+            items=tag.taggeditems
+        elif context is 'group':
+            grp=self.session.query(Group).filter_by(fqin=fqin).one()
+            #bottom could be done as query on the assoc-proxy collection too! Is that more idiomatic? BUG (Could also be faster)
+            #more likely somewhere else
+            items=[ele.item for ele in self.session.query(TagitemGroup).filter_by(tag=tag, group=grp)]
+        elif context is 'app':
+            app=self.session.query(Application).filter_by(fqin=fqin).one()
+            items=[ele.item for ele in self.session.query(ItemTag).filter_by(tag=tag, application=app)]
+        return [ele.info() for ele in items]
+
+    def getItemsForTagname(self, currentuser, useras, tagname, context=None, fqin=None):
         pass
 
-    def getItemsForTagName(self, currentuser, useras, tagname, context=None, fqin=None):
+    def getItemsForTagtype(self, currentuser, useras, tagtype, context=None, fqin=None):
+        pass
+
+    def getTagsForItem(self, currentuser, useras, fullyQualifiedItemName, context=None, fqin=None):
+        pass
+
+    def getTagsForItemuri(self, currentuser, useras, itemuri, context=None, fqin=None):
+        pass
+
+    def getTagsForItemtype(self, currentuser, useras, itemtype, context=None, fqin=None):
         pass
 
 
@@ -215,6 +300,16 @@ class TestB(tbase.TBase):
         postdb.commit()
         postdb.tagItem(currentuser, rahuldave, "rahuldave/hello kitty", dict(tagtype="ads/tag", creator=rahuldave, name="stupid paper"))
         postdb.commit()
+        #Wen a tagging is posted to a group, the item should be autoposted into there too BUG NOT ONE NOW
+        postdb.postItemIntoGroup(currentuser,rahuldave, "rahuldave/group:ml", "rahuldave/hello kitty")
         postdb.postTaggingIntoGroup(currentuser, rahuldave, "rahuldave/group:ml", "rahuldave/hello kitty", "rahuldave/stupid paper")
         postdb.commit()
+        print postdb.getTaggingForUser(currentuser, rahuldave)
+        print postdb.getTaggingForUser(currentuser, rahuldave, "group", "rahuldave/group:ml")
+        print postdb.getTaggingForGroup(currentuser, rahuldave, "rahuldave/group:ml")
+        print postdb.getItemsForGroup(currentuser, rahuldave, "rahuldave/group:ml")
+        #BUG everything MUST be autoposted to private user group
+        print postdb.getItemsForUser(currentuser, rahuldave)
+        print postdb.getItemsForUser(currentuser, rahuldave, "group", "rahuldave/group:ml")
+        #print postdb.getItemsForTag(currentuser, rahuldave, "rahuldave/stupid paper", "group", "rahuldave/group:ml")
         #whosdb.edu()

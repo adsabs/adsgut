@@ -177,6 +177,9 @@ class Item(DaBase):
     def __repr__(self):
         return "<Item:%s,%s>" % (self.itemtype.name, self.name)
 
+    def info(self):
+        return {'fqin':self.fqin, 'uri':self.uri, 'creator': self.creator.nick, 'name': self.name, 'itemtype':self.itemtype.fqin, 'metajson':self.metajson}
+
 
 
 class Tag(Item):
@@ -333,6 +336,9 @@ class ItemTag(DaBase):
                 backref=backref("items_tags")
             )
 
+    def info(self):
+        return {'item':self.item.fqin, 'itemtype': self.itemtype.fqin, 'tag':[self.tag.fqin, self.tag.description], 
+            'tagtype':self.tag.tagtype.fqin, 'tagname': self.tagname, 'tagger':self.user.nick}
     def __repr__(self):
         return self.itemtype.name+":"+self.item.fqin+':::'+self.tagtype.name+":"+self.tag.fqin
 
@@ -362,6 +368,9 @@ class TagitemGroup(DaBase):
 
     def __repr__(self):
         return "["+self.group.name+self.itemtag.item.name+self.itemtag.tag.name+"]"
+
+#TagitemGroup.tag=relationship(Tag, primaryjoin=TagitemGroup.tag_id==Tag.tag_id)
+#TagitemGroup.item=relationship(Item, primaryjoin=TagitemGroup.item_id==Item.id)
 
 TagitemGroup.itemtag = relationship(ItemTag, 
                 primaryjoin=TagitemGroup.item_id==ItemTag.item_id and TagitemGroup.tag_id==ItemTag.tag_id,

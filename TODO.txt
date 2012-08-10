@@ -2,3 +2,4 @@ o get tests to use memory database, and set memory datbase to init_db like the o
 get itemtypes and tagtypes into the association classes
 o also what we want to associate into a group is a tag posting, not a tag
 support in posts.py for the new tables
+o the get funcs return dicts in different ways. Standardize
