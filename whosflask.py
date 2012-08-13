@@ -1,17 +1,18 @@
 from dbase import setup_db
-import whos
+import whos, posts
 from flask import Flask, request, session, g, redirect, url_for, \
      abort, render_template, flash, escape, make_response, jsonify
 
-
+import hashlib
 engine, db_session=setup_db("/tmp/adsgut.db")
 app = Flask(__name__)
 
-
+#######################################################################################################################
 
 @app.before_request
 def before_request():
         g.db=whos.Whosdb(db_session)
+        g.dbp=posts.Postdb(db_session)
         if session.has_key('username'):
             g.currentuser=g.db.getUserForNick(None, session['username'])
         else:
@@ -19,20 +20,31 @@ def before_request():
 
 @app.teardown_request
 def shutdown_session(exception=None):
-    #g.db.commit()
+    g.db.commit()
     g.db.remove()
 
 #EXPLICITLY COMMIT ON POSTS. THOUGH TO DO MULTIPLE THINGS, WE MAY WANT TO 
 #SCHEDULE COMMITS SEPARATELY..really commits not a property of whosdb
-@app.route('/')
-def index():
-    return render_template('index.html', users=g.db.allUsers(g.currentuser), 
+#currently explicit for simplicity
+
+#######################################################################################################################
+
+@app.route('/all')
+def indexall():
+    return render_template('allindex.html', users=g.db.allUsers(g.currentuser), 
         groups=g.db.allGroups(g.currentuser), apps=g.db.allApps(g.currentuser))
 
+@app.route('/')
+def index():
+    return render_template('index.html', suppressed=True, poal=True)
+
+#######################################################################################################################
 @app.route('/poal')
 def poal():
     return render_template('poal.html', users=g.db.allUsers(g.currentuser), 
-        groups=g.db.allGroups(g.currentuser), apps=g.db.allApps(g.currentuser))
+        groups=g.db.allGroups(g.currentuser), apps=g.db.allApps(g.currentuser), poal=True)
+
+#######################################################################################################################
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -51,6 +63,9 @@ def logout():
     session.pop('logged_in', None)
     flash('You were logged out')
     return redirect(url_for('index'))
+
+#######################################################################################################################
+#######################################################################################################################
 
 #use this for op based POSTS?
 #currentuser=g.db.getCurrentuser(session.username)
@@ -102,6 +117,55 @@ def appsinvited(nick):
     apps=g.db.appInvitationsForUser(g.currentuser, user)
     return jsonify({'apps':apps})
 
+
+#######################################################################################################################
+
+#users items/posts
+#currently get the items. worry about tags later
+@app.route('/user/<nick>/items')
+def usersitems(nick):
+    user=g.db.getUserForNick(g.currentuser, nick)
+    items=g.dbp.getItemsForUser(g.currentuser, user)
+    return jsonify({'items':items})
+
+
+@app.route('/user/<nick>/items/html')
+def usersitemshtml(nick):
+    user=g.db.getUserForNick(g.currentuser, nick)
+    userinfo=user.info()
+    items=g.dbp.getItemsForUser(g.currentuser, user)
+    return render_template('usersaved.html', theuser=userinfo, items=items)
+    
+
+#if no itemname, assume POST, else GET the itemname
+@app.route('/user/<nick>/item', methods=['GET', 'POST'])
+def usersitem(nick):
+    itemname=None
+    user=g.db.getUserForNick(g.currentuser, nick)
+    #print "hello", user.nick
+    if request.method == 'POST' and itemname==None:
+        #print request.form
+        itspec={}
+        itspec['creator']=user
+        itspec['name'] = request.form['name']
+        itspec['itemtype'] = request.form['itemtype']
+        #print "world"
+        #md5u=hashlib.md5()
+        #itspec['uri']=request.form.get('uri', md5u.update(creator+"/"+name))
+        itspec['uri']=request.form['uri']
+        #print "aaa", itspec
+        g.dbp.saveItem(g.currentuser, user, itspec)
+        #print "kkk"
+        return jsonify({'status':'OK'})
+    iteminfo=g.dbp.getItemByName(g.currentuser, user, itemname)
+    return jsonify({'item':iteminfo})
+
+@app.route('/user/<nick>/itemswithtags')
+def usersitemswithtags(nick):
+    pass
+
+#######################################################################################################################
+
 #POST/GET
 @app.route('/group/html')
 def creategroup():
@@ -126,7 +190,12 @@ def group_users(username, groupname):
     users=g.db.usersInGroup(g.currentuser,fqgn)
     return jsonify({'users':users})
 
+
 #TODO: do one for a groups apps
+
+#######################################################################################################################
+#######################################################################################################################
+
 #POST/GET
 @app.route('/app/html')
 def createapp():
@@ -157,6 +226,10 @@ def application_groups(username, appname):
     groups=g.db.groupsInApp(g.currentuser,fqan)
     return jsonify({'groups':groups})
 
+
+#######################################################################################################################
+
+#######################################################################################################################
 app.secret_key = 'A0Zr98j/3yX R~XHH!jmN]LWX/,?RT'
 
 if __name__=='__main__':

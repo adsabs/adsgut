@@ -3,6 +3,7 @@ from whos import Whosdb, initialize_application
 import tbase
 import dbase
 import types
+import config
 #wont worry about permissions right now
 #wont worry about cascade deletion right now either.
 #what about permissions? MUCH LATER
@@ -167,11 +168,20 @@ class Postdb(dbase.Database):
 
     def saveItem(self, currentuser, useras, itemspec):
         fqgn=useras.nick+"/group:default"
+        print "in saveItem", fqgn
         return self.postItemIntoGroup(currentuser, useras, fqgn, itemspec)
 
     def deleteItem(self, currentuser, useras, fullyQualifiedItemName):
         fqgn=useras.nick+"/group:default" #ALSO TRIGGER others (bug)
         return self.removeItemFromGroup(currentuser, useras, fqgn, fullyQualifiedItemName)
+
+    def getItemByName(self, currentuser, useras, itemname):
+        fullyQualifiedItemName=useras.nick+"/"+itemname
+        itm=self.session.query(Item).filter_by(fqin=fullyQualifiedItemName).one()
+        return itm.info()
+
+    def getItemByURI(self, currentuser, useras, itemuri):
+        pass
 
     def getTaggingForUser(self, currentuser, useras, context=None, fqin=None):
         rhash={}
@@ -263,6 +273,9 @@ class Postdb(dbase.Database):
     def getItemsForTagname(self, currentuser, useras, tagname, context=None, fqin=None):
         pass
 
+    def getItemsForItemname(self, currentuser, useras, itemname, context=None, fqin=None):
+        pass
+
     def getItemsForTagtype(self, currentuser, useras, tagtype, context=None, fqin=None):
         pass
 
@@ -276,6 +289,26 @@ class Postdb(dbase.Database):
         pass
 
 
+def initialize_application(sess):
+    currentuser=None
+    whosdb=Whosdb(sess)
+    postdb=Postdb(sess)
+    adsuser=whosdb.getUserForNick(currentuser, "ads")
+    currentuser=adsuser
+    postdb.addItemType(currentuser, dict(name="pub", creator=adsuser))
+    postdb.addTagType(currentuser, dict(name="tag", creator=adsuser))
+    rahuldave=whosdb.getUserForNick(currentuser, "rahuldave")
+    postdb.commit()
+    currentuser=rahuldave
+    postdb.saveItem(currentuser, rahuldave, dict(name="hello kitty", 
+            uri='xxxlm', itemtype="ads/pub", creator=rahuldave, fqin="rahuldave/hello kitty"))
+    postdb.commit()
+    postdb.tagItem(currentuser, rahuldave, "rahuldave/hello kitty", dict(tagtype="ads/tag", creator=rahuldave, name="stupid paper"))
+    postdb.commit()
+    #Wen a tagging is posted to a group, the item should be autoposted into there too BUG NOT ONE NOW
+    postdb.postItemIntoGroup(currentuser,rahuldave, "rahuldave/group:ml", "rahuldave/hello kitty")
+    postdb.postTaggingIntoGroup(currentuser, rahuldave, "rahuldave/group:ml", "rahuldave/hello kitty", "rahuldave/stupid paper")
+    postdb.commit()
 
 class TestB(tbase.TBase):
 
@@ -313,3 +346,11 @@ class TestB(tbase.TBase):
         print postdb.getItemsForUser(currentuser, rahuldave, "group", "rahuldave/group:ml")
         #print postdb.getItemsForTag(currentuser, rahuldave, "rahuldave/stupid paper", "group", "rahuldave/group:ml")
         #whosdb.edu()
+
+if __name__=="__main__":
+    import os, os.path
+    # if os.path.exists(config.DBASE_FILE):
+    #     os.remove(config.DBASE_FILE)
+    engine, db_session = dbase.setup_db(config.DBASE_FILE)
+    dbase.init_db(engine)
+    initialize_application(db_session)

@@ -2,7 +2,18 @@ $ = jQuery
 
 AjaxSolr.theme.prototype.result = (doc, snippet) ->
   output = '<div><h5>' + doc.title + '</h5>'
-  output += '<p id="links_' + doc.id + '" class="links"></p>'
+  bdict = 
+    itemtype : 'ads/pub'
+    uri : doc.bibcode
+    name : doc.title
+  console.log "USER", $('#user').attr('user')
+  if $('#user').attr('user') is 'none'
+    output += '<p id="links_' + doc.id + '" class="links">'+
+      doc.bibcode+'</p>'
+  else
+    output += '<p id="links_' + doc.id + '" class="links">'+
+      doc.bibcode+'&nbsp;<button class="btn btn-mini saver" name="'+
+      bdict.name+'" itemtype="'+bdict.itemtype+'" uri="'+bdict.uri+'">Save</button></p>'
   output += '<p>' + snippet + '</p></div>'
   return output
 
@@ -36,3 +47,4 @@ AjaxSolr.theme.prototype.list_concat = (list, items, separator) ->
   jQuery(list).empty()
   for i in [0...items.length]   
     jQuery(list).append(items[i])
+

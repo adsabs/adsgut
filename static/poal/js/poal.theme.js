@@ -5,9 +5,19 @@
   $ = jQuery;
 
   AjaxSolr.theme.prototype.result = function(doc, snippet) {
-    var output;
+    var bdict, output;
     output = '<div><h5>' + doc.title + '</h5>';
-    output += '<p id="links_' + doc.id + '" class="links"></p>';
+    bdict = {
+      itemtype: 'ads/pub',
+      uri: doc.bibcode,
+      name: doc.title
+    };
+    console.log("USER", $('#user').attr('user'));
+    if ($('#user').attr('user') === 'none') {
+      output += '<p id="links_' + doc.id + '" class="links">' + doc.bibcode + '</p>';
+    } else {
+      output += '<p id="links_' + doc.id + '" class="links">' + doc.bibcode + '&nbsp;<button class="btn btn-mini saver" name="' + bdict.name + '" itemtype="' + bdict.itemtype + '" uri="' + bdict.uri + '">Save</button></p>';
+    }
     output += '<p>' + snippet + '</p></div>';
     return output;
   };

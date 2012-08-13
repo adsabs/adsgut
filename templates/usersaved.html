@@ -1,0 +1,8 @@
+{% extends "layout1.html" %}
+{% block body %}
+    <h2>User {{theuser.nick}}'s items</h2>
+
+  <iframe src="/user/{{theuser.nick}}/items"></iframe>
+  <hr/>
+
+{% endblock %}

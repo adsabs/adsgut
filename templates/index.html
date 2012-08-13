@@ -1,28 +1,17 @@
 {% extends "layout1.html" %}
 {% block body %}
-  <hr/><h2>Users</h2><hr/>
-  <ul class=entries>
-  {% for user in users %}
-    <li><a href="/user/{{ user.nick }}/profile/html">{{user.nick}}</a>
-  {% else %}
-    <li><em>Unbelievable.  No users here so far</em>
-  {% endfor %}
-  </ul>
-  <hr/><h2>Groups</h2><hr/>
-  <ul class=entries>
-  {% for group in groups %}
-    <li><a href="/group/{{ group.fqgn }}/profile/html">{{group.fqgn}}</a>: {{group.description}}
-  {% else %}
-    <li><em>Unbelievable.  No groups here so far</em>
-  {% endfor %}
-  </ul>
-  <hr/><h2>Apps</h2><hr/>
-  <ul class=entries>
-  {% for app in apps %}
-    <li><a href="/app/{{ app.fqan }}/profile/html">{{app.fqan}}</a>: 
-      {{app.description}}
-  {% else %}
-    <li><em>Unbelievable.  No apps here so far</em>
-  {% endfor %}
-  </ul>
+<div class="hero-unit">
+<p>
+  <a href="/poal">Explore</a> or Search the ADS:
+</p>
+<form class="form-search" id="search">
+  <input type="text" class="input-xxlarge search-query" id="query">
+  <button type="submit" class="btn">Search</button>
+</form>
+</div>
+<div class="hero-unit">
+<p>
+  Or try the <a href="/">Advanced Search</a>
+</p>
+</div>
 {% endblock %}

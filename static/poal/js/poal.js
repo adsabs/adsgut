@@ -5,7 +5,7 @@
   $ = jQuery;
 
   $(function() {
-    var Manager, autocomplete_fields, fields, i, max_numericfields, min_numericfields, name, numeric_fields, params, step_numericfields, _i, _ref;
+    var Manager, autocomplete_fields, dauser, fields, i, max_numericfields, min_numericfields, name, numeric_fields, params, step_numericfields, _i, _ref;
     Manager = new AjaxSolr.Manager({
       solrUrl: 'http://localhost:8983/solr/'
     });
@@ -64,6 +64,25 @@
     for (name in params) {
       Manager.store.addByValue(name, params[name]);
     }
+    console.log("Setting up Event handlers");
+    dauser = $('#user').attr('user');
+    $('#docs').delegate("button.saver", "click", function() {
+      var bdict,
+        _this = this;
+      bdict = {
+        'itemtype': $(this).attr('itemtype'),
+        'uri': $(this).attr('uri'),
+        'name': $(this).attr('name')
+      };
+      console.log(dauser, bdict);
+      $.post("/user/" + dauser + "/item", bdict, function(data) {
+        console.log('data is', data);
+        if (data['status'] === 'OK') {
+          return $(_this).hide();
+        }
+      });
+      return false;
+    });
     return Manager.doRequest();
   });
 
