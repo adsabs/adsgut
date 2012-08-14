@@ -45,7 +45,7 @@ $ ->
   Manager.addWidget(new AjaxSolr.AutocompleteWidget(
     id: 'text',
     target: '#search',
-    field: autocomplete_fields[0],
+    field: 'text',
     fields: autocomplete_fields
   ))
   Manager.setStore(new AjaxSolr.ExtHashStore())
