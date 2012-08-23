@@ -2,6 +2,7 @@
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import relationship, backref, sessionmaker, mapper
+from sqlalchemy.orm import join
 from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, Table, text
 from dbase import DaBase
 #DaBase = declarative_base()

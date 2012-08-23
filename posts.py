@@ -4,6 +4,7 @@ import tbase
 import dbase
 import types
 import config
+from sqlalchemy.orm import join
 #wont worry about permissions right now
 #wont worry about cascade deletion right now either.
 #what about permissions? MUCH LATER
@@ -12,6 +13,7 @@ OK=200
 
 #pubsub to be used in conjunction with the access table to get stuff into all groups.
 #remember to have a proper exception mechanism
+#BUG: Rrewrite this whole file TO UE JOINS SIMPLY
 
 def validatespec(specdict, spectype="item"):
     specdict['fqin']=specdict['creator'].nick+"/"+specdict['name']
@@ -162,7 +164,7 @@ class Postdb(dbase.Database):
         tag=self.session.query(Tag).filter_by(fqin=fullyQualifiedTagName).one()
         #The itemtag must exist at first
         itemtag=self.session.query(ItemTag).filter_by(item=itm, tag=tag).one()
-        itatoberemoved=self.session.query(TagitemGroup).filter_by(itemtag=itemtag, application=app).one()
+        itatoberemoved=self.session.query(TagitemApplication).filter_by(itemtag=itemtag, application=app).one()
         self.session.remove(itatoberemoved)
         return OK
 
@@ -180,8 +182,13 @@ class Postdb(dbase.Database):
         itm=self.session.query(Item).filter_by(fqin=fullyQualifiedItemName).one()
         return itm.info()
 
+    #the uri can be saved my multiple users, which would give multiple results here. which user to use
+    #should we not use useras. Ought we be getting from default group?
+    #here I use useras, but suppose the useras is not the user himself or herself (ie currentuser !=useras)
+    #then what? In other words if the currentuser is a group or app owner how should things be affected?
     def getItemByURI(self, currentuser, useras, itemuri):
-        pass
+        itm=self.session.query(Item).filter_by(uri=itemuri, creator=useras).one()
+        return itm.info()
 
     def getTaggingForUser(self, currentuser, useras, context=None, fqin=None):
         rhash={}
@@ -267,26 +274,125 @@ class Postdb(dbase.Database):
             items=[ele.item for ele in self.session.query(TagitemGroup).filter_by(tag=tag, group=grp)]
         elif context is 'app':
             app=self.session.query(Application).filter_by(fqin=fqin).one()
-            items=[ele.item for ele in self.session.query(ItemTag).filter_by(tag=tag, application=app)]
+            items=[ele.item for ele in self.session.query(TagitemApplication).filter_by(tag=tag, application=app)]
         return [ele.info() for ele in items]
 
+    #what about user and perms here? who should be allowed? Perhs different for different ifs?
+    #ie for regular only ads and user, for group, group owner and group users, ditto for app?
+    #what about app and group?
     def getItemsForTagname(self, currentuser, useras, tagname, context=None, fqin=None):
-        pass
+        tags=self.session.query(Tag).filter_by(name=tagname).all()
+        if context is None:
+            itemsnested = [tag.taggeditems for tag in tags]
+        elif context is 'group':
+            grp=self.session.query(Group).filter_by(fqin=fqin).one()
+            itemsnested=[]
+            for tag in tags:
+                itemsnested.append([ele.item for ele in self.session.query(TagitemGroup).filter_by(tag=tag, group=grp)])
+        elif context is 'app':
+            app=self.session.query(Application).filter_by(fqin=fqin).one()
+            itemsnested=[]
+            for tag in tags:
+                itemsnested.append([ele.item for ele in self.session.query(TagitemApplication).filter_by(tag=tag, application=app)])
+        
+        items = [inner for outer in itemsnested for inner in outer]
+        return [ele.info() for ele in items]
+   
 
-    def getItemsForItemname(self, currentuser, useras, itemname, context=None, fqin=None):
-        pass
+    def getItemsForItemname(self, currentuser, useras, itemname, context=None, fqin=None):        
+        if context is None:
+            items=self.session.query(Item).filter_by(name=itemname).all()
+        elif context is 'group':
+            grp=self.session.query(Group).filter_by(fqin=fqin).one()
+            items=self.session.query(Item).select_from(join(Item, ItemGroup)).filter(ItemGroup.group==grp).filter(Item.name==itemname).all()
+        elif context is 'app':
+            app=self.session.query(Application).filter_by(fqin=fqin).one()
+            items=self.session.query(Item).select_from(join(Item, ItemApplication)).filter(ItemApplication.application==app).filter(Item.name==itemname).all()
+        return [ele.info() for ele in items]
 
-    def getItemsForTagtype(self, currentuser, useras, tagtype, context=None, fqin=None):
-        pass
+    def getItemsForTagtype(self, currentuser, useras, tagtypefqin, context=None, fqin=None):
+        tagtypeobject=self.session.query(Tagtype).filter_by(fqin=tagtypefqin).one()
+        tags=self.session.query(Tag).filter_by(tagtype=tagtypeobject).all()
+        if context is None:
+            itemsnested = [tag.taggeditems for tag in tags]
+        elif context is 'group':
+            grp=self.session.query(Group).filter_by(fqin=fqin).one()
+            itemsnested=[]
+            for tag in tags:
+                itemsnested.append([ele.item for ele in self.session.query(TagitemGroup).filter_by(tag=tag, group=grp)])
+        elif context is 'app':
+            app=self.session.query(Application).filter_by(fqin=fqin).one()
+            itemsnested=[]
+            for tag in tags:
+                itemsnested.append([ele.item for ele in self.session.query(TagitemApplication).filter_by(tag=tag, application=app)])
+        
+        items = [inner for outer in itemsnested for inner in outer]
+        return [ele.info() for ele in items]
 
     def getTagsForItem(self, currentuser, useras, fullyQualifiedItemName, context=None, fqin=None):
-        pass
+        item=self.session.query(Item).filter_by(fqin=fullyQualifiedItemName).one()
+        rhash={}
+        titems={}
+        if context is None:
+            taggings=self.session.query(ItemTag).filter_by(item=item)
+        elif context is 'group':
+            grp=self.session.query(Group).filter_by(fqin=fqin).one()
+            taggings=[ele.itemtag for ele in self.session.query(TagitemGroup).filter_by(TagitemGroup.item_id==item.id, group=grp)]
+            rhash['group']=grp.fqin
+        elif context is 'app':
+            app=self.session.query(Application).filter_by(fqin=fqin).one()
+            taggings=[ele.itemtag for ele in self.session.query(TagitemApplication).filter_by(TagitemApplication.item_id==item.id, application=app)]
+            rhash['app']=app.fqin
+        for ele in taggings:
+            eled=ele.info()
+            if not titems.has_key(ele.item.fqin):
+                titems[ele.item.fqin]=[]
+            titems[ele.item.fqin].append(eled)
+        rhash.update({'user':useras.nick, 'taggings':titems})
+        return rhash
 
     def getTagsForItemuri(self, currentuser, useras, itemuri, context=None, fqin=None):
-        pass
+        rhash={}
+        titems={}
+        if context is None:
+            taggings=self.session.query(ItemTag).select_from(join(ItemTag, Item)).filter_by(Item.uri==itemuri).all()
+        elif context is 'group':
+            grp=self.session.query(Group).filter_by(fqin=fqin).one()
+            taggings=[ele.itemtag for ele in self.session.query(TagitemGroup).select_from(join(TagitemGroup, Item)).filter_by(Item.uri==itemuri,TagitemGroup.group=grp)]
+            rhash['group']=grp.fqin
+        elif context is 'app':
+            app=self.session.query(Application).filter_by(fqin=fqin).one()
+            taggings=[ele.itemtag for ele in self.session.query(TagitemApplication).select_from(join(TagitemApplication, Item)).filter_by(Item.uri==itemuri,TagitemApplication.application=app)]
+            rhash['app']=app.fqin
+        for ele in taggings:
+            eled=ele.info()
+            if not titems.has_key(ele.item.fqin):
+                titems[ele.item.fqin]=[]
+            titems[ele.item.fqin].append(eled)
+        rhash.update({'user':useras.nick, 'taggings':titems})
+        return rhash
 
-    def getTagsForItemtype(self, currentuser, useras, itemtype, context=None, fqin=None):
-        pass
+    def getTagsForItemtype(self, currentuser, useras, itemtypefqin, context=None, fqin=None):
+        itemtypeobject=self.session.query(Itemtype).filter_by(fqin=itemtypefqin).one()
+        rhash={}
+        titems={}
+        if context is None:
+            taggings=self.session.query(ItemTag).select_from(join(ItemTag, Item)).filter_by(Item.itemtype==itemtypeobject).all()
+        elif context is 'group':
+            grp=self.session.query(Group).filter_by(fqin=fqin).one()
+            taggings=[ele.itemtag for ele in self.session.query(TagitemGroup).select_from(join(TagitemGroup, Item)).filter_by(Item.itemtype==itemtypeobject,TagitemGroup.group=grp)]
+            rhash['group']=grp.fqin
+        elif context is 'app':
+            app=self.session.query(Application).filter_by(fqin=fqin).one()
+            taggings=[ele.itemtag for ele in self.session.query(TagitemApplication).select_from(join(TagitemApplication, Item)).filter_by(Item.itemtype==itemtypeobject,TagitemApplication.application=app)]
+            rhash['app']=app.fqin
+        for ele in taggings:
+            eled=ele.info()
+            if not titems.has_key(ele.item.fqin):
+                titems[ele.item.fqin]=[]
+            titems[ele.item.fqin].append(eled)
+        rhash.update({'user':useras.nick, 'taggings':titems})
+        return rhash
 
 
 def initialize_application(sess):
