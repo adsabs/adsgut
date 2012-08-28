@@ -82,6 +82,8 @@ $ ->
       if (data['status'] is 'OK')
           $(this).hide()           
     return false
+  $('#docs').delegate "button.noteadder", "click", () ->          
+    return false
   Manager.doRequest()
 
 

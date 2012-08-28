@@ -11,9 +11,39 @@ AjaxSolr.theme.prototype.result = (doc, snippet) ->
     output += '<p id="links_' + doc.id + '" class="links">'+
       doc.bibcode+'</p>'
   else
+    formtext="""
+    <form class="form-inline saveform">
+      <button class="btn btn-mini saver" name="#{bdict.name}" itemtype="#{bdict.itemtype}" uri="#{bdict.uri}">Save</button>
+      <input type="text" class="input-small tagtext" placeholder="tag"/>
+      <button class="btn btn-mini tagadder" class="btn"><i class="icon-plus-sign"></i> Add Tag</button>
+      
+      <label class="pull-right tags">tags</label>
+    </form>
+    <form class="form-inline groupform">
+      <label class="select">Group:
+        <select multiple="multiple" class="groupselect">
+        </select>
+      </label>
+      <button class="btn btn-mini tagadder" class="btn"><i class="icon-retweet"></i> Send</button>
+      <label class="checkbox">
+        <input type="checkbox" name="publicitem"> Make Public </input>
+      </label>
+      <label class="pull-right groups">groups</label>
+    </form>
+    <form class="form-inline noteform">
+      <textarea class="notetext" placeholder="note"/>
+      <button class="btn btn-mini noteadder" class="btn"><i class="icon-plus-sign"></i> Add Note</button>
+      <label class="checkbox notelabel">
+        <input type="checkbox" name="noteprivate"> Keep Note Private </input>
+      </label>
+      <label class="pull-right groups">notes</label>
+    </form>
+    """
+    # output += '<p id="links_' + doc.id + '" class="links">'+
+    #   doc.bibcode+'&nbsp;<button class="btn btn-mini saver" name="'+
+    #   bdict.name+'" itemtype="'+bdict.itemtype+'" uri="'+bdict.uri+'">Save</button></p>'
     output += '<p id="links_' + doc.id + '" class="links">'+
-      doc.bibcode+'&nbsp;<button class="btn btn-mini saver" name="'+
-      bdict.name+'" itemtype="'+bdict.itemtype+'" uri="'+bdict.uri+'">Save</button></p>'
+      doc.bibcode+'</p>'+formtext
   output += '<p>' + snippet + '</p></div>'
   return output
 

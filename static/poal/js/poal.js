@@ -83,6 +83,9 @@
       });
       return false;
     });
+    $('#docs').delegate("button.noteadder", "click", function() {
+      return false;
+    });
     return Manager.doRequest();
   });
 

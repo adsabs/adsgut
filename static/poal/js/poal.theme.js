@@ -5,7 +5,7 @@
   $ = jQuery;
 
   AjaxSolr.theme.prototype.result = function(doc, snippet) {
-    var bdict, output;
+    var bdict, formtext, output;
     output = '<div><h5>' + doc.title + '</h5>';
     bdict = {
       itemtype: 'ads/pub',
@@ -16,7 +16,8 @@
     if ($('#user').attr('user') === 'none') {
       output += '<p id="links_' + doc.id + '" class="links">' + doc.bibcode + '</p>';
     } else {
-      output += '<p id="links_' + doc.id + '" class="links">' + doc.bibcode + '&nbsp;<button class="btn btn-mini saver" name="' + bdict.name + '" itemtype="' + bdict.itemtype + '" uri="' + bdict.uri + '">Save</button></p>';
+      formtext = "<form class=\"form-inline saveform\">\n  <button class=\"btn btn-mini saver\" name=\"" + bdict.name + "\" itemtype=\"" + bdict.itemtype + "\" uri=\"" + bdict.uri + "\">Save</button>\n  <input type=\"text\" class=\"input-small tagtext\" placeholder=\"tag\"/>\n  <button class=\"btn btn-mini tagadder\" class=\"btn\"><i class=\"icon-plus-sign\"></i> Add Tag</button>\n  \n  <label class=\"pull-right tags\">tags</label>\n</form>\n<form class=\"form-inline groupform\">\n  <label class=\"select\">Group:\n    <select multiple=\"multiple\" class=\"groupselect\">\n    </select>\n  </label>\n  <button class=\"btn btn-mini tagadder\" class=\"btn\"><i class=\"icon-retweet\"></i> Send</button>\n  <label class=\"checkbox\">\n    <input type=\"checkbox\" name=\"publicitem\"> Make Public </input>\n  </label>\n  <label class=\"pull-right groups\">groups</label>\n</form>\n<form class=\"form-inline noteform\">\n  <textarea class=\"notetext\" placeholder=\"note\"/>\n  <button class=\"btn btn-mini noteadder\" class=\"btn\"><i class=\"icon-plus-sign\"></i> Add Note</button>\n  <label class=\"checkbox notelabel\">\n    <input type=\"checkbox\" name=\"noteprivate\"> Keep Note Private </input>\n  </label>\n  <label class=\"pull-right groups\">notes</label>\n</form>";
+      output += '<p id="links_' + doc.id + '" class="links">' + doc.bibcode + '</p>' + formtext;
     }
     output += '<p>' + snippet + '</p></div>';
     return output;

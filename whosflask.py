@@ -4,6 +4,8 @@ from flask import Flask, request, session, g, redirect, url_for, \
      abort, render_template, flash, escape, make_response, jsonify
 
 import hashlib
+from permissions import permit
+from errors import abort
 engine, db_session=setup_db("/tmp/adsgut.db")
 app = Flask(__name__)
 
@@ -206,6 +208,7 @@ def _getTagQuery(querydict):
 #query uri/name/itemtype
 @app.route('/items')
 def itemsbyany():
+    permit(g.currentuser!=None and g.currentuser.nick=='rahuldave', "wrong user")
     useras=g.currentuser
     criteria=_getItemQuery(request.args)
     context=criteria.pop('context')

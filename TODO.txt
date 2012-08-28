@@ -25,10 +25,11 @@ Needed now:
 (a) put in time ordering
 (b) permits
 (c) error handling
-(d) finally, simple routing
-(e) finally, groups in applications
+(d) finally, simple routing (later)
+(e) finally, groups in applications (later)
 (f) get it in Giovanni mode
-(g) textual setup stuff
+(g) textual setup stuff for bottstrapping the app
+(h) deletions...simple ones
 
 Requirements from ADS libraries
 (1) tag having last creation date
@@ -36,3 +37,17 @@ Requirements from ADS libraries
 (3) number of entries for that tag => put in a count(*) on all web services where appropriate
 (4) add a ads/note type
 (5) facet creation through tags: support a sql IN query
+
+Web service support needed:
+(a) am i saved. Given item, is it saved by user, based on itemname, or itemuri
+(b) groups and apps an item is posted to
+(c) tags for a item
+(d) groups for a user not including public, default, and app groups
+(e) is an item saved publicly?
+(f) create a new group
+(g) accept invitation to group
+
+html pages desired
+(a) private libraries page
+(b) private librariy for a group page
+(c) profile page

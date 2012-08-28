@@ -35,7 +35,6 @@ AjaxSolr.ResultWidget = AjaxSolr.AbstractWidget.extend({
     for (var i = 0, l = this.manager.response.response.docs.length; i < l; i++) {
       var doc = this.manager.response.response.docs[i];
       $(this.target).append(AjaxSolr.theme('result', doc, AjaxSolr.theme('snippet', doc)));
-
       // var items = [];
       // items = items.concat(this.facetLinks('topics', doc.topics));
       // items = items.concat(this.facetLinks('organisations', doc.organisations));
