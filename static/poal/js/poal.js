@@ -44,7 +44,7 @@
     Manager.addWidget(new AjaxSolr.AutocompleteWidget({
       id: 'text',
       target: '#search',
-      field: autocomplete_fields[0],
+      field: 'text',
       fields: autocomplete_fields
     }));
     Manager.setStore(new AjaxSolr.ExtHashStore());
@@ -75,7 +75,7 @@
         'name': $(this).attr('name')
       };
       console.log(dauser, bdict);
-      $.post("/user/" + dauser + "/item", bdict, function(data) {
+      $.post("/item/" + dauser, bdict, function(data) {
         console.log('data is', data);
         if (data['status'] === 'OK') {
           return $(_this).hide();

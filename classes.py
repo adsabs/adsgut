@@ -179,6 +179,7 @@ class Item(DaBase):
         return "<Item:%s,%s>" % (self.itemtype.name, self.name)
 
     def info(self):
+        #print "SELF", self
         return {'fqin':self.fqin, 'uri':self.uri, 'creator': self.creator.nick, 'name': self.name, 'itemtype':self.itemtype.fqin, 'metajson':self.metajson}
 
 
@@ -203,6 +204,10 @@ class Tag(Item):
 
     def __repr__(self):
         return "<Tag:%s,%s>" % (self.tagtype.name, self.name)
+
+    def info(self):
+        #print "SELFTAG", self
+        return {'fqtn':self.fqin, 'creator': self.creator.nick, 'name': self.name, 'tagtype':self.tagtype.fqin, 'description':self.description}
 
 
     #how to get a direct REL to items tagged thus? (see backref under items)
@@ -324,6 +329,7 @@ Application.itemsposted=relationship("Item", secondary=ItemApplication.__table__
 Item.itemtags = association_proxy('items_tags', 'tag')
 class ItemTag(DaBase):
     __tablename__ = 'item_tag'
+    #id = Column(Integer, primary_key=True)
     item_id=Column(Integer, ForeignKey('items.id'), primary_key=True)
     tag_id=Column(Integer, ForeignKey('tags.tag_id'), primary_key=True)
     user_id=Column(Integer, ForeignKey('users.id'))
@@ -338,10 +344,11 @@ class ItemTag(DaBase):
             )
 
     def info(self):
-        return {'item':self.item.fqin, 'itemtype': self.itemtype.fqin, 'tag':[self.tag.fqin, self.tag.description], 
-            'tagtype':self.tag.tagtype.fqin, 'tagname': self.tagname, 'tagger':self.user.nick}
+        return {'item':self.item.fqin, 'itemtype': self.itemtype.fqin, 'iteminfo': self.item.info(), 
+                    'tag':[self.tag.fqin, self.tag.description], 
+                    'tagtype':self.tag.tagtype.fqin, 'tagname': self.tagname, 'taginfo':self.tag.info()}
     def __repr__(self):
-        return self.itemtype.name+":"+self.item.fqin+':::'+self.tagtype.name+":"+self.tag.fqin
+        return self.item.fqin+':::'+self.tag.fqin
 
 ItemTag.tagtype=relationship('TagType', primaryjoin=ItemTag.tagtype_id==TagType.tagtype_id)
 ItemTag.tag = relationship(Tag, primaryjoin=ItemTag.tag_id==Tag.tag_id)
@@ -352,69 +359,101 @@ Tag.taggeditems=relationship("Item", secondary=ItemTag.__table__)
 ItemTag.groupsin = association_proxy('tagitems_groups', 'group')
 class TagitemGroup(DaBase):
     __tablename__ = 'tagitem_group'
+    #itemtag_id=Column(Integer, ForeignKey('item_tag.id'), primary_key=True)
     item_id=Column(Integer, ForeignKey('item_tag.item_id'), primary_key=True)
     tag_id=Column(Integer, ForeignKey('item_tag.tag_id'), primary_key=True)
     group_id=Column(Integer, ForeignKey('groups.group_id'), primary_key=True)
     user_id=Column('user_id', Integer, ForeignKey('users.id'))
+    tagtype_id=Column(Integer, ForeignKey('tagtypes.tagtype_id'))
     tagname=Column(String)
     user=relationship('User')
     
     def __init__(self, **indict):
         self.tagname=indict['tagname']
+        self.tagtype=indict['tagtype']
         self.itemtag=indict['itemtag']
         self.group=indict['group']
         self.item_id=self.itemtag.item.id
         self.tag_id=self.itemtag.tag.tag_id
-        self.user=indict['user']
+        self.user=indict['user']#bug allows seperate postage of tag from creation
+        print "AT END OF CONSTRUCTOR"
+
+    def info(self):
+        itemtag=self.itemtag
+        item=itemtag.item
+        tag=itemtag.tag
+        return {'item':item.fqin, 'itemtype': item.itemtype.fqin, 'iteminfo': item.info(), 
+                    'tag':[tag.fqin, tag.description], 
+                    'tagtype':self.tagtype.fqin, 'tagname': self.tagname, 'taginfo':tag.info()}
 
     def __repr__(self):
-        return "["+self.group.name+self.itemtag.item.name+self.itemtag.tag.name+"]"
+        return "["+self.group.name+'|'+self.itemtag.item.fqin+'|'+self.itemtag.tag.fqin+"]"
 
-#TagitemGroup.tag=relationship(Tag, primaryjoin=TagitemGroup.tag_id==Tag.tag_id)
-#TagitemGroup.item=relationship(Item, primaryjoin=TagitemGroup.item_id==Item.id)
 
+TagitemGroup.tagtype=relationship('TagType', primaryjoin=TagitemGroup.tagtype_id==TagType.tagtype_id)
 TagitemGroup.itemtag = relationship(ItemTag, 
-                primaryjoin=TagitemGroup.item_id==ItemTag.item_id and TagitemGroup.tag_id==ItemTag.tag_id,
+                primaryjoin="and_(TagitemGroup.item_id==ItemTag.item_id,TagitemGroup.tag_id==ItemTag.tag_id)",
                 backref=backref("tagitems_groups")
             )
-
+#TagitemGroup.itemtag = relationship(ItemTag, primaryjoin=TagitemGroup.itemtag_id==ItemTag.id, backref=backref("tagitems_groups"))
 TagitemGroup.group = relationship(Group, primaryjoin=TagitemGroup.group_id==Group.group_id)
 #
-Group.itemtags=relationship(ItemTag, secondary=TagitemGroup.__table__, 
-        secondaryjoin=TagitemGroup.item_id==ItemTag.item_id and TagitemGroup.tag_id==ItemTag.tag_id)
+# Group.itemtags=relationship(ItemTag, secondary=TagitemGroup.__table__, 
+#         secondaryjoin=TagitemGroup.itemtag_id==ItemTag.id)
+Group.itemtags=relationship(ItemTag,  lazy="dynamic", secondary=TagitemGroup.__table__, 
+        secondaryjoin="and_(TagitemGroup.item_id==ItemTag.item_id, TagitemGroup.tag_id==ItemTag.tag_id)")
 #------------------------------
 
 #------------------------------ NOT SURE OF THIS WHOLE IDEA BELOW
 ItemTag.applicationsin = association_proxy('tagitems_applications', 'application')
 class TagitemApplication(DaBase):
     __tablename__ = 'tagitem_application'
+    #itemtag_id=Column(Integer, ForeignKey('item_tag.id'), primary_key=True)
     item_id=Column(Integer, ForeignKey('item_tag.item_id'), primary_key=True)
     tag_id=Column(Integer, ForeignKey('item_tag.tag_id'), primary_key=True)
     application_id=Column(Integer, ForeignKey('applications.application_id'), primary_key=True)
     user_id=Column('user_id', Integer, ForeignKey('users.id'))
+    tagtype_id=Column(Integer, ForeignKey('tagtypes.tagtype_id'))
     tagname=Column(String)
     user=relationship('User')
     
     def __init__(self, **indict):
+        print "INDICT", indict
         self.tagname=indict['tagname']
+        self.tagtype=indict['tagtype']
         self.itemtag=indict['itemtag']
         self.application=indict['application']
         self.item_id=self.itemtag.item.id
         self.tag_id=self.itemtag.tag.tag_id
         self.user=indict['user']
 
+    def info(self):
+        itemtag=self.itemtag
+        item=itemtag.item
+        tag=itemtag.tag
+        return {'item':item.fqin, 'itemtype': item.itemtype.fqin, 'iteminfo': item.info(), 
+                    'tag':[tag.fqin, tag.description], 
+                    'tagtype':self.tagtype.fqin, 'tagname': self.tagname, 'taginfo':tag.info()}
+
     def __repr__(self):
         return "["+self.application.name+self.itemtag.item.name+self.itemtag.tag.name+"]"
 
+TagitemApplication.tagtype=relationship('TagType', primaryjoin=TagitemApplication.tagtype_id==TagType.tagtype_id)
+# TagitemApplication.itemtag = relationship(ItemTag, 
+#                 primaryjoin=TagitemApplication.itemtag_id==ItemTag.id,
+#                 backref=backref("tagitems_applications")
+#             )
 TagitemApplication.itemtag = relationship(ItemTag, 
-                primaryjoin=TagitemApplication.item_id==ItemTag.item_id and TagitemApplication.tag_id==ItemTag.tag_id,
+                primaryjoin="and_(TagitemApplication.item_id==ItemTag.item_id,TagitemApplication.tag_id==ItemTag.tag_id)",
                 backref=backref("tagitems_applications")
             )
 
 TagitemApplication.application = relationship(Application, primaryjoin=TagitemApplication.application_id==Application.application_id)
 #
-Application.itemtags=relationship(ItemTag, secondary=TagitemApplication.__table__, 
-        secondaryjoin=TagitemApplication.item_id==ItemTag.item_id and TagitemApplication.tag_id==ItemTag.tag_id)
+# Application.itemtags=relationship(ItemTag, secondary=TagitemApplication.__table__, 
+#         secondaryjoin=TagitemApplication.itemtag_id==ItemTag.id)
+Application.itemtags=relationship(ItemTag, lazy="dynamic", secondary=TagitemApplication.__table__, 
+        secondaryjoin="and_(TagitemApplication.item_id==ItemTag.item_id , TagitemApplication.tag_id==ItemTag.tag_id)")
 #------------------------------
 
 
@@ -436,62 +475,62 @@ if __name__=="__main__":
     # print TagType("rahuldave@gmail.com/comment").scope
     # Item.add(Item())
     # print Item.__theset__, Item.__thelist__, "lll", DaBase.__theset__
-    adsgutuser=User(nick='adsgut', email="adsgut@adslabs.org")
-    adsuser=User(nick='ads', email="ads@adslabs.org")
-    session.add(adsgutuser)
-    session.add(adsuser)
-    defaultgroup=Group(name='default', creator=adsgutuser, owner=adsgutuser, fqin="adsgut/default")
-    session.add(defaultgroup)
-    adspubsapp=Application(name='publications', creator=adsuser, owner=adsuser, fqin="ads/publications")
-    session.add(adspubsapp)
-    print "---------"
-    pubtype=ItemType(name="pub", creator=adsuser, fqin="ads/pub")
-    session.add(pubtype)
-    notetype=TagType(name="note", creator=adsuser, fqin="ads/note")
-    session.add(notetype)
-    #session.commit()
-    #pubtype=session.query(ItemType).filter_by(name="pub")[0]
-    #print "PUBTYPE", pubtype
-    #USERSET
-    rahuldave=User(nick='rahuldave', email="rahuldave@gmail.com")
-    rahuldave.groupsin.append(defaultgroup)
-    session.add(rahuldave)
-    jluker=User(nick='jluker', email="jluker@gmail.com")
-    session.add(jluker)
-    jluker.groupsin.append(defaultgroup)
-    jluker.applicationsin.append(adspubsapp)
-    #GROUPSET
-    mlg=Group(name='ml', creator=rahuldave, owner=rahuldave, fqin="rahuldave/ml")
-    session.add(mlg)
-    thispub = Item(name="hello kitty", uri='xxxlm', itemtype=pubtype, creator=rahuldave, fqin="rahuldave/hello kitty")
-    thistag = Tag(taggeditem=thispub, itemtype=notetype, tagtype=notetype, creator=rahuldave, name="crazy note", fqin="rahuldave/crazy note")
+    # adsgutuser=User(nick='adsgut', email="adsgut@adslabs.org")
+    # adsuser=User(nick='ads', email="ads@adslabs.org")
+    # session.add(adsgutuser)
+    # session.add(adsuser)
+    # defaultgroup=Group(name='default', creator=adsgutuser, owner=adsgutuser, fqin="adsgut/default")
+    # session.add(defaultgroup)
+    # adspubsapp=Application(name='publications', creator=adsuser, owner=adsuser, fqin="ads/publications")
+    # session.add(adspubsapp)
+    # print "---------"
+    # pubtype=ItemType(name="pub", creator=adsuser, fqin="ads/pub")
+    # session.add(pubtype)
+    # notetype=TagType(name="note", creator=adsuser, fqin="ads/note")
+    # session.add(notetype)
+    # #session.commit()
+    # #pubtype=session.query(ItemType).filter_by(name="pub")[0]
+    # #print "PUBTYPE", pubtype
+    # #USERSET
+    # rahuldave=User(nick='rahuldave', email="rahuldave@gmail.com")
+    # rahuldave.groupsin.append(defaultgroup)
+    # session.add(rahuldave)
+    # jluker=User(nick='jluker', email="jluker@gmail.com")
+    # session.add(jluker)
+    # jluker.groupsin.append(defaultgroup)
+    # jluker.applicationsin.append(adspubsapp)
+    # #GROUPSET
+    # mlg=Group(name='ml', creator=rahuldave, owner=rahuldave, fqin="rahuldave/ml")
+    # session.add(mlg)
+    # thispub = Item(name="hello kitty", uri='xxxlm', itemtype=pubtype, creator=rahuldave, fqin="rahuldave/hello kitty")
+    # thistag = Tag(taggeditem=thispub, itemtype=notetype, tagtype=notetype, creator=rahuldave, name="crazy note", fqin="rahuldave/crazy note")
     
-    thispub.groupsin.append(mlg)
-    thistag.groupsin.append(mlg)
+    # thispub.groupsin.append(mlg)
+    # thistag.groupsin.append(mlg)
 
-    thispub.applicationsin.append(adspubsapp)
-    thistag.applicationsin.append(adspubsapp)
+    # thispub.applicationsin.append(adspubsapp)
+    # thistag.applicationsin.append(adspubsapp)
 
-    session.add(thispub)
-    session.add(thistag)
-    # print "----+"
-    # thispub.tags.append(mlg)
-    # thistag.tags.append(mlg)
-    # print "+----"
-    #dosent work under current model as each tag attaches to one item only, ie its not many-many
-    session.commit()
-    print "USERS",session.query(User, User.name).all()
-    print "GROUPS",session.query(Group, Group.name).all()
-    print "APPS",session.query(Application, Application.name).all()
-    print "Items",session.query(Item, Item.name).all()
-    print "Tags",session.query(Tag, Tag.name).all()
-    print "Itemtypes",session.query(ItemType, ItemType.name).all()
-    print "Tagtypes",session.query(TagType, TagType.name).all()
-    print '------------'
-    print "alltags:", thispub.tags.all(), "??", "note gives only tags"
-    print "MLG:", mlg.groupitems.all(), mlg.grouptags.all()
-    print "ADSPUBAPP:", adspubsapp.applicationitems.all(), adspubsapp.applicationtags.all()
-    print "DEFGRPUSERS:", defaultgroup.groupusers.all()
-    print "PUBAPPUSERS:", adspubsapp.applicationusers.all()
+    # session.add(thispub)
+    # session.add(thistag)
+    # # print "----+"
+    # # thispub.tags.append(mlg)
+    # # thistag.tags.append(mlg)
+    # # print "+----"
+    # #dosent work under current model as each tag attaches to one item only, ie its not many-many
+    # session.commit()
+    # print "USERS",session.query(User, User.name).all()
+    # print "GROUPS",session.query(Group, Group.name).all()
+    # print "APPS",session.query(Application, Application.name).all()
+    # print "Items",session.query(Item, Item.name).all()
+    # print "Tags",session.query(Tag, Tag.name).all()
+    # print "Itemtypes",session.query(ItemType, ItemType.name).all()
+    # print "Tagtypes",session.query(TagType, TagType.name).all()
+    # print '------------'
+    # print "alltags:", thispub.tags.all(), "??", "note gives only tags"
+    # print "MLG:", mlg.groupitems.all(), mlg.grouptags.all()
+    # print "ADSPUBAPP:", adspubsapp.applicationitems.all(), adspubsapp.applicationtags.all()
+    # print "DEFGRPUSERS:", defaultgroup.groupusers.all()
+    # print "PUBAPPUSERS:", adspubsapp.applicationusers.all()
 
     #Add users to group and app

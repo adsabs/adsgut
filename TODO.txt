@@ -3,3 +3,36 @@ get itemtypes and tagtypes into the association classes
 o also what we want to associate into a group is a tag posting, not a tag
 support in posts.py for the new tables
 o the get funcs return dicts in different ways. Standardize
+
+Use flask shell extension
+read up flask blueprints, put it under prefix. Use url_for inside templates or things will break.
+create a __init__.py
+
+flask_login is what Giovanni wantes to use
+So i need to work with flask login
+Add a adscookieid into the user. This will interface to Giovanni's flask_login
+The nick maps to that adscookieid. The adscookieid can be use in place of nick, nick resolves to it.
+
+blueprint has local static and templates. make sure template names are namespaced, as templates go bottom up
+static goes from top to bottom...templates from bottom to top
+
+BUGS:
+one must escape tag text, especially / and :
+
+Add ordering a lot of things by time. thus add time into results. How to intriduce ordering into api. A special criterion?
+
+Needed now:
+(a) put in time ordering
+(b) permits
+(c) error handling
+(d) finally, simple routing
+(e) finally, groups in applications
+(f) get it in Giovanni mode
+(g) textual setup stuff
+
+Requirements from ADS libraries
+(1) tag having last creation date
+(2) tag description
+(3) number of entries for that tag => put in a count(*) on all web services where appropriate
+(4) add a ads/note type
+(5) facet creation through tags: support a sql IN query

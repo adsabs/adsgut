@@ -118,32 +118,16 @@ def appsinvited(nick):
     return jsonify({'apps':apps})
 
 
+
+    
 #######################################################################################################################
 
-#users items/posts
-#currently get the items. worry about tags later
-@app.route('/user/<nick>/items')
-def usersitems(nick):
-    user=g.db.getUserForNick(g.currentuser, nick)
-    items=g.dbp.getItemsForUser(g.currentuser, user)
-    return jsonify({'items':items})
-
-
-@app.route('/user/<nick>/items/html')
-def usersitemshtml(nick):
-    user=g.db.getUserForNick(g.currentuser, nick)
-    userinfo=user.info()
-    items=g.dbp.getItemsForUser(g.currentuser, user)
-    return render_template('usersaved.html', theuser=userinfo, items=items)
-    
-
-#if no itemname, assume POST, else GET the itemname
-@app.route('/user/<nick>/item', methods=['GET', 'POST'])
-def usersitem(nick):
-    itemname=None
+#POST item
+@app.route('/item/<nick>', methods=['POST'])
+def useritempost(nick):
     user=g.db.getUserForNick(g.currentuser, nick)
     #print "hello", user.nick
-    if request.method == 'POST' and itemname==None:
+    if request.method == 'POST':
         #print request.form
         itspec={}
         itspec['creator']=user
@@ -157,13 +141,184 @@ def usersitem(nick):
         g.dbp.saveItem(g.currentuser, user, itspec)
         #print "kkk"
         return jsonify({'status':'OK'})
+    else:
+        return None
+
+#POST tag
+@app.route('/tag/<nick>/<itemname>', methods=['POST'])
+def usertagpost(nick, itemname):
+    user=g.db.getUserForNick(g.currentuser, nick)
+    #print "hello", user.nick
+    if request.method == 'POST' and itemname==None:
+        #print request.form
+        tagspec={}
+        tagspec['creator']=user
+        tagspec['name'] = request.form['name']
+        tagspec['tagtype'] = request.form['tagtype']
+        #print "world"
+        #md5u=hashlib.md5()
+        #itspec['uri']=request.form.get('uri', md5u.update(creator+"/"+name))
+        if request.form.has_key('description'):
+            tagspec['description']=request.form['description']
+        #print "aaa", itspec
+        iteminfo=g.dbp.getItemByName(g.currentuser, user, itemname)
+        g.dbp.tagItem(g.currentuser, user, iteminfo['fqin'], tagspec)
+        #print "kkk"
+        return jsonify({'status':'OK'})
+    else:
+        return None
+
+@app.route('/item/<nick>/<itemname>')
+def usersitemget(nick, itemname):
+    user=g.db.getUserForNick(g.currentuser, nick)
     iteminfo=g.dbp.getItemByName(g.currentuser, user, itemname)
     return jsonify({'item':iteminfo})
 
-@app.route('/user/<nick>/itemswithtags')
-def usersitemswithtags(nick):
-    pass
+#should really be a query on user/nick/items but we do it separate as it gets one
+@app.route('/itembyuri/<nick>/<itemuri>')
+def usersitembyuriget(nick, itemname):
+    user=g.db.getUserForNick(g.currentuser, nick)
+    iteminfo=g.dbp.getItemByURI(g.currentuser, user, itemuri)
+    return jsonify({'item':iteminfo})
 
+#######################################################################################################################
+
+def _getQuery(querydict, fieldlist):
+    criteria={}
+    for ele, elev in fieldlist:
+        qele=querydict.get(ele, elev)
+        if ele in ['context', 'fqin']:
+            criteria[ele]=qele
+        else:
+            if qele:
+                criteria[ele]=qele
+    return criteria
+
+def _getItemQuery(querydict):
+    fieldlist=[('uri',''), ('name',''), ('itemtype',''), ('context', None), ('fqin', None)]
+    return _getQuery(querydict, fieldlist)
+
+def _getTagQuery(querydict):
+    #one can combine name and tagtype to get, for example, tag:lensing
+    fieldlist=[('tagname',''), ('tagtype',''), ('context', None), ('fqin', None)]
+    return _getQuery(querydict, fieldlist)
+
+#query uri/name/itemtype
+@app.route('/items')
+def itemsbyany():
+    useras=g.currentuser
+    criteria=_getItemQuery(request.args)
+    context=criteria.pop('context')
+    fqin=criteria.pop('fqin')
+    #This should be cleaned for values. BUG nor done yet.   
+    items=g.dbp.getItems(g.currentuser, useras, context, fqin, criteria)
+    return jsonify({'items':items})
+
+#add tagtype/tagname to query. Must this also be querying item attributes?
+@app.route('/tags')
+def tagsbyany():
+    useras=g.currentuser
+    criteria=_getTagQuery(request.args)
+    context=criteria.pop('context')
+    fqin=criteria.pop('fqin')
+    #This should be cleaned for values. BUG nor done yet.   
+    taggings=g.dbp.getTagging(g.currentuser, useras, context, fqin, criteria)
+    return jsonify(taggings)
+#######################################################################################################################
+#tagging based on item spec. BUG: how are we guaranteeing name unique amongst a user. Must specify joint unique for items
+
+@app.route('/item/<nick>/<itemname>/tags')
+def tagsforitem(nick, itemname):
+    criteria=_getTagQuery(request.args)
+    context=criteria.pop('context')
+    fqin=criteria.pop('fqin')
+    user=g.db.getUserForNick(g.currentuser, nick)
+    taggings=g.dbp.getTagsForItem(g.currentuser, user, user.nick+'/'+itemname, context, fqin, criteria)
+    return jsonify(taggings)
+
+def _getTagsForItemQuery(querydict):
+    #one can combine name and tagtype to get, for example, tag:lensing
+    fieldlist=[('tagname',''), ('tagtype',''), ('context', None), ('fqin', None), ('itemuri', ''), ('itemname', ''), ('itemtype', '')]
+    return _getQuery(querydict, fieldlist)
+
+@app.route('/itemspec/<nick>/tags')
+def tagsforitemspec(nick):
+    criteria=_getTagsForItemQuery(request.args)
+    if nick=='any':
+        useras=g.currentuser
+    else:
+        useras=g.db.getUserForNick(g.currentuser, nick)
+        criteria['userthere']=True
+    context=criteria.pop('context')
+    fqin=criteria.pop('fqin')
+    #This should be cleaned for values. BUG nor done yet.   
+    taggings=g.dbp.getTaggingForItemspec(g.currentuser, useras, context, fqin, criteria)
+    return jsonify(taggings)
+
+@app.route('/tagspec/<nick>/items')
+def itemsfortagspec(nick):
+    criteria=_getTagsForItemQuery(request.args)
+    if nick=='any':
+        useras=g.currentuser
+    else:
+        useras=g.db.getUserForNick(g.currentuser, nick)
+        criteria['userthere']=True
+    context=criteria.pop('context')
+    fqin=criteria.pop('fqin')
+    #This should be cleaned for values. BUG nor done yet.   
+    items=g.dbp.getItemsForTagspec(g.currentuser, useras, context, fqin, criteria)
+    return jsonify(items)
+#######################################################################################################################
+
+#users items/posts
+#currently get the items. worry about tags later
+#think we'll do tags as tags=tagtype | all
+
+#query itemtype, context, fqin
+@app.route('/user/<nick>/items')
+def usersitems(nick):
+    criteria=_getQuery(request.args, [('itemtype',''), ('context', None), ('fqin', None)])
+    context=criteria.pop('context')
+    fqin=criteria.pop('fqin')
+    user=g.db.getUserForNick(g.currentuser, nick)
+    items=g.dbp.getItemsForUser(g.currentuser, user, context, fqin, criteria)
+    return jsonify({'items':items})
+
+#query itemtype, tagtype, tagname?
+@app.route('/user/<nick>/tags')
+def userstags(nick):
+    criteria=_getTagQuery(request.args)
+    context=criteria.pop('context')
+    fqin=criteria.pop('fqin')
+    user=g.db.getUserForNick(g.currentuser, nick)
+    taggings=g.dbp.getTaggingForUser(g.currentuser, user, context, fqin, criteria)
+    return jsonify(taggings)
+
+@app.route('/user/<nick>/items/html')
+def usersitemshtml(nick):
+    user=g.db.getUserForNick(g.currentuser, nick)
+    userinfo=user.info()
+    items=g.dbp.getItemsForUser(g.currentuser, user)
+    return render_template('usersaved.html', theuser=userinfo, items=items)
+
+#######################################################################################################################
+#These too are redundant but we might want to support them as a different uri scheme
+#######################################################################################################################
+#redundant, i think
+# @app.route('/tags/<username>/<tagtype>:<tagname>')
+# def dogroup(username, tagtype, tagname):
+#     fqgn = username+'/group:'+groupname
+#     groupinfo=g.db.getGroupInfo(g.currentuser, fqgn)
+#     return jsonify(**groupinfo)
+
+
+# @app.route('/tags/<tagtype>:<tagname>/')
+# def group_users(tagtype, tagname):
+#     fqgn = username+'/group:'+groupname
+#     users=g.db.usersInGroup(g.currentuser,fqgn)
+#     return jsonify({'users':users})
+
+#######################################################################################################################
 #######################################################################################################################
 
 #POST/GET
@@ -233,5 +388,6 @@ def application_groups(username, appname):
 app.secret_key = 'A0Zr98j/3yX R~XHH!jmN]LWX/,?RT'
 
 if __name__=='__main__':
+    
     app.debug=True
     app.run()
