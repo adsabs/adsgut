@@ -133,7 +133,11 @@ class User(DaBase):
         return "<User:%s:%s>" % (self.nick, self.email)
 
     def info(self):
-        return {'name': self.name, 'nick': self.nick}
+        return {'name': self.name, 'nick': self.nick, 
+            'groupsin':[ele.fqin for ele in self.groupsin],
+            'groupsinvitedto':[ele.fqin for ele in self.groupsinvitedto],
+            'applicationsin':[ele.fqin for ele in self.applicationsin],
+            'applicationsinvitedto':[ele.fqin for ele in self.applicationsinvitedto]}
 
 class ItemType(DaBase):
     __tablename__='itemtypes'
@@ -180,7 +184,9 @@ class Item(DaBase):
 
     def info(self):
         #print "SELF", self
-        return {'fqin':self.fqin, 'uri':self.uri, 'creator': self.creator.nick, 'name': self.name, 'itemtype':self.itemtype.fqin, 'metajson':self.metajson}
+        return {'fqin':self.fqin, 'uri':self.uri, 'creator': self.creator.nick, 'name': self.name, 
+            'itemtype':self.itemtype.fqin, 'metajson':self.metajson,
+            'groupsin':[ele.fqin for ele in self.groupsin], 'applicationsin':[ele.fqin for ele in self.applicationsin]}
 
 
 
@@ -207,7 +213,8 @@ class Tag(Item):
 
     def info(self):
         #print "SELFTAG", self
-        return {'fqtn':self.fqin, 'creator': self.creator.nick, 'name': self.name, 'tagtype':self.tagtype.fqin, 'description':self.description}
+        return {'fqtn':self.fqin, 'creator': self.creator.nick, 'name': self.name, 
+            'tagtype':self.tagtype.fqin, 'description':self.description}
 
 
     #how to get a direct REL to items tagged thus? (see backref under items)
@@ -249,7 +256,11 @@ class Group(Tag):
 
     def info(self):
         #should return fully qualified name instead
-        return {'name': self.name, 'description': self.description, 'owner': self.owner.nick, 'fqgn': self.fqin, 'creator': self.creator.nick, 'whencreated': self.whencreated.strftime("%Y-%m-%d %H:%M:%S")}
+        return {'name': self.name, 'description': self.description, 'owner': self.owner.nick, 
+            'fqgn': self.fqin, 'creator': self.creator.nick, 
+            'whencreated': self.whencreated.strftime("%Y-%m-%d %H:%M:%S"),
+            'groupusers': [ele.nick for ele in self.groupusers],
+            'groupsinvitedusers': [ele.nick for ele in self.groupsinvitedusers]}
 
 class Application(Group):
     __tablename__='applications'
@@ -266,7 +277,11 @@ class Application(Group):
         return "<App:%s,%s>" % (self.owner.nick, self.fqin)
 
     def info(self):
-        return {'name': self.name, 'description': self.description, 'owner': self.owner.nick, 'fqan': self.fqin, 'creator': self.creator.nick, 'whencreated': self.whencreated.strftime("%Y-%m-%d %H:%M:%S")}
+        return {'name': self.name, 'description': self.description, 'owner': self.owner.nick, 
+            'fqan': self.fqin, 'creator': self.creator.nick, 
+            'whencreated': self.whencreated.strftime("%Y-%m-%d %H:%M:%S"),
+            'applicationusers': [ele.nick for ele in self.applicationusers],
+            'applicationssinvitedusers': [ele.nick for ele in self.applicationssinvitedusers]}
 
 
 # Item.groupsin = relationship('Group', secondary=ItemGroup,

@@ -3,6 +3,8 @@ from classes import *
 import tbase
 import dbase
 import config
+from permissions import permit
+from errors import abort, doabort, ERRGUT
 #wont worry about permissions right now
 #wont worry about cascade deletion right now either.
 #what about permissions? MUCH LATER
@@ -23,7 +25,10 @@ def validatespec(specdict, spectype):
 class Whosdb(dbase.Database):
 
     def getUserForNick(self, currentuser, nick):
-        user=self.session.query(User).filter_by(nick=nick).one()
+        try:
+            user=self.session.query(User).filter_by(nick=nick).one()
+        except:
+            doabort(ERRGUT['NOT_FND'], "User %s not found" % nick)
         return user
 
     def getUserInfo(self, currentuser, userwantednick):
@@ -36,7 +41,7 @@ class Whosdb(dbase.Database):
 
     def getAppInfo(self, currentuser, fullyQualifiedAppName):
         app=self.session.query(Application).filter_by(fqin=fullyQualifiedAppName).one()
-        return app.info()
+        return app.info(), [ele.nick for ele in app.applicationusers]
 
 
     def addUser(self, currentuser, userspec):

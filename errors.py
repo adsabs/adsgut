@@ -7,24 +7,25 @@ from werkzeug.exceptions import default_exceptions, HTTPException
 from flask import make_response, abort as flask_abort, request
 from flask.exceptions import JSONHTTPException
 
-ADSGUT_AOK_REQ=200
-ADSGUT_AOK_CRT=201
-ADSGUT_BAD_REQ=400
-ADSGUT_NOT_FND=404
-ADSGUT_SRV_ERR=500
-ADSGUT_SRV_UNA=503
-ADSGUT_NOT_AUT=401
-ADSGUT_FOR_BID=403
+ERRGUT={}
+ERRGUT['AOK_REQ']=200
+ERRGUT['AOK_CRT']=201
+ERRGUT['BAD_REQ']=400
+ERRGUT['NOT_FND']=404
+ERRGUT['SRV_ERR']=500
+ERRGUT['SRV_UNA']=503
+ERRGUT['NOT_AUT']=401
+ERRGUT['FOR_BID']=403
 
 adsgut_errtypes=[
-    ('ADSGUT_AOK_REQ',ADSGUT_AOK_REQ, 'Request Ok'),
-    ('ADSGUT_AOK_CRT',ADSGUT_AOK_CRT, 'Object Created'),
-    ('ADSGUT_BAD_REQ',ADSGUT_BAD_REQ, 'Bad Request'),
-    ('ADSGUT_NOT_FND',ADSGUT_NOT_FND, 'Not Found'),
-    ('ADSGUT_SRV_ERR',ADSGUT_SRV_ERR, 'Internal Server Error'),
-    ('ADSGUT_SRV_UNA',ADSGUT_SRV_UNA, 'Service Unavailable'),
-    ('ADSGUT_NOT_AUT', ADSGUT_NOT_AUT,'Not Authorized'),
-    ('ADSGUT_FOR_BID',ADSGUT_FOR_BID, 'Forbidden'),
+    ('ADSGUT_AOK_REQ',ERRGUT['AOK_REQ'], 'Request Ok'),
+    ('ADSGUT_AOK_CRT',ERRGUT['AOK_CRT'], 'Object Created'),
+    ('ADSGUT_BAD_REQ',ERRGUT['BAD_REQ'], 'Bad Request'),
+    ('ADSGUT_NOT_FND',ERRGUT['NOT_FND'], 'Not Found'),
+    ('ADSGUT_SRV_ERR',ERRGUT['SRV_ERR'], 'Internal Server Error'),
+    ('ADSGUT_SRV_UNA',ERRGUT['SRV_UNA'], 'Service Unavailable'),
+    ('ADSGUT_NOT_AUT',ERRGUT['NOT_AUT'],'Not Authorized'),
+    ('ADSGUT_FOR_BID',ERRGUT['FOR_BID'], 'Forbidden'),
 ]
 
 def abort(status_code, body=None, headers={}):
@@ -55,5 +56,5 @@ def abort(status_code, body=None, headers={}):
     #This is just a hack to get the code and the name in currently
     flask_abort(make_response(errori, status_code, headers))
 
-def doabort():
-    pass
+def doabort(code, reason):
+    abort(code, {'reason':reason})

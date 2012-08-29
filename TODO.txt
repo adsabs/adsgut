@@ -39,13 +39,14 @@ Requirements from ADS libraries
 (5) facet creation through tags: support a sql IN query
 
 Web service support needed:
-(a) am i saved. Given item, is it saved by user, based on itemname, or itemuri
-(b) groups and apps an item is posted to
-(c) tags for a item
-(d) groups for a user not including public, default, and app groups
-(e) is an item saved publicly?
-(f) create a new group
-(g) accept invitation to group
+(a) am i saved. Given item, is it saved by user, based on itemname, or itemuri x
+(b) groups and apps an item is posted to x [What about groups and apps a tag is posted to: BUG]
+(c) tags for a item x
+(d) groups for a user not including public, default, and app groups x (just get from all groups right now TODO)
+(e) is an item saved publicly? (check the groupsin? x TODO: add a boolean for this)
+(f) create a new group x make invite x
+(g) accept invitation to group x
+(h) given Giovanni's information create a user: func or API? In anycase need a is USer inDatabase func
 
 html pages desired
 (a) private libraries page

@@ -119,8 +119,52 @@ def appsinvited(nick):
     apps=g.db.appInvitationsForUser(g.currentuser, user)
     return jsonify({'apps':apps})
 
+#######################################################################################################################
+#creating groups and apps
+#accepting invites.
+#DELETION methods not there BUG
 
+@app.route('/group', methods=['post'])
+def creategroup():
+    user=g.currentuser
+    groupspec={}
+    if request.method == 'POST':
+        groupname=request.form['name']
+        description=request.form.get('description', '')
+        groupspec['creator']=user
+        groupspec['name']=groupname
+        groupspec['description']=description
+        g.db.addGroup(g.currentuser, user, groupspec)
+        return jsonify({'status':'OK'})
+    else:
+        return None
 
+#Currently wont allow you to create app, or accept invites to apps
+@app.route('/group/<groupowner>/group:<groupname>/invitation', methods=['post'])
+def makeinvitetogroup(groupowner, groupname):
+    #add permit to match user with groupowner
+    fqgn=groupowner+"/group:"+groupname
+    if request.method == 'POST':
+        nick=request.POST['user']
+        user=g.db.getUserForNick(g.currentuser, nick)
+        g.db.inviteUserToGroup(g.currentuser, fqgn, user, None)
+        return jsonify({'status':'OK'})
+    else:
+        return None
+
+@app.route('/groupinvite/<groupowner>/group:<groupname>', methods=['post'])
+def acceptinvitetogroup(nick, groupowner, groupname):  
+    user=g.currentuser
+    fqgn=groupowner+"/group:"+groupname
+    if request.method == 'POST':
+        accept=request.form.get('accept', None)
+        if accept:
+            g.db.acceptInviteToGroup(g.currentuser, fqgn, user, None)
+            return jsonify({'status':'OK'})
+        else:
+            return None
+    else:
+        return None
     
 #######################################################################################################################
 
@@ -170,6 +214,8 @@ def usertagpost(nick, itemname):
     else:
         return None
 
+#These can be used as "am i saved" web services. Also gives groups and apps per item
+#a 404 not found would be an ideal error
 @app.route('/item/<nick>/<itemname>')
 def usersitemget(nick, itemname):
     user=g.db.getUserForNick(g.currentuser, nick)
@@ -178,7 +224,7 @@ def usersitemget(nick, itemname):
 
 #should really be a query on user/nick/items but we do it separate as it gets one
 @app.route('/itembyuri/<nick>/<itemuri>')
-def usersitembyuriget(nick, itemname):
+def usersitembyuriget(nick, itemuri):
     user=g.db.getUserForNick(g.currentuser, nick)
     iteminfo=g.dbp.getItemByURI(g.currentuser, user, itemuri)
     return jsonify({'item':iteminfo})
