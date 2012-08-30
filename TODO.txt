@@ -47,6 +47,7 @@ Web service support needed:
 (f) create a new group x make invite x
 (g) accept invitation to group x
 (h) given Giovanni's information create a user: func or API? In anycase need a is USer inDatabase func
+(i) TOTALLY FORGOT: add web services for POSTING items into groups and apps
 
 html pages desired
 (a) private libraries page

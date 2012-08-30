@@ -132,6 +132,7 @@ class User(DaBase):
     def __repr__(self):
         return "<User:%s:%s>" % (self.nick, self.email)
 
+    #BUG: should the groupsin not reflect private group and public group?
     def info(self):
         return {'name': self.name, 'nick': self.nick, 
             'groupsin':[ele.fqin for ele in self.groupsin],
@@ -281,7 +282,7 @@ class Application(Group):
             'fqan': self.fqin, 'creator': self.creator.nick, 
             'whencreated': self.whencreated.strftime("%Y-%m-%d %H:%M:%S"),
             'applicationusers': [ele.nick for ele in self.applicationusers],
-            'applicationssinvitedusers': [ele.nick for ele in self.applicationssinvitedusers]}
+            'applicationsinvitedusers': [ele.nick for ele in self.applicationsinvitedusers]}
 
 
 # Item.groupsin = relationship('Group', secondary=ItemGroup,
@@ -368,7 +369,7 @@ class ItemTag(DaBase):
 ItemTag.tagtype=relationship('TagType', primaryjoin=ItemTag.tagtype_id==TagType.tagtype_id)
 ItemTag.tag = relationship(Tag, primaryjoin=ItemTag.tag_id==Tag.tag_id)
 
-Tag.taggeditems=relationship("Item", secondary=ItemTag.__table__)
+Tag.taggeditems=relationship("Item", lazy="dynamic", secondary=ItemTag.__table__)
 
 #------------------------------ NOT SURE OF THIS WHOLE IDEA BELOW
 ItemTag.groupsin = association_proxy('tagitems_groups', 'group')

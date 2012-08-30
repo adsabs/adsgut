@@ -5,53 +5,94 @@ import dbase
 import config
 from permissions import permit
 from errors import abort, doabort, ERRGUT
-#wont worry about permissions right now
-#wont worry about cascade deletion right now either.
-#what about permissions? MUCH LATER
-#FUNDAMENTAL
-#What about adding user to default groups and all? I say routes. Dont muddy this.
+import types
+
 OK=200
 #RULE HERE: users are expected to be python objects. Anything else is a string
+def is_stringtype(v):
+    if type(v)==types.StringType or type(v)==types.UnicodeType:
+        return True
+    else:
+        return False
 
+# **Notes**
+# 1. We are not protecting session adds and deletes with exceptions. What does this mean?
+# 2. We are not worrying about cascade deletion, or much about deletion in general presently (BUG)
+# 3. Some group addition will happen through routes. Not yet.
 
-#NEXT: respect fully qualifieds all through app, figure what to do about user instances at this level NEXT
+MUSTHAVEKEYS={
+    'user':['email', 'nick'],
+    'group':['creator', 'name'],
+    'app':['creator', 'name']
+}
 
-def validatespec(specdict, spectype):
+#Validate spec for users, groups, and apps
+def validatespec(specdict, spectype="user"):
+    keysneeded=MUSTHAVEKEYS[spectype]
+    keyswehave=specdict.keys()
+    for k in keysneeded:
+        if k not in keyswehave:
+            doabort('BAD_REQ', "Key %s not in spec for %s" % (k, spectype))
     if spectype=='group' or spectype=='app':
         specdict['owner']=specdict['creator']
         specdict['fqin']=specdict['creator'].nick+"/"+spectype+":"+specdict['name']
     return specdict
 
+#An interface to the user, groups, and apps database
 class Whosdb(dbase.Database):
 
+    #Get user object for nickname nick
     def getUserForNick(self, currentuser, nick):
         try:
             user=self.session.query(User).filter_by(nick=nick).one()
         except:
-            doabort(ERRGUT['NOT_FND'], "User %s not found" % nick)
+            doabort('NOT_FND', "User %s not found" % nick)
         return user
 
+    #Get user info for nickname nick
     def getUserInfo(self, currentuser, userwantednick):
-        user=self.session.query(User).filter_by(nick=userwantednick).one()
+        user=self.getUserForNick(currentuser, userwantednick)
         return user.info()
 
+    #Get group object given fqgn
+    def getGroup(self, currentuser, fullyQualifiedGroupName):
+        try:
+            group=self.session.query(Group).filter_by(fqin=fullyQualifiedGroupName).one()
+        except:
+            doabort('NOT_FND', "Group %s not found" % fullyQualifiedGroupName)
+        return group
+
+    #Get group info given fqgn
     def getGroupInfo(self, currentuser, fullyQualifiedGroupName):
-        group=self.session.query(Group).filter_by(fqin=fullyQualifiedGroupName).one()
+        group=self.getGroup(currentuser, fullyQualifiedGroupName)
         return group.info()
 
+    #Get app object fiven fqan
+    def getApp(self, currentuser, fullyQualifiedAppName):
+        try:
+            app=self.session.query(Application).filter_by(fqin=fullyQualifiedAppName).one()
+        except:
+            doabort('NOT_FND', "App %s not found" % fullyQualifiedAppName)
+        return app
+
+    #Get app info given fqan
     def getAppInfo(self, currentuser, fullyQualifiedAppName):
-        app=self.session.query(Application).filter_by(fqin=fullyQualifiedAppName).one()
-        return app.info(), [ele.nick for ele in app.applicationusers]
+        app=self.getApp(currentuser, fullyQualifiedAppName)
+        return app.info()
 
-
+    #Add user to system, given a userspec from flask user object. commit needed
     def addUser(self, currentuser, userspec):
         vspec=validatespec(userspec, "user")
         #print vspec
-        newuser=User(**vspec)
-        self.session.add(newuser)
+        try:
+            newuser=User(**vspec)
+            self.session.add(newuser)
+        except:
+            doabort('BAD_REQ', "Failed adding user %s" % userspec['nick'])
         #Also add user to private default group and public group
         self.addGroup(currentuser, dict(name='default', creator=newuser, personalgroup=True))
         if newuser.nick == 'adsgut':
+            #Shouldnt this be part of system configuration
             newuser.systemuser=True          
             self.addGroup(currentuser, dict(name='public', description="Public Items", creator=newuser))
         else:
@@ -59,20 +100,25 @@ class Whosdb(dbase.Database):
         return newuser
 
     def removeUser(self, currentuser, usertoberemovednick):
-        remuser=session.query(User).filter_by(nick=usertoberemovednick).one()
+        remuser=self.getUserForNick(currentuser, usertoberemovednick)
         self.session.delete(remuser)
         return OK
 
     def addGroup(self, currentuser, groupspec):
-        newgroup=Group(**validatespec(groupspec, "group"))
+        vspec=validatespec(groupspec, "group")
+        try:
+            newgroup=Group(**vspec)
+        except:
+            doabort('BAD_REQ', "Failed adding group %s" % groupspec['name'])
+        #Also add user to private default group and public group
         self.session.add(newgroup)
-        self.commit()#needed as in addUserToGroup you do a full lookup
+        #self.commit()#needed as in addUserToGroup you do a full lookup. fix this!
         #print newgroup.fqin, newgroup.creator.info(), '<<<<<<'
-        self.addUserToGroup(currentuser, newgroup.fqin, newgroup.creator, None)
+        self.addUserToGroup(currentuser, newgroup, newgroup.creator, None)
         return newgroup
 
     def removeGroup(self,currentuser, fullyQualifiedGroupName):
-        remgrp=self.session.query(Group).filter_by(fqin=fullyQualifiedGroupName).one()
+        remgrp=self.getGroup(currentuser, fullyQualifiedGroupName)
         #How will the cascades work? removing users? should we not archive?
         #from an ORM perspective its like groups should be added to a new table ArchivedGroup,
         #or perhaps just flagged "archived"
@@ -80,15 +126,19 @@ class Whosdb(dbase.Database):
         return OK
 
     def addApp(self, currentuser, appspec):
+        appspec=validatespec(appspec, "app")
         appspec['appgroup']=True
-        newapp=Application(**validatespec(appspec, "app"))
+        try:
+            newapp=Application(**appspec)
+        except:
+            doabort('BAD_REQ', "Failed adding app %s" % appspec['name'])  
         self.session.add(newapp)
-        self.commit()#needed due to full lookup in addUserToApp
-        self.addUserToApp(currentuser, newapp.fqin, newapp.creator, None)
+        #self.commit()#needed due to full lookup in addUserToApp. fixthis
+        self.addUserToApp(currentuser, newapp, newapp.creator, None)
         return newapp
 
     def removeApp(self,currentuser, fullyQualifiedAppName):
-        remapp=self.session.query(Application).filter_by(fqin=fullyQualifiedAppName).one()
+        remapp=self.getApp(currentuser, fullyQualifiedAppName)
         #How will the cascades work? removing users? should we not archive?
         #from an ORM perspective its like groups should be added to a new table ArchivedGroup,
         #or perhaps just flagged "archived"
@@ -99,34 +149,120 @@ class Whosdb(dbase.Database):
     #DERIVED
 
     #what about invitations. Is that taken over ny getting an oauth token in authspec?
-    def addUserToGroup(self, currentuser, fullyQualifiedGroupName, usertobeadded, authspec):
-        grp=self.session.query(Group).filter_by(fqin=fullyQualifiedGroupName).one()
-        usertobeadded.groupsin.append(grp)
+    def addUserToGroup(self, currentuser, grouporfullyQualifiedGroupName, usertobeadded, authspec):
+        if is_stringtype(grouporfullyQualifiedGroupName):
+            grp=self.getGroup(currentuser, grouporfullyQualifiedGroupName)
+        else:
+            grp=grouporfullyQualifiedGroupName
+        try:
+            usertobeadded.groupsin.append(grp)
+        except:
+            doabort('BAD_REQ', "Failed adding user %s to group %s" % (usertobeadded.nick, grp.fqin))
         return OK
 
     def inviteUserToGroup(self, currentuser, fullyQualifiedGroupName, usertobeadded, authspec):
-        grp=self.session.query(Group).filter_by(fqin=fullyQualifiedGroupName).one()
-        usertobeadded.groupsinvitedto.append(grp)
+        grp=self.getGroup(currentuser, fullyQualifiedGroupName)
+        try:
+            usertobeadded.groupsinvitedto.append(grp)
+        except:
+            doabort('BAD_REQ', "Failed inviting user %s to group %s" % (usertobeadded.nick, grp.fqin))
         return OK
 
     def acceptInviteToGroup(self, currentuser, fullyQualifiedGroupName, usertobeadded, authspec):
-        grp=self.session.query(Group).filter_by(fqin=fullyQualifiedGroupName).one()
-        if grp in usertobeadded.groupsinvitedto:
-            usertobeadded.groupsin.append(grp)
+        grp=self.getGroup(currentuser, fullyQualifiedGroupName)
+        try:
+            if grp in usertobeadded.groupsinvitedto:
+                usertobeadded.groupsin.append(grp)
+            else:
+                doabort('BAD_REQ', "User %s not invited to group %s" % (usertobeadded.nick, grp.fqin))
+        except:
+            doabort('BAD_REQ', "Failed in user %s accepting invite to group %s" % (usertobeadded.nick, grp.fqin))
         return OK
 
     def removeUserFromGroup(self, currentuser, fullyQualifiedGroupName, usertoberemoved):
-        grp=self.session.query(Group).filter_by(fqin=fullyQualifiedGroupName).one()
-        usertoberemoved.groupsin.remove(grp)
+        grp=self.getGroup(currentuser, fullyQualifiedGroupName)
+        try:
+            usertoberemoved.groupsin.remove(grp)
+        except:
+            doabort('BAD_REQ', "Failed removing user %s from group %s" % (usertoberemoved.nick, grp.fqin))
         return OK
         
 
     def changeOwnershipOfGroup(self, currentuser, fullyQualifiedGroupName, usertobenewowner):
-        grp=self.session.query(Group).filter_by(fqin=fullyQualifiedGroupName).one()
-        grp.owner = usertobenewowner
+        grp=self.getGroup(currentuser, fullyQualifiedGroupName)
+        try:
+            oldownernick=grp.owner.nick
+            grp.owner = usertobenewowner
+        except:
+            doabort('BAD_REQ', "Failed changing owner from %s to %s for group %s" % (oldownernick, usertobenewowner.nick, grp.fqin))    
         return OK
 
-    #INFORMATIONAL
+
+    #EVEN MORE DERIVED
+    #who runs this?
+    def addUserToApp(self, currentuser, apporfullyQualifiedAppName, usertobeadded, authspec):
+        if is_stringtype(apporfullyQualifiedAppName):
+            app=self.getApp(currentuser, apporfullyQualifiedAppName)
+        else:
+            app=apporfullyQualifiedAppName
+        
+        try:
+            usertobeadded.applicationsin.append(app)
+        except:
+            doabort('BAD_REQ', "Failed adding user %s to app %s" % (usertobeadded.nick, app.fqin))
+        return OK
+
+    #and who runs this?
+    def inviteUserToApp(self, currentuser, fullyQualifiedAppName, usertobeadded, authspec):
+        app=self.getApp(currentuser, fullyQualifiedAppName)
+        try:
+            usertobeadded.applicationsinvitedto.append(app)
+        except:
+            doabort('BAD_REQ', "Failed inviting user %s to app %s" % (usertobeadded.nick, app.fqin))
+        return OK
+
+    def acceptInviteToApp(self, currentuser, fullyQualifiedAppName, usertobeadded, authspec):
+        app=self.getApp(currentuser, fullyQualifiedAppName)
+        try:
+            if app in usertobeadded.applicationsinvitedto:
+                usertobeadded.applicationsin.append(app)
+            else:
+                doabort('BAD_REQ', "User %s not invited to app %s" % (usertobeadded.nick, app.fqin))
+        except:
+            doabort('BAD_REQ', "Failed in user %s accepting invite to app %s" % (usertobeadded.nick, app.fqin))
+        return OK
+
+    def removeUserFromApp(self, currentuser, fullyQualifiedAppName, usertoberemoved):
+        app=self.getApp(currentuser, fullyQualifiedAppName)
+        try:
+            usertoberemoved.applicationsin.remove(app)
+        except:
+            doabort('BAD_REQ', "Failed removing user %s from app %s" % (usertoberemoved.nick, app.fqin))
+        return OK
+
+    #How are these implemented: a route? And, what is this?
+    def addGroupToApp(self, currentuser, fullyQualifiedAppName, fullyQualifiedGroupName, authspec):
+        app=self.getApp(currentuser, fullyQualifiedAppName)
+        grp=self.getGroup(currentuser, fullyQualifiedGroupName)
+        try:
+            grp.applicationsin.append(app)
+            #pubsub must add the individual users. BUG is that how we want to do it?
+        except:
+            doabort('BAD_REQ', "Failed adding group %s to app %s" % (grp.fqin, app.fqin))
+        return OK
+
+    def removeGroupFromApp(self, currentuser, fullyQualifiedAppName, fullyQualifiedGroupName):
+        app=self.getApp(currentuser, fullyQualifiedAppName)
+        grp=self.getGroup(currentuser, fullyQualifiedGroupName)
+        try:
+            grp.applicationsin.remove(app)
+            #pubsub depending on what we want to do to delete
+        except:
+            doabort('BAD_REQ', "Failed removing group %s from app %s" % (grp.fqin, app.fqin))
+        return OK
+
+
+    #INFORMATIONAL: no aborts for these informationals as just queries that could returm empty.
 
     def allUsers(self, currentuser):
         users=self.session.query(User).filter_by(systemuser=False).all()
@@ -140,55 +276,13 @@ class Whosdb(dbase.Database):
         apps=self.session.query(Application).filter_by(appgroup=True).all()
         return [e.info() for e in apps]
 
-
-
-    #EVEN MORE DERIVED
-    #who runs this?
-    def addUserToApp(self, currentuser, fullyQualifiedAppName, usertobeadded, authspec):
-        app=self.session.query(Application).filter_by(fqin=fullyQualifiedAppName).one()
-        usertobeadded.applicationsin.append(app)
-        return OK
-
-    #and who runs this?
-    def inviteUserToApp(self, currentuser, fullyQualifiedAppName, usertobeadded, authspec):
-        app=self.session.query(Application).filter_by(fqin=fullyQualifiedAppName).one()
-        usertobeadded.applicationsinvitedto.append(app)
-        return OK
-
-    def acceptInviteToApp(self, currentuser, fullyQualifiedAppName, usertobeadded, authspec):
-        app=self.session.query(Application).filter_by(fqin=fullyQualifiedAppName).one()
-        if app in usertobeadded.applicationsinvitedto:
-            usertobeadded.applicationsin.append(app)
-        return OK
-
-    def removeUserFromApp(self, currentuser, fullyQualifiedAppName, usertoberemoved):
-        app=self.session.query(Application).filter_by(fqin=fullyQualifiedAppName).one()
-        usertoberemoved.applicationsin.remove(app)
-        return OK
-
-    #How are these implemented: a route? And, what is this?
-    def addGroupToApp(self, currentuser, fullyQualifiedAppName, fullyQualifiedGroupName, authspec):
-        app=self.session.query(Application).filter_by(fqin=fullyQualifiedAppName).one()
-        grp=self.session.query(Group).filter_by(fqin=fullyQualifiedGroupName).one()
-        grp.applicationsin.append(app)
-        #pubsub must add the individual users
-        return OK
-
-    def removeGroupFromApp(self, currentuser, fullyQualifiedAppName, fullyQualifiedGroupName):
-        app=self.session.query(Application).filter_by(fqin=fullyQualifiedAppName).one()
-        grp=self.session.query(Group).filter_by(fqin=fullyQualifiedGroupName).one()
-        grp.applicationsin.remove(app)
-        #pubsub depending on what we want to do to delete
-        return OK
-
-
     def usersInApp(self, currentuser, fullyQualifiedAppName):
-        app=self.session.query(Application).filter_by(fqin=fullyQualifiedAppName).one()
+        app=self.getApp(currentuser, fullyQualifiedAppName)
         users=app.applicationusers
         return [e.info() for e in users]
 
     def groupsInApp(self, currentuser, fullyQualifiedAppName):
-        app=self.session.query(Application).filter_by(fqin=fullyQualifiedAppName).one()
+        app=self.getApp(currentuser, fullyQualifiedAppName)
         groups=app.applicationgroups
         return [e.info() for e in groups]
 
@@ -207,7 +301,7 @@ class Whosdb(dbase.Database):
 
 
     def usersInGroup(self, currentuser, fullyQualifiedGroupName):
-        grp=self.session.query(Group).filter_by(fqin=fullyQualifiedGroupName).one()
+        grp=self.getGroup(currentuser, fullyQualifiedGroupName)
         users=grp.groupusers
         return [e.info() for e in users]
 
@@ -222,7 +316,7 @@ class Whosdb(dbase.Database):
     def appInvitationsForUser(self, currentuser, userwanted):
         apps=userwanted.applicationsinvitedto
         return [e.info() for e in apps]
-#BUG: why cant arguments be specified via destructuring as in coffeescript
+#why cant arguments be specified via destructuring as in coffeescript
     
 def initialize_application(db_session):
     currentuser=None

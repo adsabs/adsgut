@@ -13,8 +13,9 @@ app = Flask(__name__)
 
 @app.before_request
 def before_request():
-        g.db=whos.Whosdb(db_session)
+        #g.db=whos.Whosdb(db_session)
         g.dbp=posts.Postdb(db_session)
+        g.db=g.dbp.whosdb
         if session.has_key('username'):
             g.currentuser=g.db.getUserForNick(None, session['username'])
         else:
@@ -93,6 +94,11 @@ def groupsowned(nick):
     user=g.db.getUserForNick(g.currentuser, nick)
     groups=g.db.ownerOfGroups(g.currentuser, user)
     return jsonify({'groups':groups})
+
+#BUG: these returns group info for each group. permits must make sure there is no leakage
+# in classes, we may need to have different functions for info that needs to be embargoed.
+#but thats the right level at which to do it. also means that permit may need to not just
+#raise exceptions, but respond on an if-then basis. (permitwitherror?)
 
 @app.route('/user/<nick>/groupsinvited')
 def groupsinvited(nick):
@@ -214,6 +220,58 @@ def usertagpost(nick, itemname):
     else:
         return None
 
+#######################################################################################################################
+#Post to group and post to app. We are nor supporting any deletion web services as yet.
+#Also post tag to group and post tag to app. tag too must be saved and lookupable
+#BUG: we must solve the whose items u can post problem as posting currently (for saving, atleast seems to use
+#the current user)
+@app.route('/item/<nick>/<itemname>/grouppost', methods=['POST'])
+def useritemgrouppost(nick, itemname):
+    user=g.currentuser#The current user is doing the posting
+    #print "hello", user.nick
+    if request.method == 'POST':
+        fqgn = request.form['fqin']
+        g.dbp.postItemToGroup(g.currentuser, user, fqgn, nick+"/"+itemname)
+        return jsonify({'status':'OK'})
+    else:
+        return None
+
+@app.route('/item/<nick>/apppost', methods=['POST'])
+def useritemapppost(nick):
+    user=g.currentuser#The current user is doing the posting
+    #print "hello", user.nick
+    if request.method == 'POST':
+        fqan = request.form['fqin']
+        g.dbp.postItemToGroup(g.currentuser, user, fqan, nick+"/"+itemname)
+        return jsonify({'status':'OK'})
+    else:
+        return None
+
+@app.route('/tag/<nick>/<itemname>/grouppost', methods=['POST'])
+def usertaggrouppost(nick, itemname):
+    user=g.currentuser#The current user is doing the posting
+    #print "hello", user.nick
+    if request.method == 'POST':
+        fqgn = request.form['fqin']
+        fqtn = request.form['fqtn']
+        g.dbp.postTaggingIntoGroup(g.currentuser, user, fqgn, nick+"/"+itemname, fqtn)
+        return jsonify({'status':'OK'})
+    else:
+        return None
+
+@app.route('/tag/<nick>/<itemname>/apppost', methods=['POST'])
+def usertagapppost(nick, itemname):
+    user=g.currentuser#The current user is doing the posting
+    #print "hello", user.nick
+    if request.method == 'POST':
+        fqan = request.form['fqin']
+        fqtn = request.form['fqtn']
+        g.dbp.postTaggingIntoApp(g.currentuser, user, fqan, nick+"/"+itemname, fqtn)
+        return jsonify({'status':'OK'})
+    else:
+        return None  
+
+#######################################################################################################################
 #These can be used as "am i saved" web services. Also gives groups and apps per item
 #a 404 not found would be an ideal error
 @app.route('/item/<nick>/<itemname>')
@@ -252,9 +310,12 @@ def _getTagQuery(querydict):
     return _getQuery(querydict, fieldlist)
 
 #query uri/name/itemtype
+#BUG: this returns all items including tags and is thus farely useless. We dont want any inherited tables
+#Can do this with a boolean or figure the sqlalchemyway
+#But can be worked around currently using itemtype and such
 @app.route('/items')
 def itemsbyany():
-    permit(g.currentuser!=None and g.currentuser.nick=='rahuldave', "wrong user")
+    #permit(g.currentuser!=None and g.currentuser.nick=='rahuldave', "wrong user")
     useras=g.currentuser
     criteria=_getItemQuery(request.args)
     context=criteria.pop('context')
@@ -271,7 +332,7 @@ def tagsbyany():
     context=criteria.pop('context')
     fqin=criteria.pop('fqin')
     #This should be cleaned for values. BUG nor done yet.   
-    taggings=g.dbp.getTagging(g.currentuser, useras, context, fqin, criteria)
+    taggings=g.dbp.getTaggingForItemspec(g.currentuser, useras, context, fqin, criteria)
     return jsonify(taggings)
 #######################################################################################################################
 #tagging based on item spec. BUG: how are we guaranteeing name unique amongst a user. Must specify joint unique for items
@@ -284,6 +345,16 @@ def tagsforitem(nick, itemname):
     user=g.db.getUserForNick(g.currentuser, nick)
     taggings=g.dbp.getTagsForItem(g.currentuser, user, user.nick+'/'+itemname, context, fqin, criteria)
     return jsonify(taggings)
+
+@app.route('/tag/<nick>/<tagspace>/<tagtypename>:<tagname>/items')
+def itemsfortag(nick, tagspace, tagtypename, tagname):
+    tagtype=tagspace+"/"+tagtypename
+    criteria=_getItemQuery(request.args)
+    context=criteria.pop('context')
+    fqin=criteria.pop('fqin')
+    user=g.db.getUserForNick(g.currentuser, nick)
+    items=g.dbp.getItemsForTag(g.currentuser, user, nick+'/'+tagtype+":"+tagname, context, fqin, criteria)
+    return jsonify({'items':items})
 
 def _getTagsForItemQuery(querydict):
     #one can combine name and tagtype to get, for example, tag:lensing
@@ -340,7 +411,7 @@ def userstags(nick):
     context=criteria.pop('context')
     fqin=criteria.pop('fqin')
     user=g.db.getUserForNick(g.currentuser, nick)
-    taggings=g.dbp.getTaggingForUser(g.currentuser, user, context, fqin, criteria)
+    taggings=g.dbp.getTaggingForItemspec(g.currentuser, user, context, fqin, criteria)
     return jsonify(taggings)
 
 @app.route('/user/<nick>/items/html')

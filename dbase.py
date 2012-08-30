@@ -24,7 +24,7 @@ def init_db(engine):
     DaBase.metadata.create_all(bind=engine)
 
 
-class Database:
+class Database(object):
 
     def __init__(self, session):
         self.session = session

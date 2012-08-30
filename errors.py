@@ -56,5 +56,6 @@ def abort(status_code, body=None, headers={}):
     #This is just a hack to get the code and the name in currently
     flask_abort(make_response(errori, status_code, headers))
 
-def doabort(code, reason):
-    abort(code, {'reason':reason})
+def doabort(codestring, reason):
+    abort(ERRGUT[codestring], {'reason':reason})
+    #print ERRGUT[codestring], {'reason':reason}
