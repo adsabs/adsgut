@@ -48,6 +48,7 @@ def poal():
         groups=g.db.allGroups(g.currentuser), apps=g.db.allApps(g.currentuser), poal=True)
 
 #######################################################################################################################
+#BUG: redo this with new user system
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -165,12 +166,56 @@ def acceptinvitetogroup(nick, groupowner, groupname):
     if request.method == 'POST':
         accept=request.form.get('accept', None)
         if accept:
-            g.db.acceptInviteToGroup(g.currentuser, fqgn, user, None)
+            g.db.acceptInviteToGroup(g.currentuser, fqgn, None)
             return jsonify({'status':'OK'})
         else:
             return None
     else:
         return None
+
+
+@app.route('/app', methods=['post'])
+def createapp():
+    user=g.currentuser
+    appspec={}
+    if request.method == 'POST':
+        appname=request.form['name']
+        description=request.form.get('description', '')
+        appspec['creator']=user
+        appspec['name']=groupname
+        appspec['description']=description
+        g.db.addApplication(g.currentuser, user, appspec)
+        return jsonify({'status':'OK'})
+    else:
+        return None
+
+#Currently wont allow you to create app, or accept invites to apps
+@app.route('/app/<appowner>/app:<appname>/invitation', methods=['post'])
+def makeinvitetoapp(appowner, appname):
+    #add permit to match user with groupowner
+    fqan=appowner+"/app:"+appname
+    if request.method == 'POST':
+        nick=request.POST['user']
+        user=g.db.getUserForNick(g.currentuser, nick)
+        g.db.inviteUserToApp(g.currentuser, fqan, user, None)
+        return jsonify({'status':'OK'})
+    else:
+        return None
+
+@app.route('/appinvite/<appowner>/app:<appname>', methods=['post'])
+def acceptinvitetoapp(nick, appowner, appname):  
+    user=g.currentuser
+    fqan=appowner+"/app:"+appname
+    if request.method == 'POST':
+        accept=request.form.get('accept', None)
+        if accept:
+            g.db.acceptInviteToApp(g.currentuser, fqan, None)
+            return jsonify({'status':'OK'})
+        else:
+            return None
+    else:
+        return None
+
     
 #######################################################################################################################
 
@@ -443,7 +488,7 @@ def usersitemshtml(nick):
 
 #POST/GET
 @app.route('/group/html')
-def creategroup():
+def creategrouphtml():
     pass
 
 #get group info
@@ -473,7 +518,7 @@ def group_users(username, groupname):
 
 #POST/GET
 @app.route('/app/html')
-def createapp():
+def createapphtml():
     pass
 
 @app.route('/app/<username>/app:<appname>')

@@ -19,6 +19,7 @@ def is_stringtype(v):
 # 1. We are not protecting session adds and deletes with exceptions. What does this mean?
 # 2. We are not worrying about cascade deletion, or much about deletion in general presently (BUG)
 # 3. Some group addition will happen through routes. Not yet.
+# 4. We must add a function for users to attach nicknames.
 
 MUSTHAVEKEYS={
     'user':['email', 'nick'],
@@ -42,6 +43,13 @@ def validatespec(specdict, spectype="user"):
 class Whosdb(dbase.Database):
 
     #Get user object for nickname nick
+
+    def isSystemUser(self, currentuser):
+        if currentuser.nick=='adsgut':
+            return True
+        else:
+            return False
+
     def getUserForNick(self, currentuser, nick):
         try:
             user=self.session.query(User).filter_by(nick=nick).one()
@@ -52,6 +60,7 @@ class Whosdb(dbase.Database):
     #Get user info for nickname nick
     def getUserInfo(self, currentuser, userwantednick):
         user=self.getUserForNick(currentuser, userwantednick)
+        permit(currentuser==user or self.isSystemUser(currentuser), "User %s not authorized or not systemuser" % currentuser.nick)
         return user.info()
 
     #Get group object given fqgn
@@ -81,7 +90,10 @@ class Whosdb(dbase.Database):
         return app.info()
 
     #Add user to system, given a userspec from flask user object. commit needed
+    #This should never be called from the web interface, but can be called on the fly when user
+    #logs in in Giovanni's system. So will there be a cookie or not?
     def addUser(self, currentuser, userspec):
+        #permit(self.isSystemUser(currentuser), "Only System User can add users")
         vspec=validatespec(userspec, "user")
         #print vspec
         try:
@@ -99,7 +111,10 @@ class Whosdb(dbase.Database):
             self.addUserToGroup(currentuser, 'adsgut/group:public', newuser, None)
         return newuser
 
+    #BUG: we want to blacklist users and relist them
+    #currently only allow users to be removed through scripts
     def removeUser(self, currentuser, usertoberemovednick):
+        permit(self.isSystemUser(currentuser), "Only System User can remove users")
         remuser=self.getUserForNick(currentuser, usertoberemovednick)
         self.session.delete(remuser)
         return OK
@@ -117,8 +132,47 @@ class Whosdb(dbase.Database):
         self.addUserToGroup(currentuser, newgroup, newgroup.creator, None)
         return newgroup
 
+    def isOwnerOfGroup(self, currentuser, grp):
+        if currentuser==grp.owner:
+            return True
+        else:
+            return False
+
+    def isMemberOfGroup(self, currentuser, grp):
+        if currentuser in grp.groupusers:
+            return True
+        else:
+            return False
+
+    def isInvitedToGroup(self, currentuser, grp):
+        if grp in currentuser.groupsinvitedto:
+            return True
+        else:
+            return False
+
+    def isOwnerOfApp(self, currentuser, app):
+        if currentuser==app.owner:
+            return True
+        else:
+            return False
+
+    def isMemberOfApp(self, currentuser, app):
+        if currentuser in app.appusers:
+            return True
+        else:
+            return False
+
+    def isInvitedToApp(self, currentuser, grp):
+        if app in currentuser.applicationsinvitedto:
+            return True
+        else:
+            return False
+    
+    #The only person who can remove a group is the system user or the owner
     def removeGroup(self,currentuser, fullyQualifiedGroupName):
         remgrp=self.getGroup(currentuser, fullyQualifiedGroupName)
+        permit(self.isOwnerOfGroup(currentuser, remgrp) or self.isSystemUser(currentuser),
+                "Only owner of group %s or systemuser can remove group" % remgrp.fqin)
         #How will the cascades work? removing users? should we not archive?
         #from an ORM perspective its like groups should be added to a new table ArchivedGroup,
         #or perhaps just flagged "archived"
@@ -139,6 +193,8 @@ class Whosdb(dbase.Database):
 
     def removeApp(self,currentuser, fullyQualifiedAppName):
         remapp=self.getApp(currentuser, fullyQualifiedAppName)
+        permit(self.isOwnerOfApp(currentuser, remapp) or self.isSystemUser(currentuser),
+                "Only owner of app %s or systemuser can remove app" % remapp.fqin)
         #How will the cascades work? removing users? should we not archive?
         #from an ORM perspective its like groups should be added to a new table ArchivedGroup,
         #or perhaps just flagged "archived"
@@ -148,12 +204,15 @@ class Whosdb(dbase.Database):
 
     #DERIVED
 
-    #what about invitations. Is that taken over ny getting an oauth token in authspec?
+    #adduser to group is direct. It cant be done for regular groups except in some circumstances
+    #these are adding to default private group, and public group. Users must accept invites otherwise.
+    #How do we do this in permits?
     def addUserToGroup(self, currentuser, grouporfullyQualifiedGroupName, usertobeadded, authspec):
         if is_stringtype(grouporfullyQualifiedGroupName):
             grp=self.getGroup(currentuser, grouporfullyQualifiedGroupName)
         else:
             grp=grouporfullyQualifiedGroupName
+
         try:
             usertobeadded.groupsin.append(grp)
         except:
@@ -162,34 +221,35 @@ class Whosdb(dbase.Database):
 
     def inviteUserToGroup(self, currentuser, fullyQualifiedGroupName, usertobeadded, authspec):
         grp=self.getGroup(currentuser, fullyQualifiedGroupName)
+        permit(self.isOwnerOfGroup(currentuser, grp), " User %s must be owner of group %s" % (currentuser.nick, grp.fqin))
         try:
             usertobeadded.groupsinvitedto.append(grp)
         except:
             doabort('BAD_REQ', "Failed inviting user %s to group %s" % (usertobeadded.nick, grp.fqin))
         return OK
 
-    def acceptInviteToGroup(self, currentuser, fullyQualifiedGroupName, usertobeadded, authspec):
+    def acceptInviteToGroup(self, currentuser, fullyQualifiedGroupName, authspec):
         grp=self.getGroup(currentuser, fullyQualifiedGroupName)
+        permit(self.isInvitedToGroup(currentuser, grp), " User %s must be invited to group %s" % (currentuser.nick, grp.fqin))
         try:
-            if grp in usertobeadded.groupsinvitedto:
-                usertobeadded.groupsin.append(grp)
-            else:
-                doabort('BAD_REQ', "User %s not invited to group %s" % (usertobeadded.nick, grp.fqin))
+            currentuser.groupsin.append(grp)
         except:
-            doabort('BAD_REQ', "Failed in user %s accepting invite to group %s" % (usertobeadded.nick, grp.fqin))
+            doabort('BAD_REQ', "Failed in user %s accepting invite to group %s" % (currentuser.nick, grp.fqin))
         return OK
 
     def removeUserFromGroup(self, currentuser, fullyQualifiedGroupName, usertoberemoved):
         grp=self.getGroup(currentuser, fullyQualifiedGroupName)
+        permit(self.isOwnerOfGroup(currentuser, grp), " User %s must be owner of group %s" % (currentuser.nick, grp.fqin))
         try:
             usertoberemoved.groupsin.remove(grp)
         except:
             doabort('BAD_REQ', "Failed removing user %s from group %s" % (usertoberemoved.nick, grp.fqin))
         return OK
         
-
+    #BUG: shouldnt new owner have to accept this. Currently, no. We foist it. We'll perhaps never expose this.
     def changeOwnershipOfGroup(self, currentuser, fullyQualifiedGroupName, usertobenewowner):
         grp=self.getGroup(currentuser, fullyQualifiedGroupName)
+        permit(self.isOwnerOfGroup(currentuser, grp), " User %s must be owner of group %s" % (currentuser.nick, grp.fqin))
         try:
             oldownernick=grp.owner.nick
             grp.owner = usertobenewowner
@@ -199,7 +259,7 @@ class Whosdb(dbase.Database):
 
 
     #EVEN MORE DERIVED
-    #who runs this?
+    #who runs this? is it run on acceptance of group to app? How to permit for that?
     def addUserToApp(self, currentuser, apporfullyQualifiedAppName, usertobeadded, authspec):
         if is_stringtype(apporfullyQualifiedAppName):
             app=self.getApp(currentuser, apporfullyQualifiedAppName)
@@ -215,25 +275,25 @@ class Whosdb(dbase.Database):
     #and who runs this?
     def inviteUserToApp(self, currentuser, fullyQualifiedAppName, usertobeadded, authspec):
         app=self.getApp(currentuser, fullyQualifiedAppName)
+        permit(self.isOwnerOfApp(currentuser, app), " User %s must be owner of app %s" % (currentuser.nick, app.fqin))
         try:
             usertobeadded.applicationsinvitedto.append(app)
         except:
             doabort('BAD_REQ', "Failed inviting user %s to app %s" % (usertobeadded.nick, app.fqin))
         return OK
 
-    def acceptInviteToApp(self, currentuser, fullyQualifiedAppName, usertobeadded, authspec):
+    def acceptInviteToApp(self, currentuser, fullyQualifiedAppName, authspec):
         app=self.getApp(currentuser, fullyQualifiedAppName)
+        permit(self.isInvitedToApp(currentuser, app), " User %s must be invited to app %s" % (currentuser.nick, app.fqin))
         try:
-            if app in usertobeadded.applicationsinvitedto:
-                usertobeadded.applicationsin.append(app)
-            else:
-                doabort('BAD_REQ', "User %s not invited to app %s" % (usertobeadded.nick, app.fqin))
+            currentuser.applicationsin.append(app)
         except:
-            doabort('BAD_REQ', "Failed in user %s accepting invite to app %s" % (usertobeadded.nick, app.fqin))
+            doabort('BAD_REQ', "Failed in user %s accepting invite to app %s" % (currentuser.nick, app.fqin))
         return OK
 
     def removeUserFromApp(self, currentuser, fullyQualifiedAppName, usertoberemoved):
         app=self.getApp(currentuser, fullyQualifiedAppName)
+        permit(self.isOwnerOfApp(currentuser, app), " User %s must be owner of app %s" % (currentuser.nick, app.fqin))
         try:
             usertoberemoved.applicationsin.remove(app)
         except:
@@ -244,6 +304,9 @@ class Whosdb(dbase.Database):
     def addGroupToApp(self, currentuser, fullyQualifiedAppName, fullyQualifiedGroupName, authspec):
         app=self.getApp(currentuser, fullyQualifiedAppName)
         grp=self.getGroup(currentuser, fullyQualifiedGroupName)
+        #You must be owner of the group and member of the app
+        permit(self.isOwnerOfGroup(currentuser, grp), " User %s must be owner of group %s" % (currentuser.nick, grp.fqin))
+        permit(self.isMemberOfApp(currentuser, app), " User %s must be member of app %s" % (currentuser.nick, app.fqin))
         try:
             grp.applicationsin.append(app)
             #pubsub must add the individual users. BUG is that how we want to do it?
@@ -254,6 +317,8 @@ class Whosdb(dbase.Database):
     def removeGroupFromApp(self, currentuser, fullyQualifiedAppName, fullyQualifiedGroupName):
         app=self.getApp(currentuser, fullyQualifiedAppName)
         grp=self.getGroup(currentuser, fullyQualifiedGroupName)
+        permit(self.isOwnerOfGroup(currentuser, grp), " User %s must be owner of group %s" % (currentuser.nick, grp.fqin))
+        permit(self.isMemberOfApp(currentuser, app), " User %s must be member of app %s" % (currentuser.nick, app.fqin))
         try:
             grp.applicationsin.remove(app)
             #pubsub depending on what we want to do to delete
@@ -265,55 +330,71 @@ class Whosdb(dbase.Database):
     #INFORMATIONAL: no aborts for these informationals as just queries that could returm empty.
 
     def allUsers(self, currentuser):
+        permit(self.isSystemUser(currentuser), "Only System User allowed")
         users=self.session.query(User).filter_by(systemuser=False).all()
         return [e.info() for e in users]
 
     def allGroups(self, currentuser):
+        permit(self.isSystemUser(currentuser), "Only System User allowed")
         groups=self.session.query(Group).filter_by(appgroup=False, personalgroup=False).all()
         return [e.info() for e in groups]
 
     def allApps(self, currentuser):
+        permit(self.isSystemUser(currentuser), "Only System User allowed")
         apps=self.session.query(Application).filter_by(appgroup=True).all()
         return [e.info() for e in apps]
 
-    def usersInApp(self, currentuser, fullyQualifiedAppName):
-        app=self.getApp(currentuser, fullyQualifiedAppName)
-        users=app.applicationusers
-        return [e.info() for e in users]
-
-    def groupsInApp(self, currentuser, fullyQualifiedAppName):
-        app=self.getApp(currentuser, fullyQualifiedAppName)
-        groups=app.applicationgroups
-        return [e.info() for e in groups]
-
-    def appsForUser(self, currentuser, userwanted):
-        applications=userwanted.applicationsin
-        return [e.info() for e in applications]
 
     def ownerOfGroups(self, currentuser, userwanted):
+        permit(currentuser==userwanted or self.isSystemUser(currentuser), "User %s not authorized or not systemuser" % currentuser.nick)
         groups=userwanted.groupsowned
         #print "GROUPS", groups
         return [e.info() for e in groups]
 
     def ownerOfApps(self, currentuser, userwanted):
+        permit(currentuser==userwanted or self.isSystemUser(currentuser), "User %s not authorized or not systemuser" % currentuser.nick)
         applications=userwanted.appsowned
         return [e.info() for e in applications]
 
 
     def usersInGroup(self, currentuser, fullyQualifiedGroupName):
         grp=self.getGroup(currentuser, fullyQualifiedGroupName)
+        permit(self.isMemberOfGroup(currentuser, grp) or self.isSystemUser(currentuser), 
+            "Only member of group %s or systemuser can get users" % (currentuser.nick, grp.fqin))
         users=grp.groupusers
         return [e.info() for e in users]
 
     def groupsForUser(self, currentuser, userwanted):
+        permit(currentuser==userwanted or self.isSystemUser(currentuser), "User %s not authorized or not systemuser" % currentuser.nick)
         groups=userwanted.groupsin
         return [e.info() for e in groups]
 
     def groupInvitationsForUser(self, currentuser, userwanted):
+        permit(currentuser==userwanted or self.isSystemUser(currentuser), "User %s not authorized or not systemuser" % currentuser.nick)
         groups=userwanted.groupsinvitedto
         return [e.info() for e in groups]
 
+    def usersInApp(self, currentuser, fullyQualifiedAppName):
+        app=self.getApp(currentuser, fullyQualifiedAppName)
+        permit(self.isMemberOfApp(currentuser, app) or self.isSystemUser(currentuser),
+                "Only member of app %s or systemuser can get users" % remapp.fqin)
+        users=app.applicationusers
+        return [e.info() for e in users]
+
+    def groupsInApp(self, currentuser, fullyQualifiedAppName):
+        app=self.getApp(currentuser, fullyQualifiedAppName)
+        permit(self.isOwnerOfApp(currentuser, app) or self.isSystemUser(currentuser),
+                "Only owner of app %s or systemuser can get groups" % remapp.fqin)
+        groups=app.applicationgroups
+        return [e.info() for e in groups]
+
+    def appsForUser(self, currentuser, userwanted):
+        permit(currentuser==userwanted or self.isSystemUser(currentuser), "User %s not authorized or not systemuser" % currentuser.nick)
+        applications=userwanted.applicationsin
+        return [e.info() for e in applications]
+
     def appInvitationsForUser(self, currentuser, userwanted):
+        permit(currentuser==userwanted or self.isSystemUser(currentuser), "User %s not authorized or not systemuser" % currentuser.nick)
         apps=userwanted.applicationsinvitedto
         return [e.info() for e in apps]
 #why cant arguments be specified via destructuring as in coffeescript
