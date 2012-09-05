@@ -20,6 +20,7 @@ def is_stringtype(v):
 # 2. We are not worrying about cascade deletion, or much about deletion in general presently (BUG)
 # 3. Some group addition will happen through routes. Not yet.
 # 4. We must add a function for users to attach nicknames.
+# 5. currently user can add other users to his personal group. Prevent that.
 
 MUSTHAVEKEYS={
     'user':['email', 'nick'],
@@ -43,7 +44,6 @@ def validatespec(specdict, spectype="user"):
 class Whosdb(dbase.Database):
 
     #Get user object for nickname nick
-
     def isSystemUser(self, currentuser):
         if currentuser.nick=='adsgut':
             return True
@@ -102,13 +102,17 @@ class Whosdb(dbase.Database):
         except:
             doabort('BAD_REQ', "Failed adding user %s" % userspec['nick'])
         #Also add user to private default group and public group
-        self.addGroup(currentuser, dict(name='default', creator=newuser, personalgroup=True))
+        
         if newuser.nick == 'adsgut':
             #Shouldnt this be part of system configuration
-            newuser.systemuser=True          
+            newuser.systemuser=True
+            currentuser=newuser         
             self.addGroup(currentuser, dict(name='public', description="Public Items", creator=newuser))
-        else:
-            self.addUserToGroup(currentuser, 'adsgut/group:public', newuser, None)
+            self.commit()
+            
+        print "CURRENT", currentuser
+        self.addGroup(currentuser, dict(name='default', creator=newuser, personalgroup=True))
+        self.addUserToGroup(currentuser, 'adsgut/group:public', newuser, None)
         return newuser
 
     #BUG: we want to blacklist users and relist them
@@ -157,7 +161,7 @@ class Whosdb(dbase.Database):
             return False
 
     def isMemberOfApp(self, currentuser, app):
-        if currentuser in app.appusers:
+        if currentuser in app.applicationusers:
             return True
         else:
             return False
@@ -207,11 +211,16 @@ class Whosdb(dbase.Database):
     #adduser to group is direct. It cant be done for regular groups except in some circumstances
     #these are adding to default private group, and public group. Users must accept invites otherwise.
     #How do we do this in permits?
+
+    #Also on group subscriptions, wouldnt we do this without invites? BUG
     def addUserToGroup(self, currentuser, grouporfullyQualifiedGroupName, usertobeadded, authspec):
         if is_stringtype(grouporfullyQualifiedGroupName):
             grp=self.getGroup(currentuser, grouporfullyQualifiedGroupName)
         else:
             grp=grouporfullyQualifiedGroupName
+        if grp.fqin!='adsgut/group:public':
+            #special case so any user can add themselves to public group
+            permit(self.isOwnerOfGroup(currentuser, grp) or self.isSystemUser(currentuser), "User %s must be owner of group %s or systemuser" % (currentuser.nick, grp.fqin))
 
         try:
             usertobeadded.groupsin.append(grp)
@@ -221,25 +230,25 @@ class Whosdb(dbase.Database):
 
     def inviteUserToGroup(self, currentuser, fullyQualifiedGroupName, usertobeadded, authspec):
         grp=self.getGroup(currentuser, fullyQualifiedGroupName)
-        permit(self.isOwnerOfGroup(currentuser, grp), " User %s must be owner of group %s" % (currentuser.nick, grp.fqin))
+        permit(self.isOwnerOfGroup(currentuser, grp) or self.isSystemUser(currentuser), "User %s must be owner of group %s or systemuser" % (currentuser.nick, grp.fqin))
         try:
             usertobeadded.groupsinvitedto.append(grp)
         except:
             doabort('BAD_REQ', "Failed inviting user %s to group %s" % (usertobeadded.nick, grp.fqin))
         return OK
 
-    def acceptInviteToGroup(self, currentuser, fullyQualifiedGroupName, authspec):
+    def acceptInviteToGroup(self, currentuser, fullyQualifiedGroupName, me, authspec):
         grp=self.getGroup(currentuser, fullyQualifiedGroupName)
-        permit(self.isInvitedToGroup(currentuser, grp), " User %s must be invited to group %s" % (currentuser.nick, grp.fqin))
+        permit(self.isInvitedToGroup(me, grp) or self.isSystemUser(currentuser), "User %s must be invited to group %s or systemuser" % (me.nick, grp.fqin))
         try:
-            currentuser.groupsin.append(grp)
+            me.groupsin.append(grp)
         except:
-            doabort('BAD_REQ', "Failed in user %s accepting invite to group %s" % (currentuser.nick, grp.fqin))
+            doabort('BAD_REQ', "Failed in user %s accepting invite to group %s" % (me.nick, grp.fqin))
         return OK
 
     def removeUserFromGroup(self, currentuser, fullyQualifiedGroupName, usertoberemoved):
         grp=self.getGroup(currentuser, fullyQualifiedGroupName)
-        permit(self.isOwnerOfGroup(currentuser, grp), " User %s must be owner of group %s" % (currentuser.nick, grp.fqin))
+        permit(self.isOwnerOfGroup(currentuser, grp) or self.isSystemUser(currentuser), "User %s must be owner of group %s or systemuser" % (currentuser.nick, grp.fqin))
         try:
             usertoberemoved.groupsin.remove(grp)
         except:
@@ -249,7 +258,8 @@ class Whosdb(dbase.Database):
     #BUG: shouldnt new owner have to accept this. Currently, no. We foist it. We'll perhaps never expose this.
     def changeOwnershipOfGroup(self, currentuser, fullyQualifiedGroupName, usertobenewowner):
         grp=self.getGroup(currentuser, fullyQualifiedGroupName)
-        permit(self.isOwnerOfGroup(currentuser, grp), " User %s must be owner of group %s" % (currentuser.nick, grp.fqin))
+        permit(self.isOwnerOfGroup(currentuser, grp) or self.isSystemUser(currentuser), "User %s must be owner of group %s or systemuser" % (currentuser.nick, grp.fqin))
+        permit(self.isMemberOfGroup(usertobenewowner, grp) or self.isSystemUser(usertobenewowner), " User %s must be member of grp %s or systemuser" % (currentuser.nick, grp.fqin))
         try:
             oldownernick=grp.owner.nick
             grp.owner = usertobenewowner
@@ -265,7 +275,8 @@ class Whosdb(dbase.Database):
             app=self.getApp(currentuser, apporfullyQualifiedAppName)
         else:
             app=apporfullyQualifiedAppName
-        
+        permit(self.isOwnerOfApp(currentuser, app) or self.isSystemUser(currentuser), "User %s must be owner of app %s or systemuser" % (currentuser.nick, app.fqin))
+
         try:
             usertobeadded.applicationsin.append(app)
         except:
@@ -275,25 +286,25 @@ class Whosdb(dbase.Database):
     #and who runs this?
     def inviteUserToApp(self, currentuser, fullyQualifiedAppName, usertobeadded, authspec):
         app=self.getApp(currentuser, fullyQualifiedAppName)
-        permit(self.isOwnerOfApp(currentuser, app), " User %s must be owner of app %s" % (currentuser.nick, app.fqin))
+        permit(self.isOwnerOfApp(currentuser, app) or self.isSystemUser(currentuser), "User %s must be owner of app %s or systemuser" % (currentuser.nick, app.fqin))
         try:
             usertobeadded.applicationsinvitedto.append(app)
         except:
             doabort('BAD_REQ', "Failed inviting user %s to app %s" % (usertobeadded.nick, app.fqin))
         return OK
 
-    def acceptInviteToApp(self, currentuser, fullyQualifiedAppName, authspec):
+    def acceptInviteToApp(self, currentuser, fullyQualifiedAppName, me, authspec):
         app=self.getApp(currentuser, fullyQualifiedAppName)
-        permit(self.isInvitedToApp(currentuser, app), " User %s must be invited to app %s" % (currentuser.nick, app.fqin))
+        permit(self.isInvitedToApp(me, app) or self.isSystemUser(currentuser), "User %s must be invited to app %s or systemuser" % (me.nick, app.fqin))
         try:
-            currentuser.applicationsin.append(app)
+            me.applicationsin.append(app)
         except:
-            doabort('BAD_REQ', "Failed in user %s accepting invite to app %s" % (currentuser.nick, app.fqin))
+            doabort('BAD_REQ', "Failed in user %s accepting invite to app %s" % (me.nick, app.fqin))
         return OK
 
     def removeUserFromApp(self, currentuser, fullyQualifiedAppName, usertoberemoved):
         app=self.getApp(currentuser, fullyQualifiedAppName)
-        permit(self.isOwnerOfApp(currentuser, app), " User %s must be owner of app %s" % (currentuser.nick, app.fqin))
+        permit(self.isOwnerOfApp(currentuser, app) or self.isSystemUser(currentuser), "User %s must be owner of app %s or systemuser" % (currentuser.nick, app.fqin))
         try:
             usertoberemoved.applicationsin.remove(app)
         except:
@@ -305,8 +316,8 @@ class Whosdb(dbase.Database):
         app=self.getApp(currentuser, fullyQualifiedAppName)
         grp=self.getGroup(currentuser, fullyQualifiedGroupName)
         #You must be owner of the group and member of the app
-        permit(self.isOwnerOfGroup(currentuser, grp), " User %s must be owner of group %s" % (currentuser.nick, grp.fqin))
-        permit(self.isMemberOfApp(currentuser, app), " User %s must be member of app %s" % (currentuser.nick, app.fqin))
+        permit(self.isOwnerOfGroup(currentuser, grp) or self.isSystemUser(currentuser), "User %s must be owner of group %s or systemuser" % (currentuser.nick, grp.fqin))
+        permit(self.isMemberOfApp(currentuser, app) or self.isSystemUser(currentuser), "User %s must be member of app %s or systemuser" % (currentuser.nick, app.fqin))
         try:
             grp.applicationsin.append(app)
             #pubsub must add the individual users. BUG is that how we want to do it?
@@ -317,8 +328,8 @@ class Whosdb(dbase.Database):
     def removeGroupFromApp(self, currentuser, fullyQualifiedAppName, fullyQualifiedGroupName):
         app=self.getApp(currentuser, fullyQualifiedAppName)
         grp=self.getGroup(currentuser, fullyQualifiedGroupName)
-        permit(self.isOwnerOfGroup(currentuser, grp), " User %s must be owner of group %s" % (currentuser.nick, grp.fqin))
-        permit(self.isMemberOfApp(currentuser, app), " User %s must be member of app %s" % (currentuser.nick, app.fqin))
+        permit(self.isOwnerOfGroup(currentuser, grp), "User %s must be owner of group %s" % (currentuser.nick, grp.fqin))
+        permit(self.isMemberOfApp(currentuser, app), "User %s must be member of app %s" % (currentuser.nick, app.fqin))
         try:
             grp.applicationsin.remove(app)
             #pubsub depending on what we want to do to delete

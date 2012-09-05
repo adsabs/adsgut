@@ -57,5 +57,5 @@ def abort(status_code, body=None, headers={}):
     flask_abort(make_response(errori, status_code, headers))
 
 def doabort(codestring, reason):
-    abort(ERRGUT[codestring], {'reason':reason})
-    #print ERRGUT[codestring], {'reason':reason}
+    #abort(ERRGUT[codestring], {'reason':reason})
+    print ERRGUT[codestring], {'reason':reason}
