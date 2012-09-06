@@ -1,0 +1,4 @@
+Major session bug in python and elsewhere
+
+Example url that works:
+http://localhost:5000/adsgut/tags/rahuldave/byspec?itemtype=ads/pub2

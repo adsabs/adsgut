@@ -352,7 +352,8 @@ class Postdb(dbase.Database):
             except:
                 doabort('BAD_REQ', "Failed adding item %s" % itemspec['fqin'])
         self.session.add(newitem)
-        return self.postItemIntoGroup(currentuser, useras, personalgrp, newitem)
+        self.postItemIntoGroup(currentuser, useras, personalgrp, newitem)
+        return newitem
 
     def deleteItem(self, currentuser, useras, fullyQualifiedItemName):
         fqgn=useras.nick+"/group:default" #ALSO TRIGGER others (bug)
@@ -418,7 +419,7 @@ class Postdb(dbase.Database):
         print "adding to %s" % personalgrp.fqin
         self.postTaggingIntoGroupFromItemtag(currentuser, useras, personalgrp, newtagging)
         #print itemtobetagged.itemtags, "WEE", newtag.taggeditems, newtagging.tagtype.name
-        return OK
+        return newtag, newtagging
 
     def untagItem(self, currentuser, useras, fullyQualifiedTagName, fullyQualifiedItemName):
         #Do not remove item, do not remove tag, do not remove tagging

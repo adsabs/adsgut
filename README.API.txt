@@ -39,47 +39,49 @@ created using:
 
 
 
-'/'
-'/all'
-'/app', methods=['POST']  |   name/description
-'/app/<appowner>/app:<appname>/acceptinvitation', methods=['POST']  |   accept
-'/app/<appowner>/app:<appname>/groups', methods=['GET', 'POST']  |   group
-'/app/<appowner>/app:<appname>/invitation', methods=['POST']  |   user
-'/app/<appowner>/app:<appname>/items', methods=['POST']  |   user/fqin
-'/app/<appowner>/app:<appname>/tags', methods=['POST']  |   user/fqin/fqtn
-'/app/<appowner>/app:<appname>/users', methods=['GET', 'POST']  |   user
-'/app/<username>/app:<appname>'
-'/app/<username>/app:<appname>/profile/html'
-'/app/html'
-'/group', methods=['POST']  |   groupname/description
-'/group/<groupowner>/group:<groupname>/acceptinvitation', methods=['POST']  |   accepr
-'/group/<groupowner>/group:<groupname>/invitation', methods=['POST']  |   user
-'/group/<groupowner>/group:<groupname>/items', methods=['POST']  |   user/fqin
-'/group/<groupowner>/group:<groupname>/tags', methods=['POST']  |   user/fqin/fqtn
-'/group/<groupowner>/group:<groupname>/users', methods=['GET', 'POST']  |   user
-'/group/<username>/group:<groupname>'
-'/group/<username>/group:<groupname>/profile/html'
-'/group/html'
-'/item/<nick>/<ns>/<itemname>'
-'/item/<nick>/byuri/<itemuri>'
-'/items'  |   q=fieldlist=['uri','', 'name','', 'itemtype','', 'context', None, 'fqin', None]
-'/items/<nick>', methods=['POST']  |   name/itemtype/uri/description
-'/items/<nick>/<tagspace>/<tagtypename>:<tagname>'  |   q=fieldlist=['uri','', 'name','', 'itemtype','', 'context', None, 'fqin', None]
-'/items/<nick>/byspec'  |   q=fieldlist=['tagname','', 'tagtype','', 'context', None, 'fqin', None, 'itemuri', '', 'itemname', '', 'itemtype', '']
-'/login', methods=['GET', 'POST']
-'/logout'
-'/poal'
-'/tags'  |   q=fieldlist=['tagname','', 'tagtype','', 'context', None, 'fqin', None]
-'/tags/<nick>/<ns>/<itemname>', methods=['GET', 'POST']  |   tagname/tagtype/description   |   q=fieldlist=['tagname','', 'tagtype','', 'context', None, 'fqin', None]
-'/tags/<nick>/byspec'  |   q=fieldlist=['tagname','', 'tagtype','', 'context', None, 'fqin', None, 'itemuri', '', 'itemname', '', 'itemtype', '']
-'/user/<nick>'
-'/user/<nick>/appsin'
-'/user/<nick>/appsinvited'
-'/user/<nick>/appsowned'
-'/user/<nick>/groupsin'
-'/user/<nick>/groupsinvited'
-'/user/<nick>/groupsowned'
-'/user/<nick>/items'  |   q=fieldlist=['itemtype','', 'context', None, 'fqin', None]
-'/user/<nick>/items/html'
-'/user/<nick>/profile/html'
-'/user/<nick>/tags'  |   q=fieldlist=['tagname','', 'tagtype','', 'context', None, 'fqin', None]
+@adsgut.route'/'
+@adsgut.route'/all'
+@adsgut.route'/app', methods=['POST']  |   name/description
+@adsgut.route'/app/<appowner>/app:<appname>/acceptinvitation', methods=['POST']  |   accept
+@adsgut.route'/app/<appowner>/app:<appname>/groups', methods=['GET', 'POST']  |   group
+@adsgut.route'/app/<appowner>/app:<appname>/invitation', methods=['POST']  |   user
+@adsgut.route'/app/<appowner>/app:<appname>/items', methods=['POST']  |   user/fqin
+@adsgut.route'/app/<appowner>/app:<appname>/itemsandtags', methods=['POST']  |   user/name/itemtype/description/uri/tags=[[name, tagtype, description]...]
+@adsgut.route'/app/<appowner>/app:<appname>/tags', methods=['POST']  |   user/fqin/fqtn
+@adsgut.route'/app/<appowner>/app:<appname>/users', methods=['GET', 'POST']  |   user
+@adsgut.route'/app/<username>/app:<appname>'
+@adsgut.route'/app/<username>/app:<appname>/profile/html'
+@adsgut.route'/app/html'
+@adsgut.route'/group', methods=['POST']  |   groupname/description
+@adsgut.route'/group/<groupowner>/group:<groupname>/acceptinvitation', methods=['POST']  |   accepr
+@adsgut.route'/group/<groupowner>/group:<groupname>/invitation', methods=['POST']  |   user
+@adsgut.route'/group/<groupowner>/group:<groupname>/items', methods=['POST']  |   user/fqin
+@adsgut.route'/group/<groupowner>/group:<groupname>/itemsandtags', methods=['POST']  |   user/name/itemtype/description/uri/tags=[[name, tagtype, description]...]
+@adsgut.route'/group/<groupowner>/group:<groupname>/tags', methods=['POST']  |   user/fqin/fqtn
+@adsgut.route'/group/<groupowner>/group:<groupname>/users', methods=['GET', 'POST']  |   user
+@adsgut.route'/group/<username>/group:<groupname>'
+@adsgut.route'/group/<username>/group:<groupname>/profile/html'
+@adsgut.route'/group/html'
+@adsgut.route'/item/<nick>/<ns>/<itemname>'
+@adsgut.route'/item/<nick>/byuri/<itemuri>'
+@adsgut.route'/items'  |   q=fieldlist=['uri','', 'name','', 'itemtype','', 'context', None, 'fqin', None]
+@adsgut.route'/items/<nick>', methods=['POST']  |   name/itemtype/uri/description
+@adsgut.route'/items/<nick>/<tagspace>/<tagtypename>:<tagname>'  |   q=fieldlist=['uri','', 'name','', 'itemtype','', 'context', None, 'fqin', None]
+@adsgut.route'/items/<nick>/byspec'  |   q=fieldlist=['tagname','', 'tagtype','', 'context', None, 'fqin', None, 'itemuri', '', 'itemname', '', 'itemtype', '']
+@adsgut.route'/login', methods=['GET', 'POST']
+@adsgut.route'/logout'
+@adsgut.route'/poal'
+@adsgut.route'/tags'  |   q=fieldlist=['tagname','', 'tagtype','', 'context', None, 'fqin', None]
+@adsgut.route'/tags/<nick>/<ns>/<itemname>', methods=['GET', 'POST']  |   tagname/tagtype/description   |   q=fieldlist=['tagname','', 'tagtype','', 'context', None, 'fqin', None]
+@adsgut.route'/tags/<nick>/byspec'  |   q=fieldlist=['tagname','', 'tagtype','', 'context', None, 'fqin', None, 'itemuri', '', 'itemname', '', 'itemtype', '']
+@adsgut.route'/user/<nick>'
+@adsgut.route'/user/<nick>/appsin'
+@adsgut.route'/user/<nick>/appsinvited'
+@adsgut.route'/user/<nick>/appsowned'
+@adsgut.route'/user/<nick>/groupsin'
+@adsgut.route'/user/<nick>/groupsinvited'
+@adsgut.route'/user/<nick>/groupsowned'
+@adsgut.route'/user/<nick>/items'  |   q=fieldlist=['itemtype','', 'context', None, 'fqin', None]
+@adsgut.route'/user/<nick>/items/html'
+@adsgut.route'/user/<nick>/profile/html'
+@adsgut.route'/user/<nick>/tags'  |   q=fieldlist=['tagname','', 'tagtype','', 'context', None, 'fqin', None]

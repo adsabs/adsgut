@@ -385,7 +385,7 @@ def useritempost(nick):
     if request.method == 'POST':
         #print request.form
         itspec={}
-        nick = request.form.get('user', None)
+        #nick = request.form.get('user', None)
         itspec['creator']=user
         itspec['name'] = request.form.get('name', None)
         if not itspec['name']:
@@ -493,7 +493,7 @@ def useritemapppost(ns, itemname):
 #@adsgut.route('/tag/<ns>/<itemname>/grouppost', methods=['POST'])#user/fqin/fqtn
 #How should this be presented in GET?
 @adsgut.route('/group/<groupowner>/group:<groupname>/tags', methods=['POST'])#user/fqin/fqtn
-def usertaggrouppost(groupowner, groupname, ns, itemname):
+def usertaggrouppost(groupowner, groupname):
     #user=g.currentuser#The current user is doing the posting
     #print "hello", user.nick
     fqgn=groupowner+"/group:"+groupname
@@ -513,13 +513,53 @@ def usertaggrouppost(groupowner, groupname, ns, itemname):
     else:
         doabort("BAD_REQ", "GET not supported")
 
+#This posts an item, its tags, and all that to a single group
+@adsgut.route('/group/<groupowner>/group:<groupname>/itemsandtags', methods=['POST'])#user/name/itemtype/description/uri/tags=[[name, tagtype, description]...]
+def useritemtaggrouppost(groupowner, groupname):
+    #user=g.currentuser#The current user is doing the posting
+    #print "hello", user.nick
+    fqgn=groupowner+"/group:"+groupname
+    grp=g.db.getGroup(g.currentuser, fqgn)
+    if request.method == 'POST':
+        itspec={}
+        nick = request.form.get('user', None)
+        if not nick:
+            doabort("BAD_REQ", "User doing posting not specified")
+        user=g.db.getUserForNick(g.currentuser, nick)
+        itspec['creator']=user
+        itspec['name'] = request.form.get('name', None)
+        if not itspec['name']:
+            doabort("BAD_REQ", "No name specified for item")
+        itspec['itemtype'] = request.form.get('itemtype', None)
+        if not itspec['itemtype']:
+            doabort("BAD_REQ", "No itemtype specified for item")
+        #print "world"
+        md5u=hashlib.md5()
+        itspec['uri']=request.form.get('uri', md5u.update(creator.nick+"/"+name))
+        itspec['description']=request.form.get('description', '')
+        #itspec['uri']=request.form.get('uri', ''
+        #print "aaa", itspec
+        item=g.dbp.saveItem(g.currentuser, user, itspec)
+        tags=request.form.get('tags', [])#Empty array if no tags
+        tagobjects=[]
+        for tagname, tagtype, description in tags:
+            tagspec={}
+            tagspec['creator']=user
+            tagspec['name'] = tagname
+            tagspec['tagtype'] = tagtype
+            tagspec['description']=description
+            tag, tagging=g.dbp.tagItem(g.currentuser, user, item.fqin, tagspec)
+            g.dbp.postTaggingIntoGroup(g.currentuser, user, grp, item, tag)
+        return jsonify({'status':'OK'})
+    else:
+        doabort("BAD_REQ", "GET not supported")
 
 #@adsgut.route('/tag/<ns>/<itemname>/apppost', methods=['POST'])#user/fqin/fqtn
 @adsgut.route('/app/<appowner>/app:<appname>/tags', methods=['POST'])#user/fqin/fqtn
-def usertagapppost(ns, itemname):
+def usertagapppost(appowner, appname):
     #user=g.currentuser#The current user is doing the posting
     #print "hello", user.nick
-    fqan=appowner+"/app:appname"
+    fqan=appowner+"/app:"+appname
     if request.method == 'POST':
         fqan = request.form.get('fqin', None)
         if not fqan:
@@ -536,12 +576,51 @@ def usertagapppost(ns, itemname):
     else:
         doabort("BAD_REQ", "GET not supported")  
 
+@adsgut.route('/app/<appowner>/app:<appname>/itemsandtags', methods=['POST'])#user/name/itemtype/description/uri/tags=[[name, tagtype, description]...]
+def useritemtaggrouppost(appowner, appname):
+    #user=g.currentuser#The current user is doing the posting
+    #print "hello", user.nick
+    fqan=appowner+"/app:"+appname
+    app=g.db.getApp(g.currentuser, fqan)
+    if request.method == 'POST':
+        itspec={}
+        nick = request.form.get('user', None)
+        if not nick:
+            doabort("BAD_REQ", "User doing posting not specified")
+        user=g.db.getUserForNick(g.currentuser, nick)
+        itspec['creator']=user
+        itspec['name'] = request.form.get('name', None)
+        if not itspec['name']:
+            doabort("BAD_REQ", "No name specified for item")
+        itspec['itemtype'] = request.form.get('itemtype', None)
+        if not itspec['itemtype']:
+            doabort("BAD_REQ", "No itemtype specified for item")
+        #print "world"
+        md5u=hashlib.md5()
+        itspec['uri']=request.form.get('uri', md5u.update(creator.nick+"/"+name))
+        itspec['description']=request.form.get('description', '')
+        #itspec['uri']=request.form.get('uri', ''
+        #print "aaa", itspec
+        item=g.dbp.saveItem(g.currentuser, user, itspec)
+        tags=request.form.get('tags', [])#Empty array if no tags
+        tagobjects=[]
+        for tagname, tagtype, description in tags:
+            tagspec={}
+            tagspec['creator']=user
+            tagspec['name'] = tagname
+            tagspec['tagtype'] = tagtype
+            tagspec['description']=description
+            tag, tagging=g.dbp.tagItem(g.currentuser, user, item.fqin, tagspec)
+            g.dbp.postTaggingIntoApp(g.currentuser, user, app, item, tag)
+        return jsonify({'status':'OK'})
+    else:
+        doabort("BAD_REQ", "GET not supported")
 #######################################################################################################################
 #These can be used as "am i saved" web services. Also gives groups and apps per item
 #a 404 not found would be an ideal error
 #BUG: are we properly protected. NO
 @adsgut.route('/item/<nick>/<ns>/<itemname>')
-def usersitemget(nick, ins, temname):
+def usersitemget(nick, ns, itemname):
     user=g.db.getUserForNick(g.currentuser, nick)
     iteminfo=g.dbp.getItemByFqin(g.currentuser, ns+"/"+itemname)
     return jsonify({'item':iteminfo})
