@@ -2,28 +2,29 @@ from dbase import setup_db
 import whos, posts
 from flask import Flask, request, session, g, redirect, url_for, \
      abort, render_template, flash, escape, make_response, jsonify, Blueprint
-import sys
+import sys, os
 import hashlib
 from permissions import permit
 from errors import abort
-engine, db_session=setup_db("/tmp/adsgut.db")
+engine, db_session=setup_db("./adsgut.db")
 
-BLUEPRINT_MODE=False
 
-sys.path.append('..')
-app = Flask(__name__)
-if BLUEPRINT_MODE:
-    adsgut = Blueprint('adsgut', __name__, template_folder='templates')
-    app.register_blueprint(adsgut)
+
+#sys.path.append('..')
+BLUEPRINT_MODE=os.environ.get('BLUEPRINT_MODE', False)
+BLUEPRINT_MODE=bool(BLUEPRINT_MODE)
+if BLUEPRINT_MODE==True:
+    print "IN BLUEPRINT MODE"
+    adsgut = Blueprint('adsgut', __name__)
 else:
-    adsgut=app
-
+    adsgut=Flask(__name__)
+    adsgut.secret_key = 'A0Zr98j/3yX R~XHH!jmN]LWX/,?RT'
 
 
 def formwithdefaults(specdict, spec, request):
     for k in spec.keys():
         specdict[k]=request.form.get(spec[k][0], spec[k][1])
-        
+
 #######################################################################################################################
 #session.authtoken is a set of privileges the user has granted the application based on an oauth or other mechanism (such as an API key)
 #currently we dont provide it so we cant have third party groups and users masquerade. Its not necessary for Jan, but is needed
@@ -87,7 +88,7 @@ def logout():
     session.pop('username', None)
     session.pop('logged_in', None)
     flash('You were logged out')
-    return redirect(url_for('index'))
+    return redirect(url_for('whosflask.index'))
 
 #######################################################################################################################
 #######################################################################################################################
@@ -707,11 +708,7 @@ def usersitemshtml(nick):
 #######################################################################################################################
 #######################################################################################################################
 
-
+if __name__=="__main__":
+    adsgut.run(debug=True)
 #######################################################################################################################
-app.secret_key = 'A0Zr98j/3yX R~XHH!jmN]LWX/,?RT'
 
-if __name__=='__main__':
-    
-    app.debug=True
-    app.run()
