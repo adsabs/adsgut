@@ -37,15 +37,17 @@ API
 created using: 
 	grep route whosflask.py | grep -v '^#' | sed 's/\#/  |   /g' | sed 's/\@app.route(//g' | sed 's/)//g' | sed 's/(//g' | sort >> README.API.txt
 
+
+
 '/'
 '/all'
 '/app', methods=['POST']  |   name/description
 '/app/<appowner>/app:<appname>/acceptinvitation', methods=['POST']  |   accept
-'/app/<appowner>/app:<appname>/groups', methods=['get','post']  |   group
+'/app/<appowner>/app:<appname>/groups', methods=['GET', 'POST']  |   group
 '/app/<appowner>/app:<appname>/invitation', methods=['POST']  |   user
 '/app/<appowner>/app:<appname>/items', methods=['POST']  |   user/fqin
 '/app/<appowner>/app:<appname>/tags', methods=['POST']  |   user/fqin/fqtn
-'/app/<appowner>/app:<appname>/users', methods=['get','post']  |   user
+'/app/<appowner>/app:<appname>/users', methods=['GET', 'POST']  |   user
 '/app/<username>/app:<appname>'
 '/app/<username>/app:<appname>/profile/html'
 '/app/html'
@@ -54,22 +56,21 @@ created using:
 '/group/<groupowner>/group:<groupname>/invitation', methods=['POST']  |   user
 '/group/<groupowner>/group:<groupname>/items', methods=['POST']  |   user/fqin
 '/group/<groupowner>/group:<groupname>/tags', methods=['POST']  |   user/fqin/fqtn
-'/group/<groupowner>/group:<groupname>/users', methods=['get', 'post']  |   user
+'/group/<groupowner>/group:<groupname>/users', methods=['GET', 'POST']  |   user
 '/group/<username>/group:<groupname>'
 '/group/<username>/group:<groupname>/profile/html'
 '/group/html'
 '/item/<nick>/<ns>/<itemname>'
-'/item/<nick>/<ns>/<itemname>/tags'  |   q=fieldlist=['tagname','', 'tagtype','', 'context', None, 'fqin', None]
 '/item/<nick>/byuri/<itemuri>'
 '/items'  |   q=fieldlist=['uri','', 'name','', 'itemtype','', 'context', None, 'fqin', None]
 '/items/<nick>', methods=['POST']  |   name/itemtype/uri/description
+'/items/<nick>/<tagspace>/<tagtypename>:<tagname>'  |   q=fieldlist=['uri','', 'name','', 'itemtype','', 'context', None, 'fqin', None]
 '/items/<nick>/byspec'  |   q=fieldlist=['tagname','', 'tagtype','', 'context', None, 'fqin', None, 'itemuri', '', 'itemname', '', 'itemtype', '']
 '/login', methods=['GET', 'POST']
 '/logout'
 '/poal'
-'/tag/<nick>/<tagspace>/<tagtypename>:<tagname>/items'  |   q=fieldlist=['uri','', 'name','', 'itemtype','', 'context', None, 'fqin', None]
 '/tags'  |   q=fieldlist=['tagname','', 'tagtype','', 'context', None, 'fqin', None]
-'/tags/<nick>/<ns>/<itemname>', methods=['POST']  |   tagname/tagtype/description
+'/tags/<nick>/<ns>/<itemname>', methods=['GET', 'POST']  |   tagname/tagtype/description   |   q=fieldlist=['tagname','', 'tagtype','', 'context', None, 'fqin', None]
 '/tags/<nick>/byspec'  |   q=fieldlist=['tagname','', 'tagtype','', 'context', None, 'fqin', None, 'itemuri', '', 'itemname', '', 'itemtype', '']
 '/user/<nick>'
 '/user/<nick>/appsin'

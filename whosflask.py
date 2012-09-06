@@ -1,20 +1,35 @@
 from dbase import setup_db
 import whos, posts
 from flask import Flask, request, session, g, redirect, url_for, \
-     abort, render_template, flash, escape, make_response, jsonify
-
+     abort, render_template, flash, escape, make_response, jsonify, Blueprint
+import sys
 import hashlib
 from permissions import permit
 from errors import abort
 engine, db_session=setup_db("/tmp/adsgut.db")
-app = Flask(__name__)
 
+BLUEPRINT_MODE=False
+
+sys.path.append('..')
+app = Flask(__name__)
+if BLUEPRINT_MODE:
+    adsgut = Blueprint('adsgut', __name__, template_folder='templates')
+    app.register_blueprint(adsgut)
+else:
+    adsgut=app
+
+
+
+def formwithdefaults(specdict, spec, request):
+    for k in spec.keys():
+        specdict[k]=request.form.get(spec[k][0], spec[k][1])
+        
 #######################################################################################################################
 #session.authtoken is a set of privileges the user has granted the application based on an oauth or other mechanism (such as an API key)
 #currently we dont provide it so we cant have third party groups and users masquerade. Its not necessary for Jan, but is needed
 #for oauth and other things and can be used to support API users.
 
-@app.before_request
+@adsgut.before_request
 def before_request():
         #g.db=whos.Whosdb(db_session)
         g.dbp=posts.Postdb(db_session)
@@ -28,7 +43,7 @@ def before_request():
         else:
             g.authtoken=None
 
-@app.teardown_request
+@adsgut.teardown_request
 def shutdown_session(exception=None):
     g.db.commit()
     g.db.remove()
@@ -39,24 +54,24 @@ def shutdown_session(exception=None):
 
 #######################################################################################################################
 
-@app.route('/all')
+@adsgut.route('/all')
 def indexall():
     return render_template('allindex.html', users=g.db.allUsers(g.currentuser), 
         groups=g.db.allGroups(g.currentuser), apps=g.db.allApps(g.currentuser))
 
-@app.route('/')
+@adsgut.route('/')
 def index():
     return render_template('index.html', suppressed=True, poal=True)
 
 #######################################################################################################################
-@app.route('/poal')
+@adsgut.route('/poal')
 def poal():
     return render_template('poal.html', poal=True)
 
 #######################################################################################################################
 #BUG: redo this with new user system
 
-@app.route('/login', methods=['GET', 'POST'])
+@adsgut.route('/login', methods=['GET', 'POST'])
 def login():
     error=None
     if request.method == 'POST':
@@ -66,7 +81,7 @@ def login():
         return redirect(url_for('index'))
     return render_template('login.html', error=error)
 
-@app.route('/logout')
+@adsgut.route('/logout')
 def logout():
     # remove the username from the session if it's there
     session.pop('username', None)
@@ -80,23 +95,23 @@ def logout():
 #use this for op based POSTS?
 #currentuser=g.db.getCurrentuser(session.username)
 #GET for info
-@app.route('/user/<nick>')
+@adsgut.route('/user/<nick>')
 def douser(nick):
     userinfo=g.db.getUserInfo(g.currentuser, nick)
     return jsonify(**userinfo)
 
-@app.route('/user/<nick>/profile/html')
+@adsgut.route('/user/<nick>/profile/html')
 def profile(nick):
     userinfo=g.db.getUserInfo(g.currentuser, nick)
     return render_template('userprofile.html', theuser=userinfo)
 
-@app.route('/user/<nick>/groupsin')
+@adsgut.route('/user/<nick>/groupsin')
 def groupsin(nick):
     user=g.db.getUserForNick(g.currentuser, nick)
     groups=g.db.groupsForUser(g.currentuser, user)
     return jsonify({'groups':groups})
 
-@app.route('/user/<nick>/groupsowned')
+@adsgut.route('/user/<nick>/groupsowned')
 def groupsowned(nick):
     user=g.db.getUserForNick(g.currentuser, nick)
     groups=g.db.ownerOfGroups(g.currentuser, user)
@@ -107,26 +122,26 @@ def groupsowned(nick):
 #but thats the right level at which to do it. also means that permit may need to not just
 #raise exceptions, but respond on an if-then basis. (permitwitherror?)
 
-@app.route('/user/<nick>/groupsinvited')
+@adsgut.route('/user/<nick>/groupsinvited')
 def groupsinvited(nick):
     user=g.db.getUserForNick(g.currentuser, nick)
     groups=g.db.groupInvitationsForUser(g.currentuser, user)
     return jsonify({'groups':groups})
 
-@app.route('/user/<nick>/appsin')
+@adsgut.route('/user/<nick>/appsin')
 def appsin(nick):
     user=g.db.getUserForNick(g.currentuser, nick)
     apps=g.db.appsForUser(g.currentuser, user)
     return jsonify({'apps':apps})
 
-@app.route('/user/<nick>/appsowned')
+@adsgut.route('/user/<nick>/appsowned')
 def appsowned(nick):
     user=g.db.getUserForNick(g.currentuser, nick)
     apps=g.db.ownerOfApps(g.currentuser, user)
     return jsonify({'apps':apps})
 
 #use this for the email invitation?
-@app.route('/user/<nick>/appsinvited')
+@adsgut.route('/user/<nick>/appsinvited')
 def appsinvited(nick):
     user=g.db.getUserForNick(g.currentuser, nick)
     apps=g.db.appInvitationsForUser(g.currentuser, user)
@@ -137,7 +152,7 @@ def appsinvited(nick):
 #accepting invites.
 #DELETION methods not there BUG
 
-@app.route('/group', methods=['POST'])#groupname/description
+@adsgut.route('/group', methods=['POST'])#groupname/description
 def creategroup():
     user=g.currentuser
     groupspec={}
@@ -155,7 +170,7 @@ def creategroup():
         doabort("BAD_REQ", "GET not supported")
 
 #Currently wont allow you to create app, or accept invites to apps
-@app.route('/group/<groupowner>/group:<groupname>/invitation', methods=['POST'])#user
+@adsgut.route('/group/<groupowner>/group:<groupname>/invitation', methods=['POST'])#user
 def makeinvitetogroup(groupowner, groupname):
     #add permit to match user with groupowner
     fqgn=groupowner+"/group:"+groupname
@@ -169,7 +184,7 @@ def makeinvitetogroup(groupowner, groupname):
     else:
         doabort("BAD_REQ", "GET not supported")
 
-@app.route('/group/<groupowner>/group:<groupname>/acceptinvitation', methods=['POST'])#accepr
+@adsgut.route('/group/<groupowner>/group:<groupname>/acceptinvitation', methods=['POST'])#accepr
 def acceptinvitetogroup(nick, groupowner, groupname):  
     user=g.currentuser
     fqgn=groupowner+"/group:"+groupname
@@ -187,7 +202,7 @@ def acceptinvitetogroup(nick, groupowner, groupname):
 
 #This is used for bulk addition of a user. Whats the usecase? current perms protect this
 #BUG: maybe add a bulk version?
-@app.route('/group/<groupowner>/group:<groupname>/users', methods=['get', 'post'])#user
+@adsgut.route('/group/<groupowner>/group:<groupname>/users', methods=['GET', 'POST'])#user
 def addusertogrouporgroupusers(groupowner, groupname):
     #add permit to match user with groupowner
     fqgn=groupowner+"/group:"+groupname
@@ -204,13 +219,13 @@ def addusertogrouporgroupusers(groupowner, groupname):
         users=g.db.usersInGroup(g.currentuser,fqgn)
         return jsonify({'users':users})
 
-# @app.route('/group/<username>/group:<groupname>/users')
+# @adsgut.route('/group/<username>/group:<groupname>/users')
 # def group_users(username, groupname):
 #     fqgn = username+'/group:'+groupname
 #     users=g.db.usersInGroup(g.currentuser,fqgn)
 #     return jsonify({'users':users})
 
-@app.route('/app', methods=['POST'])#name/description
+@adsgut.route('/app', methods=['POST'])#name/description
 def createapp():
     user=g.currentuser
     appspec={}
@@ -228,7 +243,7 @@ def createapp():
         doabort("BAD_REQ", "GET not supported")
 
 #Currently wont allow you to create app, or accept invites to apps
-@app.route('/app/<appowner>/app:<appname>/invitation', methods=['POST'])#user
+@adsgut.route('/app/<appowner>/app:<appname>/invitation', methods=['POST'])#user
 def makeinvitetoapp(appowner, appname):
     #add permit to match user with groupowner
     fqan=appowner+"/app:"+appname
@@ -242,7 +257,7 @@ def makeinvitetoapp(appowner, appname):
     else:
         doabort("BAD_REQ", "GET not supported")
 
-@app.route('/app/<appowner>/app:<appname>/acceptinvitation', methods=['POST'])#accept
+@adsgut.route('/app/<appowner>/app:<appname>/acceptinvitation', methods=['POST'])#accept
 def acceptinvitetoapp(nick, appowner, appname):  
     user=g.currentuser
     fqan=appowner+"/app:"+appname
@@ -259,7 +274,7 @@ def acceptinvitetoapp(nick, appowner, appname):
         doabort("BAD_REQ", "GET not supported")
 
 #Whats the use case for this? bulk app adds which dont go through invites.
-@app.route('/app/<appowner>/app:<appname>/users', methods=['get','post'])#user
+@adsgut.route('/app/<appowner>/app:<appname>/users', methods=['GET', 'POST'])#user
 def addusertoapporappusers(appowner, appname):
     #add permit to match user with groupowner
     fqan=appowner+"/app:"+appname
@@ -277,7 +292,7 @@ def addusertoapporappusers(appowner, appname):
         return jsonify({'users':users}) 
 
 
-@app.route('/app/<appowner>/app:<appname>/groups', methods=['get','post'])#group
+@adsgut.route('/app/<appowner>/app:<appname>/groups', methods=['GET', 'POST'])#group
 def addgrouptoapporappgroups(appowner, appname):
     #add permit to match user with groupowner
     fqan=appowner+"/app:"+appname
@@ -296,24 +311,24 @@ def addgrouptoapporappgroups(appowner, appname):
 #######################################################################################################################
 
 #POST/GET
-@app.route('/group/html')
+@adsgut.route('/group/html')
 def creategrouphtml():
     pass
 
 #get group info
-@app.route('/group/<username>/group:<groupname>')
+@adsgut.route('/group/<username>/group:<groupname>')
 def dogroup(username, groupname):
     fqgn = username+'/group:'+groupname
     groupinfo=g.db.getGroupInfo(g.currentuser, fqgn)
     return jsonify(**groupinfo)
 
-@app.route('/group/<username>/group:<groupname>/profile/html')
+@adsgut.route('/group/<username>/group:<groupname>/profile/html')
 def group_profile(username, groupname):
     fqgn = username+'/group:'+groupname
     groupinfo=g.db.getGroupInfo(g.currentuser, fqgn)
     return render_template('groupprofile.html', thegroup=groupinfo)
 
-# @app.route('/group/<username>/group:<groupname>/users')
+# @adsgut.route('/group/<username>/group:<groupname>/users')
 # def group_users(username, groupname):
 #     fqgn = username+'/group:'+groupname
 #     users=g.db.usersInGroup(g.currentuser,fqgn)
@@ -326,30 +341,30 @@ def group_profile(username, groupname):
 #######################################################################################################################
 
 #POST/GET
-@app.route('/app/html')
+@adsgut.route('/app/html')
 def createapphtml():
     pass
 
-@app.route('/app/<username>/app:<appname>')
+@adsgut.route('/app/<username>/app:<appname>')
 def doapp(username, appname):
     fqan = username+'/app:'+appname
     appinfo=g.db.getAppInfo(g.currentuser, fqan)
     return jsonify(**appinfo)
 
-@app.route('/app/<username>/app:<appname>/profile/html')
+@adsgut.route('/app/<username>/app:<appname>/profile/html')
 def app_profile(username, appname):
     fqan = username+'/app:'+appname
     appinfo=g.db.getAppInfo(g.currentuser, fqan)
     return render_template('appprofile.html', theapp=appinfo)
 
-# @app.route('/app/<username>/app:<appname>/users')
+# @adsgut.route('/app/<username>/app:<appname>/users')
 # def application_users(username, appname):
 #     fqan = username+'/app:'+appname
 #     users=g.db.usersInApp(g.currentuser,fqan)
 #     return jsonify({'users':users})
 
 
-# @app.route('/app/<username>/app:<appname>/groups')
+# @adsgut.route('/app/<username>/app:<appname>/groups')
 # def application_groups(username, appname):
 #     fqan = username+'/app:'+appname
 #     groups=g.db.groupsInApp(g.currentuser,fqan)
@@ -362,7 +377,7 @@ def app_profile(username, appname):
 
 #POST item
 #masqueradable BUT WE DONT SUPPORT IT FOR NOW
-@app.route('/items/<nick>', methods=['POST'])#name/itemtype/uri/description
+@adsgut.route('/items/<nick>', methods=['POST'])#name/itemtype/uri/description
 def useritempost(nick):
     user=g.db.getUserForNick(g.currentuser, nick)
     #print "hello", user.nick
@@ -391,7 +406,7 @@ def useritempost(nick):
 
 #POST tag
 #masqueradable BUT WE DONT SUPPORT IT FOR NOW
-@app.route('/tags/<nick>/<ns>/<itemname>', methods=['POST'])#tagname/tagtype/description
+@adsgut.route('/tags/<nick>/<ns>/<itemname>', methods=['GET', 'POST'])#tagname/tagtype/description #q=fieldlist=[('tagname',''), ('tagtype',''), ('context', None), ('fqin', None)]
 def usertagpost(nick, itemname):
     user=g.db.getUserForNick(g.currentuser, nick)
     nsuser=g.db.getUserForNick(g.currentuser, ns)
@@ -417,7 +432,12 @@ def usertagpost(nick, itemname):
         #print "kkk"
         return jsonify({'status':'OK'})
     else:
-        doabort("BAD_REQ", "GET not supported")
+        criteria=_getTagQuery(request.args)
+        context=criteria.pop('context')
+        fqin=criteria.pop('fqin')
+        user=g.db.getUserForNick(g.currentuser, nick)
+        taggings=g.dbp.getTagsForItem(g.currentuser, user, ns+"/"+itemname, context, fqin, criteria)
+        return jsonify(taggings)
 
 #######################################################################################################################
 #Post to group and post to app. We are nor supporting any deletion web services as yet.
@@ -428,8 +448,8 @@ def usertagpost(nick, itemname):
 #Currently we only support currentuser=useras. Support for authtoken soon. BUG
 #perhaps sstemuser should be tested first?
 
-#@app.route('/item/<ns>/<itemname>/grouppost', methods=['POST'])#user/fqin
-@app.route('/group/<groupowner>/group:<groupname>/items', methods=['POST'])#user/fqin
+#@adsgut.route('/item/<ns>/<itemname>/grouppost', methods=['POST'])#user/fqin
+@adsgut.route('/group/<groupowner>/group:<groupname>/items', methods=['POST'])#user/fqin
 def useritemgrouppost(groupowner, groupname):
     #user=g.currentuser#The current user is doing the posting
     #print "hello", user.nick
@@ -448,8 +468,9 @@ def useritemgrouppost(groupowner, groupname):
         #later support via GET all items in group, perhaps based on spec
         doabort("BAD_REQ", "GET not supported")
 
-#@app.route('/item/<ns>/<itemname>/apppost', methods=['POST'])#user/fqin
-@app.route('/app/<appowner>/app:<appname>/items', methods=['POST'])#user/fqin
+
+#@adsgut.route('/item/<ns>/<itemname>/apppost', methods=['POST'])#user/fqin
+@adsgut.route('/app/<appowner>/app:<appname>/items', methods=['POST'])#user/fqin
 def useritemapppost(ns, itemname):
     #user=g.currentuser#The current user is doing the posting
     #print "hello", user.nick
@@ -468,9 +489,9 @@ def useritemapppost(ns, itemname):
         #later support via GET all items in app, perhaps based on spec
         doabort("BAD_REQ", "GET not supported")
 
-#@app.route('/tag/<ns>/<itemname>/grouppost', methods=['POST'])#user/fqin/fqtn
+#@adsgut.route('/tag/<ns>/<itemname>/grouppost', methods=['POST'])#user/fqin/fqtn
 #How should this be presented in GET?
-@app.route('/group/<groupowner>/group:<groupname>/tags', methods=['POST'])#user/fqin/fqtn
+@adsgut.route('/group/<groupowner>/group:<groupname>/tags', methods=['POST'])#user/fqin/fqtn
 def usertaggrouppost(groupowner, groupname, ns, itemname):
     #user=g.currentuser#The current user is doing the posting
     #print "hello", user.nick
@@ -491,8 +512,9 @@ def usertaggrouppost(groupowner, groupname, ns, itemname):
     else:
         doabort("BAD_REQ", "GET not supported")
 
-#@app.route('/tag/<ns>/<itemname>/apppost', methods=['POST'])#user/fqin/fqtn
-@app.route('/app/<appowner>/app:<appname>/tags', methods=['POST'])#user/fqin/fqtn
+
+#@adsgut.route('/tag/<ns>/<itemname>/apppost', methods=['POST'])#user/fqin/fqtn
+@adsgut.route('/app/<appowner>/app:<appname>/tags', methods=['POST'])#user/fqin/fqtn
 def usertagapppost(ns, itemname):
     #user=g.currentuser#The current user is doing the posting
     #print "hello", user.nick
@@ -517,14 +539,14 @@ def usertagapppost(ns, itemname):
 #These can be used as "am i saved" web services. Also gives groups and apps per item
 #a 404 not found would be an ideal error
 #BUG: are we properly protected. NO
-@app.route('/item/<nick>/<ns>/<itemname>')
+@adsgut.route('/item/<nick>/<ns>/<itemname>')
 def usersitemget(nick, ins, temname):
     user=g.db.getUserForNick(g.currentuser, nick)
     iteminfo=g.dbp.getItemByFqin(g.currentuser, ns+"/"+itemname)
     return jsonify({'item':iteminfo})
 
 #should really be a query on user/nick/items but we do it separate as it gets one
-@app.route('/item/<nick>/byuri/<itemuri>')
+@adsgut.route('/item/<nick>/byuri/<itemuri>')
 def usersitembyuriget(nick, itemuri):
     user=g.db.getUserForNick(g.currentuser, nick)
     iteminfo=g.dbp.getItemByURI(g.currentuser, user, itemuri)
@@ -560,7 +582,7 @@ def _getTagsForItemQuery(querydict):
 #BUG: this returns all items including tags and is thus farely useless. We dont want any inherited tables
 #Can do this with a boolean or figure the sqlalchemyway
 #But can be worked around currently using itemtype and such
-@app.route('/items')#q=fieldlist=[('uri',''), ('name',''), ('itemtype',''), ('context', None), ('fqin', None)]
+@adsgut.route('/items')#q=fieldlist=[('uri',''), ('name',''), ('itemtype',''), ('context', None), ('fqin', None)]
 def itemsbyany():
     #permit(g.currentuser!=None and g.currentuser.nick=='rahuldave', "wrong user")
     useras=g.currentuser
@@ -572,7 +594,7 @@ def itemsbyany():
     return jsonify({'items':items})
 
 #add tagtype/tagname to query. Must this also be querying item attributes?
-@app.route('/tags')#q=fieldlist=[('tagname',''), ('tagtype',''), ('context', None), ('fqin', None)]
+@adsgut.route('/tags')#q=fieldlist=[('tagname',''), ('tagtype',''), ('context', None), ('fqin', None)]
 def tagsbyany():
     useras=g.currentuser
     criteria=_getTagQuery(request.args)
@@ -584,16 +606,16 @@ def tagsbyany():
 #######################################################################################################################
 #tagging based on item spec. BUG: how are we guaranteeing name unique amongst a user. Must specify joint unique for items
 
-@app.route('/item/<nick>/<ns>/<itemname>/tags')#q=fieldlist=[('tagname',''), ('tagtype',''), ('context', None), ('fqin', None)]
-def tagsforitem(nick, ns, itemname):
-    criteria=_getTagQuery(request.args)
-    context=criteria.pop('context')
-    fqin=criteria.pop('fqin')
-    user=g.db.getUserForNick(g.currentuser, nick)
-    taggings=g.dbp.getTagsForItem(g.currentuser, user, ns+"/"+itemname, context, fqin, criteria)
-    return jsonify(taggings)
+# @adsgut.route('/tags/<nick>/<ns>/<itemname>')#q=fieldlist=[('tagname',''), ('tagtype',''), ('context', None), ('fqin', None)]
+# def tagsforitem(nick, ns, itemname):
+#     criteria=_getTagQuery(request.args)
+#     context=criteria.pop('context')
+#     fqin=criteria.pop('fqin')
+#     user=g.db.getUserForNick(g.currentuser, nick)
+#     taggings=g.dbp.getTagsForItem(g.currentuser, user, ns+"/"+itemname, context, fqin, criteria)
+#     return jsonify(taggings)
 
-@app.route('/tag/<nick>/<tagspace>/<tagtypename>:<tagname>/items')#q=fieldlist=[('uri',''), ('name',''), ('itemtype',''), ('context', None), ('fqin', None)]
+@adsgut.route('/items/<nick>/<tagspace>/<tagtypename>:<tagname>')#q=fieldlist=[('uri',''), ('name',''), ('itemtype',''), ('context', None), ('fqin', None)]
 def itemsfortag(nick, tagspace, tagtypename, tagname):
     tagtype=tagspace+"/"+tagtypename
     criteria=_getItemQuery(request.args)
@@ -605,7 +627,7 @@ def itemsfortag(nick, tagspace, tagtypename, tagname):
 
 
 #for groups/apps, as long as users are in them, one user can get the otherusers items and tags. Cool!
-@app.route('/tags/<nick>/byspec')#q=fieldlist=[('tagname',''), ('tagtype',''), ('context', None), ('fqin', None), ('itemuri', ''), ('itemname', ''), ('itemtype', '')]
+@adsgut.route('/tags/<nick>/byspec')#q=fieldlist=[('tagname',''), ('tagtype',''), ('context', None), ('fqin', None), ('itemuri', ''), ('itemname', ''), ('itemtype', '')]
 def tagsforitemspec(nick):
     criteria=_getTagsForItemQuery(request.args)
     if nick=='any':
@@ -619,7 +641,7 @@ def tagsforitemspec(nick):
     taggings=g.dbp.getTaggingForItemspec(g.currentuser, useras, context, fqin, criteria)
     return jsonify(taggings)
 
-@app.route('/items/<nick>/byspec')#q=fieldlist=[('tagname',''), ('tagtype',''), ('context', None), ('fqin', None), ('itemuri', ''), ('itemname', ''), ('itemtype', '')]
+@adsgut.route('/items/<nick>/byspec')#q=fieldlist=[('tagname',''), ('tagtype',''), ('context', None), ('fqin', None), ('itemuri', ''), ('itemname', ''), ('itemtype', '')]
 def itemsfortagspec(nick):
     criteria=_getTagsForItemQuery(request.args)
     if nick=='any':
@@ -639,7 +661,7 @@ def itemsfortagspec(nick):
 #think we'll do tags as tags=tagtype | all
 
 #query itemtype, context, fqin
-@app.route('/user/<nick>/items')#q=fieldlist=[('itemtype',''), ('context', None), ('fqin', None)]
+@adsgut.route('/user/<nick>/items')#q=fieldlist=[('itemtype',''), ('context', None), ('fqin', None)]
 def usersitems(nick):
     criteria=_getQuery(request.args, [('itemtype',''), ('context', None), ('fqin', None)])
     context=criteria.pop('context')
@@ -649,7 +671,7 @@ def usersitems(nick):
     return jsonify({'items':items})
 
 #query itemtype, tagtype, tagname? This is just a specialization of the above
-@app.route('/user/<nick>/tags')#q=fieldlist=[('tagname',''), ('tagtype',''), ('context', None), ('fqin', None)]
+@adsgut.route('/user/<nick>/tags')#q=fieldlist=[('tagname',''), ('tagtype',''), ('context', None), ('fqin', None)]
 def userstags(nick):
     criteria=_getTagQuery(request.args)
     context=criteria.pop('context')
@@ -658,7 +680,7 @@ def userstags(nick):
     taggings=g.dbp.getTaggingForItemspec(g.currentuser, user, context, fqin, criteria)
     return jsonify(taggings)
 
-@app.route('/user/<nick>/items/html')
+@adsgut.route('/user/<nick>/items/html')
 def usersitemshtml(nick):
     user=g.db.getUserForNick(g.currentuser, nick)
     userinfo=user.info()
@@ -669,14 +691,14 @@ def usersitemshtml(nick):
 #These too are redundant but we might want to support them as a different uri scheme
 #######################################################################################################################
 #redundant, i think
-# @app.route('/tags/<username>/<tagtype>:<tagname>')
+# @adsgut.route('/tags/<username>/<tagtype>:<tagname>')
 # def dogroup(username, tagtype, tagname):
 #     fqgn = username+'/group:'+groupname
 #     groupinfo=g.db.getGroupInfo(g.currentuser, fqgn)
 #     return jsonify(**groupinfo)
 
 
-# @app.route('/tags/<tagtype>:<tagname>/')
+# @adsgut.route('/tags/<tagtype>:<tagname>/')
 # def group_users(tagtype, tagname):
 #     fqgn = username+'/group:'+groupname
 #     users=g.db.usersInGroup(g.currentuser,fqgn)
