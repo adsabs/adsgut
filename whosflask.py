@@ -137,7 +137,7 @@ def appsinvited(nick):
 #accepting invites.
 #DELETION methods not there BUG
 
-@app.route('/group', methods=['post'])#groupname/description
+@app.route('/group', methods=['POST'])#groupname/description
 def creategroup():
     user=g.currentuser
     groupspec={}
@@ -155,7 +155,7 @@ def creategroup():
         doabort("BAD_REQ", "GET not supported")
 
 #Currently wont allow you to create app, or accept invites to apps
-@app.route('/group/<groupowner>/group:<groupname>/invitation', methods=['post'])#user
+@app.route('/group/<groupowner>/group:<groupname>/invitation', methods=['POST'])#user
 def makeinvitetogroup(groupowner, groupname):
     #add permit to match user with groupowner
     fqgn=groupowner+"/group:"+groupname
@@ -169,7 +169,7 @@ def makeinvitetogroup(groupowner, groupname):
     else:
         doabort("BAD_REQ", "GET not supported")
 
-@app.route('/groupinvite/<groupowner>/group:<groupname>', methods=['post'])#accepr
+@app.route('/group/<groupowner>/group:<groupname>/acceptinvitation', methods=['POST'])#accepr
 def acceptinvitetogroup(nick, groupowner, groupname):  
     user=g.currentuser
     fqgn=groupowner+"/group:"+groupname
@@ -187,12 +187,13 @@ def acceptinvitetogroup(nick, groupowner, groupname):
 
 #This is used for bulk addition of a user. Whats the usecase? current perms protect this
 #BUG: maybe add a bulk version?
-@app.route('/group/<groupowner>/group:<groupname>/adduser', methods=['post'])#user
-def addusertogroup(groupowner, groupname):
-    permit(g.db.isSystemUser(currentuser), "Only System User allowed")
+@app.route('/group/<groupowner>/group:<groupname>/users', methods=['get', 'post'])#user
+def addusertogrouporgroupusers(groupowner, groupname):
     #add permit to match user with groupowner
     fqgn=groupowner+"/group:"+groupname
+    gowner=g.db.getUserForNick(g.currentuser, groupowner)
     if request.method == 'POST':
+        permit(gowner==g.currentuser or g.db.isSystemUser(g.currentuser), "Only Group owner System User allowed")
         nick=request.form.get('user', None)
         if not nick:
             doabort("BAD_REQ", "No User Specified")
@@ -200,9 +201,16 @@ def addusertogroup(groupowner, groupname):
         g.db.addUserToGroup(g.currentuser, fqgn, user, None)
         return jsonify({'status':'OK'})
     else:
-        doabort("BAD_REQ", "GET not supported")
+        users=g.db.usersInGroup(g.currentuser,fqgn)
+        return jsonify({'users':users})
 
-@app.route('/app', methods=['post'])#name/description
+# @app.route('/group/<username>/group:<groupname>/users')
+# def group_users(username, groupname):
+#     fqgn = username+'/group:'+groupname
+#     users=g.db.usersInGroup(g.currentuser,fqgn)
+#     return jsonify({'users':users})
+
+@app.route('/app', methods=['POST'])#name/description
 def createapp():
     user=g.currentuser
     appspec={}
@@ -220,7 +228,7 @@ def createapp():
         doabort("BAD_REQ", "GET not supported")
 
 #Currently wont allow you to create app, or accept invites to apps
-@app.route('/app/<appowner>/app:<appname>/invitation', methods=['post'])#user
+@app.route('/app/<appowner>/app:<appname>/invitation', methods=['POST'])#user
 def makeinvitetoapp(appowner, appname):
     #add permit to match user with groupowner
     fqan=appowner+"/app:"+appname
@@ -234,7 +242,7 @@ def makeinvitetoapp(appowner, appname):
     else:
         doabort("BAD_REQ", "GET not supported")
 
-@app.route('/appinvite/<appowner>/app:<appname>', methods=['post'])#accept
+@app.route('/app/<appowner>/app:<appname>/acceptinvitation', methods=['POST'])#accept
 def acceptinvitetoapp(nick, appowner, appname):  
     user=g.currentuser
     fqan=appowner+"/app:"+appname
@@ -251,12 +259,13 @@ def acceptinvitetoapp(nick, appowner, appname):
         doabort("BAD_REQ", "GET not supported")
 
 #Whats the use case for this? bulk app adds which dont go through invites.
-@app.route('/app/<appowner>/app:<appname>/adduser', methods=['post'])#user
-def addusertoapp(appowner, appname):
-    permit(g.db.isSystemUser(currentuser), "Only System User allowed")
+@app.route('/app/<appowner>/app:<appname>/users', methods=['get','post'])#user
+def addusertoapporappusers(appowner, appname):
     #add permit to match user with groupowner
     fqan=appowner+"/app:"+appname
+    aowner=g.db.getUserForNick(g.currentuser, appowner)
     if request.method == 'POST':
+        permit(aowner==g.currentuser or g.db.isSystemUser(g.currentuser), "Only App owner System User allowed")
         nick=request.form.get('user', None)
         if not nick:
             doabort("BAD_REQ", "No User Specified")
@@ -264,7 +273,26 @@ def addusertoapp(appowner, appname):
         g.db.addUserToApp(g.currentuser, fqan, user, None)
         return jsonify({'status':'OK'})
     else:
-        doabort("BAD_REQ", "GET not supported")   
+        users=g.db.usersInApp(g.currentuser,fqan)
+        return jsonify({'users':users}) 
+
+
+@app.route('/app/<appowner>/app:<appname>/groups', methods=['get','post'])#group
+def addgrouptoapporappgroups(appowner, appname):
+    #add permit to match user with groupowner
+    fqan=appowner+"/app:"+appname
+    aowner=g.db.getUserForNick(g.currentuser, appowner)
+    if request.method == 'POST':
+        permit(aowner==g.currentuser or g.db.isSystemUser(g.currentuser), "Only App owner System User allowed")
+        fqgn=request.form.get('group', None)
+        if not fqgn:
+            doabort("BAD_REQ", "No Group Specified")
+        user=g.db.getUserForNick(g.currentuser, nick)
+        g.db.addGroupToApp(g.currentuser, fqan, fqgn, None)
+        return jsonify({'status':'OK'})
+    else:
+        groups=g.db.groupsInApp(g.currentuser,fqan)
+        return jsonify({'groups':groups})  
 #######################################################################################################################
 
 #POST/GET
@@ -285,11 +313,11 @@ def group_profile(username, groupname):
     groupinfo=g.db.getGroupInfo(g.currentuser, fqgn)
     return render_template('groupprofile.html', thegroup=groupinfo)
 
-@app.route('/group/<username>/group:<groupname>/users')
-def group_users(username, groupname):
-    fqgn = username+'/group:'+groupname
-    users=g.db.usersInGroup(g.currentuser,fqgn)
-    return jsonify({'users':users})
+# @app.route('/group/<username>/group:<groupname>/users')
+# def group_users(username, groupname):
+#     fqgn = username+'/group:'+groupname
+#     users=g.db.usersInGroup(g.currentuser,fqgn)
+#     return jsonify({'users':users})
 
 
 #TODO: do one for a groups apps
@@ -314,18 +342,18 @@ def app_profile(username, appname):
     appinfo=g.db.getAppInfo(g.currentuser, fqan)
     return render_template('appprofile.html', theapp=appinfo)
 
-@app.route('/app/<username>/app:<appname>/users')
-def application_users(username, appname):
-    fqan = username+'/app:'+appname
-    users=g.db.usersInApp(g.currentuser,fqan)
-    return jsonify({'users':users})
+# @app.route('/app/<username>/app:<appname>/users')
+# def application_users(username, appname):
+#     fqan = username+'/app:'+appname
+#     users=g.db.usersInApp(g.currentuser,fqan)
+#     return jsonify({'users':users})
 
 
-@app.route('/app/<username>/app:<appname>/groups')
-def application_groups(username, appname):
-    fqan = username+'/app:'+appname
-    groups=g.db.groupsInApp(g.currentuser,fqan)
-    return jsonify({'groups':groups})
+# @app.route('/app/<username>/app:<appname>/groups')
+# def application_groups(username, appname):
+#     fqan = username+'/app:'+appname
+#     groups=g.db.groupsInApp(g.currentuser,fqan)
+#     return jsonify({'groups':groups})
 
 
 #######################################################################################################################
@@ -334,7 +362,7 @@ def application_groups(username, appname):
 
 #POST item
 #masqueradable BUT WE DONT SUPPORT IT FOR NOW
-@app.route('/item/<nick>', methods=['POST'])#name/itemtype/uri/description
+@app.route('/items/<nick>', methods=['POST'])#name/itemtype/uri/description
 def useritempost(nick):
     user=g.db.getUserForNick(g.currentuser, nick)
     #print "hello", user.nick
@@ -363,7 +391,7 @@ def useritempost(nick):
 
 #POST tag
 #masqueradable BUT WE DONT SUPPORT IT FOR NOW
-@app.route('/tag/<nick>/<ns>/<itemname>', methods=['POST'])#tagname/tagtype/description
+@app.route('/tags/<nick>/<ns>/<itemname>', methods=['POST'])#tagname/tagtype/description
 def usertagpost(nick, itemname):
     user=g.db.getUserForNick(g.currentuser, nick)
     nsuser=g.db.getUserForNick(g.currentuser, ns)
@@ -400,48 +428,57 @@ def usertagpost(nick, itemname):
 #Currently we only support currentuser=useras. Support for authtoken soon. BUG
 #perhaps sstemuser should be tested first?
 
-@app.route('/item/<ns>/<itemname>/grouppost', methods=['POST'])#user/fqin
-def useritemgrouppost(ns, itemname):
+#@app.route('/item/<ns>/<itemname>/grouppost', methods=['POST'])#user/fqin
+@app.route('/group/<groupowner>/group:<groupname>/items', methods=['POST'])#user/fqin
+def useritemgrouppost(groupowner, groupname):
     #user=g.currentuser#The current user is doing the posting
     #print "hello", user.nick
     if request.method == 'POST':
-        fqgn = request.form.get('fqin', None)
-        if not fqgn:
-            doabort("BAD_REQ", "Group to post to not specified")
+        fqin = request.form.get('fqin', None)
+        if not fqin:
+            doabort("BAD_REQ", "Item to post to group not specified")
         nick = request.form.get('user', None)
         if not nick:
             doabort("BAD_REQ", "User doing posting not specified")
         user=g.db.getUserForNick(g.currentuser, nick)
-        g.dbp.postItemToGroup(g.currentuser, user, fqgn, ns+"/"+itemname)
+        fqgn=groupowner+"/group:"+groupname
+        g.dbp.postItemToGroup(g.currentuser, user, fqgn, fqin)
         return jsonify({'status':'OK'})
     else:
+        #later support via GET all items in group, perhaps based on spec
         doabort("BAD_REQ", "GET not supported")
 
-@app.route('/item/<ns>/<itemname>/apppost', methods=['POST'])#user/fqin
+#@app.route('/item/<ns>/<itemname>/apppost', methods=['POST'])#user/fqin
+@app.route('/app/<appowner>/app:<appname>/items', methods=['POST'])#user/fqin
 def useritemapppost(ns, itemname):
     #user=g.currentuser#The current user is doing the posting
     #print "hello", user.nick
     if request.method == 'POST':
-        fqan = request.form.get('fqin')
-        if not fqan:
-            doabort("BAD_REQ", "App to post to not specified")
+        fqin = request.form.get('fqin', None)
+        if not fqin:
+            doabort("BAD_REQ", "Item to post to app not specified")
         nick = request.form.get('user', None)
         if not nick:
             doabort("BAD_REQ", "User doing posting not specified")
         user=g.db.getUserForNick(g.currentuser, nick)
-        g.dbp.postItemToGroup(g.currentuser, user, fqan, ns+"/"+itemname)
+        fqan=appowner+"/app:"+appname
+        g.dbp.postItemToGroup(g.currentuser, user, fqan, fqin)
         return jsonify({'status':'OK'})
     else:
+        #later support via GET all items in app, perhaps based on spec
         doabort("BAD_REQ", "GET not supported")
 
-@app.route('/tag/<ns>/<itemname>/grouppost', methods=['POST'])#user/fqin/fqtn
-def usertaggrouppost(ns, itemname):
+#@app.route('/tag/<ns>/<itemname>/grouppost', methods=['POST'])#user/fqin/fqtn
+#How should this be presented in GET?
+@app.route('/group/<groupowner>/group:<groupname>/tags', methods=['POST'])#user/fqin/fqtn
+def usertaggrouppost(groupowner, groupname, ns, itemname):
     #user=g.currentuser#The current user is doing the posting
     #print "hello", user.nick
+    fqgn=groupowner+"/group:"+groupname
     if request.method == 'POST':
-        fqgn = request.form.get('fqin', None)
-        if not fqgn:
-            doabort("BAD_REQ", "Group to post to not specified")
+        fqin = request.form.get('fqin', None)
+        if not fqin:
+            doabort("BAD_REQ", "item whos tags are to posted to group not specified")
         fqtn = request.form.get('fqtn', None)
         if not fqtn:
             doabort("BAD_REQ", "Tag to post to group not specified")
@@ -449,19 +486,21 @@ def usertaggrouppost(ns, itemname):
         if not nick:
             doabort("BAD_REQ", "User doing posting not specified")
         user=g.db.getUserForNick(g.currentuser, nick)
-        g.dbp.postTaggingIntoGroup(g.currentuser, user, fqgn, ns+"/"+itemname, fqtn)
+        g.dbp.postTaggingIntoGroup(g.currentuser, user, fqgn, fqin, fqtn)
         return jsonify({'status':'OK'})
     else:
         doabort("BAD_REQ", "GET not supported")
 
-@app.route('/tag/<ns>/<itemname>/apppost', methods=['POST'])#user/fqin/fqtn
+#@app.route('/tag/<ns>/<itemname>/apppost', methods=['POST'])#user/fqin/fqtn
+@app.route('/app/<appowner>/app:<appname>/tags', methods=['POST'])#user/fqin/fqtn
 def usertagapppost(ns, itemname):
     #user=g.currentuser#The current user is doing the posting
     #print "hello", user.nick
+    fqan=appowner+"/app:appname"
     if request.method == 'POST':
         fqan = request.form.get('fqin', None)
         if not fqan:
-            doabort("BAD_REQ", "App to post to not specified")
+            doabort("BAD_REQ", "tem whos tags are to posted to app not specified")
         fqtn = request.form.get('fqtn', None)
         if not fqtn:
             doabort("BAD_REQ", "Tag to post to app not specified")
@@ -469,7 +508,7 @@ def usertagapppost(ns, itemname):
         if not nick:
             doabort("BAD_REQ", "User doing posting not specified")
         user=g.db.getUserForNick(g.currentuser, nick)
-        g.dbp.postTaggingIntoApp(g.currentuser, user, fqan, ns+"/"+itemname, fqtn)
+        g.dbp.postTaggingIntoApp(g.currentuser, user, fqan, fqin, fqtn)
         return jsonify({'status':'OK'})
     else:
         doabort("BAD_REQ", "GET not supported")  
@@ -485,7 +524,7 @@ def usersitemget(nick, ins, temname):
     return jsonify({'item':iteminfo})
 
 #should really be a query on user/nick/items but we do it separate as it gets one
-@app.route('/itembyuri/<nick>/<itemuri>')
+@app.route('/item/<nick>/byuri/<itemuri>')
 def usersitembyuriget(nick, itemuri):
     user=g.db.getUserForNick(g.currentuser, nick)
     iteminfo=g.dbp.getItemByURI(g.currentuser, user, itemuri)
@@ -545,7 +584,7 @@ def tagsbyany():
 #######################################################################################################################
 #tagging based on item spec. BUG: how are we guaranteeing name unique amongst a user. Must specify joint unique for items
 
-@app.route('/item/<nick>/<ns>/<itemname>/tags')#fieldlist=[('tagname',''), ('tagtype',''), ('context', None), ('fqin', None)]
+@app.route('/item/<nick>/<ns>/<itemname>/tags')#q=fieldlist=[('tagname',''), ('tagtype',''), ('context', None), ('fqin', None)]
 def tagsforitem(nick, ns, itemname):
     criteria=_getTagQuery(request.args)
     context=criteria.pop('context')
@@ -566,7 +605,7 @@ def itemsfortag(nick, tagspace, tagtypename, tagname):
 
 
 #for groups/apps, as long as users are in them, one user can get the otherusers items and tags. Cool!
-@app.route('/itemspec/<nick>/tags')#fieldlist=[('tagname',''), ('tagtype',''), ('context', None), ('fqin', None), ('itemuri', ''), ('itemname', ''), ('itemtype', '')]
+@app.route('/tags/<nick>/byspec')#q=fieldlist=[('tagname',''), ('tagtype',''), ('context', None), ('fqin', None), ('itemuri', ''), ('itemname', ''), ('itemtype', '')]
 def tagsforitemspec(nick):
     criteria=_getTagsForItemQuery(request.args)
     if nick=='any':
@@ -580,7 +619,7 @@ def tagsforitemspec(nick):
     taggings=g.dbp.getTaggingForItemspec(g.currentuser, useras, context, fqin, criteria)
     return jsonify(taggings)
 
-@app.route('/tagspec/<nick>/items')#ieldlist=[('tagname',''), ('tagtype',''), ('context', None), ('fqin', None), ('itemuri', ''), ('itemname', ''), ('itemtype', '')]
+@app.route('/items/<nick>/byspec')#q=fieldlist=[('tagname',''), ('tagtype',''), ('context', None), ('fqin', None), ('itemuri', ''), ('itemname', ''), ('itemtype', '')]
 def itemsfortagspec(nick):
     criteria=_getTagsForItemQuery(request.args)
     if nick=='any':
@@ -600,7 +639,7 @@ def itemsfortagspec(nick):
 #think we'll do tags as tags=tagtype | all
 
 #query itemtype, context, fqin
-@app.route('/user/<nick>/items')#fieldlist=[('itemtype',''), ('context', None), ('fqin', None)]
+@app.route('/user/<nick>/items')#q=fieldlist=[('itemtype',''), ('context', None), ('fqin', None)]
 def usersitems(nick):
     criteria=_getQuery(request.args, [('itemtype',''), ('context', None), ('fqin', None)])
     context=criteria.pop('context')
@@ -610,7 +649,7 @@ def usersitems(nick):
     return jsonify({'items':items})
 
 #query itemtype, tagtype, tagname? This is just a specialization of the above
-@app.route('/user/<nick>/tags')#fieldlist=[('tagname',''), ('tagtype',''), ('context', None), ('fqin', None)]
+@app.route('/user/<nick>/tags')#q=fieldlist=[('tagname',''), ('tagtype',''), ('context', None), ('fqin', None)]
 def userstags(nick):
     criteria=_getTagQuery(request.args)
     context=criteria.pop('context')

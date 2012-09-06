@@ -245,10 +245,20 @@ class Postdb(dbase.Database):
         except:
             doabort('BAD_REQ', "Failed adding newposting of item %s into group %s." % (item.fqin, grp.fqin))
         self.session.add(newposting)
+        fqgn=useras.nick+"/group:default"
+
+        if grp.fqin!=fqgn:
+            personalgrp=self.whosdb.getGroup(currentuser, fqgn)
+            if item not in personalgrp.itemsposted:
+                self.postItemIntoGroup(currentuser, useras, personalgrp, item)
         #self.commit()
         #print newitem.groupsin, "WEE", grp.itemsposted, newposting.itemtype.name
         #grp.groupitems.append(newitem)
         return OK
+
+    def postItemPublic(self, currentuser, useras, itemorfullyQualifiedItemName):
+        grp=self.whosdb.getGroup(currentuser, 'adsgut/group:public')
+        self.postItemIntoGroup(currentuser, useras, grp, itemorfullyQualifiedItemName)
 
     def removeItemFromGroup(self, currentuser, useras, grouporfullyQualifiedGroupName, itemorfullyQualifiedItemName):
         if is_stringtype(itemorfullyQualifiedItemName):
@@ -288,6 +298,10 @@ class Postdb(dbase.Database):
         except:
             doabort('BAD_REQ', "Failed adding newposting of item %s into app %s." % (item.fqin, app.fqin))
         self.session.add(newposting)
+        fqgn=useras.nick+"/group:default"
+        personalgrp=self.whosdb.getGroup(currentuser, fqgn)
+        if item not in personalgrp.itemsposted:
+            self.postItemIntoGroup(currentuser, useras, personalgrp, item)
         #self.commit()
         #print newitem.groupsin, "WEE", grp.itemsposted
         #grp.groupitems.append(newitem)
@@ -407,15 +421,23 @@ class Postdb(dbase.Database):
         return OK
 
     def untagItem(self, currentuser, useras, fullyQualifiedTagName, fullyQualifiedItemName):
-        #Do not remove item, do not remove tag
+        #Do not remove item, do not remove tag, do not remove tagging
+        #just remove the tag from the personal group
         tag=self.getTag(currentuser, fullyQualifiedTagName)
         itemtobeuntagged=self.getItem(currentuser, fullyQualifiedItemName)
         #Does not remove the tag or the item. Just the tagging. WE WILL NOT REFCOUNT TAGS
         taggingtoremove=self.getTagging(currentuser, tag, itemtobeuntagged)
-        permit(useras==taggingtoremove.user, "Only user who saved this item to the tag %s can remove it" % tag.fqin )
-        self.session.remove(taggingtoremove)
+        permit(useras==taggingtoremove.user, "Only user who saved this item to the tagging %s can remove the tag from priv grp" % tag.fqin )
+        #self.session.remove(taggingtoremove)
+        fqgn=useras.nick+"/group:default"
+        personalgrp=self.whosdb.getGroup(currentuser, fqgn)
+        #remove tag from user's personal group. Keep the tagging around
+        self.removeTaggingFromGroup(currentuser, useras, personalgrp.fqin, itemtobeuntagged.fqin, tag.fqin)
         return OK
 
+
+    #For the taggings being posted into groups, automatically put into personal group. Not needed, as when you get the itemtag which has the
+    #item and tag, th tagItem function automatically did this for us
     def postTaggingIntoGroup(self, currentuser, useras, grouporfullyQualifiedGroupName, itemorfullyQualifiedItemName, tagorfullyQualifiedTagName):
         ##Only for now as we wont allow third parties to save BUG
         permit(currentuser==useras or self.whosdb.isSystemUser(currentuser), "User %s not authorized or not systemuser" % currentuser.nick)
@@ -457,6 +479,10 @@ class Postdb(dbase.Database):
         # itgto=self.session.query(TagitemGroup).filter_by(itemtag=itemtag, group=grp).one()
         # print itgto
         return OK
+
+    def postTaggingPublic(self, currentuser, useras, itemorfullyQualifiedItemName, tagorfullyQualifiedTagName):
+        grp=self.whosdb.getGroup(currentuser, 'adsgut/group:public')
+        self.postTaggingIntoGroup(currentuser, useras, grp, itemorfullyQualifiedItemName, tagorfullyQualifiedTagName)
 
     def postTaggingIntoGroupFromItemtag(self, currentuser, useras, grouporfullyQualifiedGroupName, itemtag):
         ##Only for now as we wont allow third parties to save BUG
@@ -506,6 +532,28 @@ class Postdb(dbase.Database):
         itgtoberemoved=self.getGroupTagging(currentuser, itemtag, grp)
         self.session.remove(itgtoberemoved)
         return OK
+
+    def postItemAndTaggingIntoGroup(self, currentuser, useras, grouporfullyQualifiedGroupName, itemorfullyQualifiedItemName, tagorfullyQualifiedTagName):
+        permit(currentuser==useras or self.whosdb.isSystemUser(currentuser), "User %s not authorized or not systemuser" % currentuser.nick)
+        if is_stringtype(itemorfullyQualifiedItemName):
+            itm=self.getItem(currentuser, itemorfullyQualifiedItemName)
+        else:
+            itm=itemorfullyQualifiedItemName
+        if is_stringtype(grouporfullyQualifiedGroupName):
+            grp=self.whosdb.getGroup(currentuser, grouporfullyQualifiedGroupName)
+        else:
+            grp=grouporfullyQualifiedGroupName
+        if is_stringtype(tagorfullyQualifiedTagName):
+            tag=self.getTag(currentuser, tagorfullyQualifiedTagName)
+        else:
+            tag=tagorfullyQualifiedTagName
+        self.postItemIntoGroup(currentuser, useras, grp, itm)
+        self.postTaggingIntoGroup(currentuser, useras, grp, itm, tag)
+
+    def postItemAndTaggingPublic(self, currentuser, useras, itemorfullyQualifiedItemName, tagorfullyQualifiedTagName):
+        grp=self.whosdb.getGroup(currentuser, 'adsgut/group:public')
+        self.postItemAndTaggingIntoGroup(currentuser, useras, grp, itemorfullyQualifiedItemName, tagorfullyQualifiedTagName)
+
 
     #BUG: we are not requiring that item be posted into group or that tagging autopost it. FIXME
     def postTaggingIntoAppFromItemtag(self, currentuser, useras, apporfullyQualifiedAppName, itemtag):
@@ -598,6 +646,22 @@ class Postdb(dbase.Database):
         self.session.remove(itatoberemoved)
         return OK
 
+    def postItemAndTaggingIntoApp(self, currentuser, useras, apporfullyQualifiedAppName, itemorfullyQualifiedItemName, tagorfullyQualifiedTagName):
+        permit(currentuser==useras or self.whosdb.isSystemUser(currentuser), "User %s not authorized or not systemuser" % currentuser.nick)
+        if is_stringtype(itemorfullyQualifiedItemName):
+            itm=self.getItem(currentuser, itemorfullyQualifiedItemName)
+        else:
+            itm=itemorfullyQualifiedItemName
+        if is_stringtype(apporfullyQualifiedAppName):
+            app=self.whosdb.getApp(currentuser, apporfullyQualifiedAppName)
+        else:
+            app=apporfullyQualifiedAppName
+        if is_stringtype(tagorfullyQualifiedTagName):
+            tag=self.getTag(currentuser, tagorfullyQualifiedTagName)
+        else:
+            tag=tagorfullyQualifiedTagName
+        self.postItemIntoApp(currentuser, useras, app, itm)
+        self.postTaggingIntoApp(currentuser, useras, app, itm, tag)
     #######################################################################################################################
     #BUG: currently not allowing tags to be removed due to cascading tagging removal issue thinking
     #eventually remove only that tagginh from all of an items tags
