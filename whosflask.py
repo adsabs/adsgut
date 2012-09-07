@@ -165,8 +165,8 @@ def creategroup():
         groupspec['creator']=user
         groupspec['name']=groupname
         groupspec['description']=description
-        g.db.addGroup(g.currentuser, user, groupspec)
-        return jsonify({'status':'OK'})
+        newgroup=g.db.addGroup(g.currentuser, user, groupspec)
+        return jsonify({'status':'OK', 'info': newgroup.info()})
     else:
         doabort("BAD_REQ", "GET not supported")
 
@@ -181,7 +181,7 @@ def makeinvitetogroup(groupowner, groupname):
             doabort("BAD_REQ", "No User Specified")
         user=g.db.getUserForNick(g.currentuser, nick)
         g.db.inviteUserToGroup(g.currentuser, fqgn, user, None)
-        return jsonify({'status':'OK'})
+        return jsonify({'status':'OK', 'info': {'invited':nick, 'to':fqgn}})
     else:
         doabort("BAD_REQ", "GET not supported")
 
@@ -193,9 +193,9 @@ def acceptinvitetogroup(nick, groupowner, groupname):
         accept=request.form.get('accept', 'NA')
         if accept==True:
             g.db.acceptInviteToGroup(g.currentuser, fqgn, user, None)
-            return jsonify({'status':'OK'})
+            return jsonify({'status':'OK', 'info': {'invited':nick, 'to': fqgn, 'accepted':True}})
         elif accept==False:
-            return jsonify({'status': 'NA'})
+            return jsonify({'status': 'OK', 'info': {'invited':nick, 'to': fqgn, 'accepted':False}})
         else:
             doabort("BAD_REQ", "accept not provided")
     else:
@@ -215,7 +215,7 @@ def addusertogrouporgroupusers(groupowner, groupname):
             doabort("BAD_REQ", "No User Specified")
         user=g.db.getUserForNick(g.currentuser, nick)
         g.db.addUserToGroup(g.currentuser, fqgn, user, None)
-        return jsonify({'status':'OK'})
+        return jsonify({'status':'OK', 'info': {'user':nick, 'group':fqgn}})
     else:
         users=g.db.usersInGroup(g.currentuser,fqgn)
         return jsonify({'users':users})
@@ -238,8 +238,8 @@ def createapp():
         appspec['creator']=user
         appspec['name']=appname
         appspec['description']=description
-        g.db.addApplication(g.currentuser, user, appspec)
-        return jsonify({'status':'OK'})
+        newapp=g.db.addApplication(g.currentuser, user, appspec)
+        return jsonify({'status':'OK', 'info':newapp.info()})
     else:
         doabort("BAD_REQ", "GET not supported")
 
@@ -254,7 +254,7 @@ def makeinvitetoapp(appowner, appname):
             doabort("BAD_REQ", "No User Specified")
         user=g.db.getUserForNick(g.currentuser, nick)
         g.db.inviteUserToApp(g.currentuser, fqan, user, None)
-        return jsonify({'status':'OK'})
+        return jsonify({'status':'OK',  'info': {'invited':nick, 'to': fqan}})
     else:
         doabort("BAD_REQ", "GET not supported")
 
@@ -266,9 +266,9 @@ def acceptinvitetoapp(nick, appowner, appname):
         accept=request.form.get('accept', 'NA')
         if accept==True:
             g.db.acceptInviteToApp(g.currentuser, fqan, user, None)
-            return jsonify({'status':'OK'})
+            return jsonify({'status':'OK','info': {'invited':nick, 'to': fqan, 'accepted':True}})
         elif accept==False:
-            return jsonify({'status': 'NA'})
+            return jsonify({'status': 'OK', 'info': {'invited':nick, 'to': fqan, 'accepted':False}})
         else:
             doabort("BAD_REQ", "accept not provided")
     else:
@@ -287,7 +287,7 @@ def addusertoapporappusers(appowner, appname):
             doabort("BAD_REQ", "No User Specified")
         user=g.db.getUserForNick(g.currentuser, nick)
         g.db.addUserToApp(g.currentuser, fqan, user, None)
-        return jsonify({'status':'OK'})
+        return jsonify({'status':'OK', 'info': {'user':nick, 'app':fqan}})
     else:
         users=g.db.usersInApp(g.currentuser,fqan)
         return jsonify({'users':users}) 
@@ -304,8 +304,8 @@ def addgrouptoapporappgroups(appowner, appname):
         if not fqgn:
             doabort("BAD_REQ", "No Group Specified")
         user=g.db.getUserForNick(g.currentuser, nick)
-        g.db.addGroupToApp(g.currentuser, fqan, fqgn, None)
-        return jsonify({'status':'OK'})
+        grpadded=g.db.addGroupToApp(g.currentuser, fqan, fqgn, None)
+        return jsonify({'status':'OK', 'info':{'group':fqgn, 'app': fqan}})
     else:
         groups=g.db.groupsInApp(g.currentuser,fqan)
         return jsonify({'groups':groups})  
@@ -399,9 +399,9 @@ def useritempost(nick):
         itspec['description']=request.form.get('description', '')
         #itspec['uri']=request.form.get('uri', ''
         #print "aaa", itspec
-        g.dbp.saveItem(g.currentuser, user, itspec)
+        newitem=g.dbp.saveItem(g.currentuser, user, itspec)
         #print "kkk"
-        return jsonify({'status':'OK'})
+        return jsonify({'status':'OK', 'info':newitem.info()})
     else:
         doabort("BAD_REQ", "GET not supported")
 
@@ -429,9 +429,9 @@ def usertagpost(nick, itemname):
             tagspec['description']=request.form['description']
         #print "aaa", itspec
         iteminfo=g.dbp.getItemByFqin(g.currentuser, nsuser+"/"+itemname)
-        g.dbp.tagItem(g.currentuser, user, iteminfo['fqin'], tagspec)
+        newtag, newtagging=g.dbp.tagItem(g.currentuser, user, iteminfo['fqin'], tagspec)
         #print "kkk"
-        return jsonify({'status':'OK'})
+        return jsonify({'status':'OK', 'info':{'item': iteminfo['fqin'], 'tagging':newtagging.info()}})
     else:
         criteria=_getTagQuery(request.args)
         context=criteria.pop('context')
@@ -463,8 +463,8 @@ def useritemgrouppost(groupowner, groupname):
             doabort("BAD_REQ", "User doing posting not specified")
         user=g.db.getUserForNick(g.currentuser, nick)
         fqgn=groupowner+"/group:"+groupname
-        g.dbp.postItemToGroup(g.currentuser, user, fqgn, fqin)
-        return jsonify({'status':'OK'})
+        item=g.dbp.postItemIntoGroup(g.currentuser, user, fqgn, fqin)
+        return jsonify({'status':'OK', 'info':{'item':item.info(), 'group':fqgn}})
     else:
         #later support via GET all items in group, perhaps based on spec
         doabort("BAD_REQ", "GET not supported")
@@ -484,8 +484,8 @@ def useritemapppost(ns, itemname):
             doabort("BAD_REQ", "User doing posting not specified")
         user=g.db.getUserForNick(g.currentuser, nick)
         fqan=appowner+"/app:"+appname
-        g.dbp.postItemToGroup(g.currentuser, user, fqan, fqin)
-        return jsonify({'status':'OK'})
+        item=g.dbp.postItemToGroup(g.currentuser, user, fqan, fqin)
+        return jsonify({'status':'OK', 'info':{'item':item.info(), 'app':fqan}})
     else:
         #later support via GET all items in app, perhaps based on spec
         doabort("BAD_REQ", "GET not supported")
@@ -508,8 +508,8 @@ def usertaggrouppost(groupowner, groupname):
         if not nick:
             doabort("BAD_REQ", "User doing posting not specified")
         user=g.db.getUserForNick(g.currentuser, nick)
-        g.dbp.postTaggingIntoGroup(g.currentuser, user, fqgn, fqin, fqtn)
-        return jsonify({'status':'OK'})
+        it, itg=g.dbp.postTaggingIntoGroup(g.currentuser, user, fqgn, fqin, fqtn)
+        return jsonify({'status':'OK', 'info': itg.info()})
     else:
         doabort("BAD_REQ", "GET not supported")
 
@@ -549,8 +549,9 @@ def useritemtaggrouppost(groupowner, groupname):
             tagspec['tagtype'] = tagtype
             tagspec['description']=description
             tag, tagging=g.dbp.tagItem(g.currentuser, user, item.fqin, tagspec)
-            g.dbp.postTaggingIntoGroup(g.currentuser, user, grp, item, tag)
-        return jsonify({'status':'OK'})
+            it, itg=g.dbp.postTaggingIntoGroup(g.currentuser, user, grp, item, tag)
+            tagobjects.append(itg.info())
+        return jsonify({'status':'OK', 'info':{'item':item.info(), 'grouptaggings':tagobjects}})
     else:
         doabort("BAD_REQ", "GET not supported")
 
@@ -571,8 +572,8 @@ def usertagapppost(appowner, appname):
         if not nick:
             doabort("BAD_REQ", "User doing posting not specified")
         user=g.db.getUserForNick(g.currentuser, nick)
-        g.dbp.postTaggingIntoApp(g.currentuser, user, fqan, fqin, fqtn)
-        return jsonify({'status':'OK'})
+        it, ita = g.dbp.postTaggingIntoApp(g.currentuser, user, fqan, fqin, fqtn)
+        return jsonify({'status':'OK', 'info': ita.info()})
     else:
         doabort("BAD_REQ", "GET not supported")  
 
@@ -611,8 +612,9 @@ def useritemtaggrouppost(appowner, appname):
             tagspec['tagtype'] = tagtype
             tagspec['description']=description
             tag, tagging=g.dbp.tagItem(g.currentuser, user, item.fqin, tagspec)
-            g.dbp.postTaggingIntoApp(g.currentuser, user, app, item, tag)
-        return jsonify({'status':'OK'})
+            it, ita=g.dbp.postTaggingIntoApp(g.currentuser, user, app, item, tag)
+            tagobjects.append(ita.info())
+        return jsonify({'status':'OK', 'info':{'item':item.info(), 'apptaggings':tagobjects}})
     else:
         doabort("BAD_REQ", "GET not supported")
 #######################################################################################################################

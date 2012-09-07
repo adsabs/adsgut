@@ -226,7 +226,7 @@ class Whosdb(dbase.Database):
             usertobeadded.groupsin.append(grp)
         except:
             doabort('BAD_REQ', "Failed adding user %s to group %s" % (usertobeadded.nick, grp.fqin))
-        return OK
+        return usertobeadded
 
     def inviteUserToGroup(self, currentuser, fullyQualifiedGroupName, usertobeadded, authspec):
         grp=self.getGroup(currentuser, fullyQualifiedGroupName)
@@ -235,7 +235,7 @@ class Whosdb(dbase.Database):
             usertobeadded.groupsinvitedto.append(grp)
         except:
             doabort('BAD_REQ', "Failed inviting user %s to group %s" % (usertobeadded.nick, grp.fqin))
-        return OK
+        return usertobeadded
 
     def acceptInviteToGroup(self, currentuser, fullyQualifiedGroupName, me, authspec):
         grp=self.getGroup(currentuser, fullyQualifiedGroupName)
@@ -244,7 +244,7 @@ class Whosdb(dbase.Database):
             me.groupsin.append(grp)
         except:
             doabort('BAD_REQ', "Failed in user %s accepting invite to group %s" % (me.nick, grp.fqin))
-        return OK
+        return me
 
     def removeUserFromGroup(self, currentuser, fullyQualifiedGroupName, usertoberemoved):
         grp=self.getGroup(currentuser, fullyQualifiedGroupName)
@@ -265,7 +265,7 @@ class Whosdb(dbase.Database):
             grp.owner = usertobenewowner
         except:
             doabort('BAD_REQ', "Failed changing owner from %s to %s for group %s" % (oldownernick, usertobenewowner.nick, grp.fqin))    
-        return OK
+        return usertobenewowner
 
 
     #EVEN MORE DERIVED
@@ -281,7 +281,7 @@ class Whosdb(dbase.Database):
             usertobeadded.applicationsin.append(app)
         except:
             doabort('BAD_REQ', "Failed adding user %s to app %s" % (usertobeadded.nick, app.fqin))
-        return OK
+        return usertobeadded
 
     #and who runs this?
     def inviteUserToApp(self, currentuser, fullyQualifiedAppName, usertobeadded, authspec):
@@ -291,7 +291,7 @@ class Whosdb(dbase.Database):
             usertobeadded.applicationsinvitedto.append(app)
         except:
             doabort('BAD_REQ', "Failed inviting user %s to app %s" % (usertobeadded.nick, app.fqin))
-        return OK
+        return usertobeaded
 
     def acceptInviteToApp(self, currentuser, fullyQualifiedAppName, me, authspec):
         app=self.getApp(currentuser, fullyQualifiedAppName)
@@ -300,7 +300,7 @@ class Whosdb(dbase.Database):
             me.applicationsin.append(app)
         except:
             doabort('BAD_REQ', "Failed in user %s accepting invite to app %s" % (me.nick, app.fqin))
-        return OK
+        return me
 
     def removeUserFromApp(self, currentuser, fullyQualifiedAppName, usertoberemoved):
         app=self.getApp(currentuser, fullyQualifiedAppName)
@@ -323,7 +323,7 @@ class Whosdb(dbase.Database):
             #pubsub must add the individual users. BUG is that how we want to do it?
         except:
             doabort('BAD_REQ', "Failed adding group %s to app %s" % (grp.fqin, app.fqin))
-        return OK
+        return grp
 
     def removeGroupFromApp(self, currentuser, fullyQualifiedAppName, fullyQualifiedGroupName):
         app=self.getApp(currentuser, fullyQualifiedAppName)

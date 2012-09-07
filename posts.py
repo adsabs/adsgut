@@ -196,7 +196,7 @@ class Postdb(dbase.Database):
         except:
             doabort('BAD_REQ', "Failed adding itemtype %s" % typespec['fqin'])
         self.session.add(itemtype)
-        return OK
+        return itemtype
 
     def removeItemType(self, currentuser, fullyQualifiedItemType):
         itemtype=self.getItemType(currentuser, fullyQualifiedItemType)
@@ -211,7 +211,7 @@ class Postdb(dbase.Database):
         except:
             doabort('BAD_REQ', "Failed adding tagtype %s" % typespec['fqin'])
         self.session.add(tagtype)
-        return OK
+        return tagtype
 
     def removeTagType(self, currentuser, fullyQualifiedTagType):
         tagtype=self.getTagType(currentuser, fullyQualifiedTagType)
@@ -254,11 +254,12 @@ class Postdb(dbase.Database):
         #self.commit()
         #print newitem.groupsin, "WEE", grp.itemsposted, newposting.itemtype.name
         #grp.groupitems.append(newitem)
-        return OK
+        return item
 
     def postItemPublic(self, currentuser, useras, itemorfullyQualifiedItemName):
         grp=self.whosdb.getGroup(currentuser, 'adsgut/group:public')
-        self.postItemIntoGroup(currentuser, useras, grp, itemorfullyQualifiedItemName)
+        itm=self.postItemIntoGroup(currentuser, useras, grp, itemorfullyQualifiedItemName)
+        return itm
 
     def removeItemFromGroup(self, currentuser, useras, grouporfullyQualifiedGroupName, itemorfullyQualifiedItemName):
         if is_stringtype(itemorfullyQualifiedItemName):
@@ -305,7 +306,7 @@ class Postdb(dbase.Database):
         #self.commit()
         #print newitem.groupsin, "WEE", grp.itemsposted
         #grp.groupitems.append(newitem)
-        return OK
+        return item
 
     def removeItemFromApp(self, currentuser, useras, apporfullyQualifiedAppName, itemorfullyQualifiedItemName):
         if is_stringtype(itemorfullyQualifiedItemName):
@@ -363,7 +364,7 @@ class Postdb(dbase.Database):
         #protecting the masquerade needs to be done in web service
         permit(useras==itemtoremove.user, "Only user who saved this item can remove it")
         self.removeItemFromGroup(currentuser, useras, personalgrp, itemtoremove)
-
+        return OK
         #NEW: We did not nececerraily create this, so we cant remove!!! Even so implemen ref count as we can then do popularity
         #self.session.remove(itemtoremove)
 
@@ -479,11 +480,11 @@ class Postdb(dbase.Database):
         # print itemtag.groupsin, 'jee', grp.itemtags
         # itgto=self.session.query(TagitemGroup).filter_by(itemtag=itemtag, group=grp).one()
         # print itgto
-        return OK
+        return itemtag, newitg
 
     def postTaggingPublic(self, currentuser, useras, itemorfullyQualifiedItemName, tagorfullyQualifiedTagName):
         grp=self.whosdb.getGroup(currentuser, 'adsgut/group:public')
-        self.postTaggingIntoGroup(currentuser, useras, grp, itemorfullyQualifiedItemName, tagorfullyQualifiedTagName)
+        return self.postTaggingIntoGroup(currentuser, useras, grp, itemorfullyQualifiedItemName, tagorfullyQualifiedTagName)
 
     def postTaggingIntoGroupFromItemtag(self, currentuser, useras, grouporfullyQualifiedGroupName, itemtag):
         ##Only for now as we wont allow third parties to save BUG
@@ -511,7 +512,7 @@ class Postdb(dbase.Database):
         # print itemtag.groupsin, 'jee', grp.itemtags
         # itgto=self.session.query(TagitemGroup).filter_by(itemtag=itemtag, group=grp).one()
         # print itgto
-        return OK
+        return newitg
 
     #BUG: currently not sure what the logic for everyone should be on this, or if it should even be supported
     #as other users have now seen stuff in the group. What happens to tagging. Leave alone for now.
@@ -548,12 +549,13 @@ class Postdb(dbase.Database):
             tag=self.getTag(currentuser, tagorfullyQualifiedTagName)
         else:
             tag=tagorfullyQualifiedTagName
-        self.postItemIntoGroup(currentuser, useras, grp, itm)
-        self.postTaggingIntoGroup(currentuser, useras, grp, itm, tag)
+        item=self.postItemIntoGroup(currentuser, useras, grp, itm)
+        itemtag, itg = self.postTaggingIntoGroup(currentuser, useras, grp, itm, tag)
+        return itemtag, itg
 
     def postItemAndTaggingPublic(self, currentuser, useras, itemorfullyQualifiedItemName, tagorfullyQualifiedTagName):
         grp=self.whosdb.getGroup(currentuser, 'adsgut/group:public')
-        self.postItemAndTaggingIntoGroup(currentuser, useras, grp, itemorfullyQualifiedItemName, tagorfullyQualifiedTagName)
+        return self.postItemAndTaggingIntoGroup(currentuser, useras, grp, itemorfullyQualifiedItemName, tagorfullyQualifiedTagName)
 
 
     #BUG: we are not requiring that item be posted into group or that tagging autopost it. FIXME
@@ -585,7 +587,7 @@ class Postdb(dbase.Database):
         # print itemtag.groupsin, 'jee', grp.itemtags
         # itgto=self.session.query(TagitemGroup).filter_by(itemtag=itemtag, group=grp).one()
         # print itgto
-        return OK
+        return newita
 
     def postTaggingIntoApp(self, currentuser, useras, apporfullyQualifiedAppName, itemorfullyQualifiedItemName, tagorfullyQualifiedTagName):
         ##Only for now as we wont allow third parties to save BUG
@@ -624,7 +626,7 @@ class Postdb(dbase.Database):
         # print itemtag.groupsin, 'jee', grp.itemtags
         # itgto=self.session.query(TagitemGroup).filter_by(itemtag=itemtag, group=grp).one()
         # print itgto
-        return OK
+        return itemtag, newita
 
     #BUG: currently not sure what the logic for everyone should be on this, or if it should even be supported
     #as other users have now seen stuff in the group. What happens to tagging. Leave alone for now.
@@ -661,8 +663,9 @@ class Postdb(dbase.Database):
             tag=self.getTag(currentuser, tagorfullyQualifiedTagName)
         else:
             tag=tagorfullyQualifiedTagName
-        self.postItemIntoApp(currentuser, useras, app, itm)
-        self.postTaggingIntoApp(currentuser, useras, app, itm, tag)
+        item=self.postItemIntoApp(currentuser, useras, app, itm)
+        itemtag, ita=self.postTaggingIntoApp(currentuser, useras, app, itm, tag)
+        return itemtag, ita
     #######################################################################################################################
     #BUG: currently not allowing tags to be removed due to cascading tagging removal issue thinking
     #eventually remove only that tagginh from all of an items tags
