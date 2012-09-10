@@ -976,6 +976,7 @@ class Postdb(dbase.Database):
         userthere=False       
         itemselections={'itemname':'name', 'itemuri': 'uri', 'itemtype': 'itemtype'}
         tagselections={'tagname':'tagname', 'tagtype': 'tagtype'}
+        print "CRIT", criteria
         if criteria.has_key('tagtype'):
             criteria['tagtype']=self.getTagType(currentuser, criteria['tagtype'])
         if criteria.has_key('itemtype'):
@@ -983,7 +984,7 @@ class Postdb(dbase.Database):
             itemtype=criteria.pop('itemtype')
         if criteria.has_key('userthere'):
             userthere=criteria.pop('userthere')
-
+        print "CRITERIA", criteria, userthere
         itemcriteria={}
         tagcriteria={}
         for key in criteria.keys():

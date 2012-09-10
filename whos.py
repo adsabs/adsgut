@@ -370,8 +370,9 @@ class Whosdb(dbase.Database):
 
     def usersInGroup(self, currentuser, fullyQualifiedGroupName):
         grp=self.getGroup(currentuser, fullyQualifiedGroupName)
+        print currentuser, grp, 'KKKKKK'
         permit(self.isMemberOfGroup(currentuser, grp) or self.isSystemUser(currentuser), 
-            "Only member of group %s or systemuser can get users" % (currentuser.nick, grp.fqin))
+            "Only member of group %s or systemuser can get users" % grp.fqin)
         users=grp.groupusers
         return [e.info() for e in users]
 
@@ -388,14 +389,14 @@ class Whosdb(dbase.Database):
     def usersInApp(self, currentuser, fullyQualifiedAppName):
         app=self.getApp(currentuser, fullyQualifiedAppName)
         permit(self.isMemberOfApp(currentuser, app) or self.isSystemUser(currentuser),
-                "Only member of app %s or systemuser can get users" % remapp.fqin)
+                "Only member of app %s or systemuser can get users" % app.fqin)
         users=app.applicationusers
         return [e.info() for e in users]
 
     def groupsInApp(self, currentuser, fullyQualifiedAppName):
         app=self.getApp(currentuser, fullyQualifiedAppName)
         permit(self.isOwnerOfApp(currentuser, app) or self.isSystemUser(currentuser),
-                "Only owner of app %s or systemuser can get groups" % remapp.fqin)
+                "Only owner of app %s or systemuser can get groups" % app.fqin)
         groups=app.applicationgroups
         return [e.info() for e in groups]
 

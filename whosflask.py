@@ -32,6 +32,7 @@ def formwithdefaults(specdict, spec, request):
 
 @adsgut.before_request
 def before_request():
+        print "BEFORE REQUEST"
         #g.db=whos.Whosdb(db_session)
         g.dbp=posts.Postdb(db_session)
         g.db=g.dbp.whosdb
@@ -667,8 +668,9 @@ def _getTagsForItemQuery(querydict):
 @adsgut.route('/items')#q=fieldlist=[('uri',''), ('name',''), ('itemtype',''), ('context', None), ('fqin', None)]
 def itemsbyany():
     #permit(g.currentuser!=None and g.currentuser.nick=='rahuldave', "wrong user")
-    useras=g.currentuser
+    useras=g.currentuser#BUG: always support this?
     criteria=_getItemQuery(request.args)
+    criteria['userthere']=True
     context=criteria.pop('context')
     fqin=criteria.pop('fqin')
     #This should be cleaned for values. BUG nor done yet.   
@@ -678,11 +680,13 @@ def itemsbyany():
 #add tagtype/tagname to query. Must this also be querying item attributes?
 @adsgut.route('/tags')#q=fieldlist=[('tagname',''), ('tagtype',''), ('context', None), ('fqin', None)]
 def tagsbyany():
-    useras=g.currentuser
+    useras=g.currentuser#BUG: always support this?
     criteria=_getTagQuery(request.args)
+    criteria['userthere']=True
     context=criteria.pop('context')
     fqin=criteria.pop('fqin')
-    #This should be cleaned for values. BUG nor done yet.   
+    #This should be cleaned for values. BUG nor done yet. 
+    print 'CRITTER', criteria  
     taggings=g.dbp.getTaggingForItemspec(g.currentuser, useras, context, fqin, criteria)
     return jsonify(taggings)
 #######################################################################################################################
@@ -749,6 +753,8 @@ def usersitems(nick):
     context=criteria.pop('context')
     fqin=criteria.pop('fqin')
     user=g.db.getUserForNick(g.currentuser, nick)
+    # if user==g.currentuser: This throws a bug. remove BUG
+    #     criteria['userthere']=True
     items=g.dbp.getItemsForUser(g.currentuser, user, context, fqin, criteria)
     return jsonify({'items':items})
 
@@ -759,6 +765,8 @@ def userstags(nick):
     context=criteria.pop('context')
     fqin=criteria.pop('fqin')
     user=g.db.getUserForNick(g.currentuser, nick)
+    if user==g.currentuser:
+        criteria['userthere']=True
     taggings=g.dbp.getTaggingForItemspec(g.currentuser, user, context, fqin, criteria)
     return jsonify(taggings)
 
