@@ -75,7 +75,7 @@
         'name': $(this).attr('name')
       };
       console.log(dauser, bdict);
-      $.post("/item/" + dauser, bdict, function(data) {
+      $.post("/items/" + dauser, bdict, function(data) {
         console.log('data is', data);
         if (data['status'] === 'OK') {
           return $(_this).hide();

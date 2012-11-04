@@ -42,7 +42,7 @@ def abort(status_code, body=None, headers={}):
     class_name = error_cls.__name__
     bases = [error_cls]
     attributes = {'code': status_code}
-    print default_exceptions
+    #print default_exceptions
     if status_code in default_exceptions:
         # Mixin the Werkzeug exception
         bases.insert(0, default_exceptions[status_code])

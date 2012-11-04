@@ -6,7 +6,7 @@ import sys, os
 import hashlib
 from permissions import permit
 from errors import abort
-engine, db_session=setup_db("./adsgut.db")
+engine, db_session=setup_db("/tmp/adsgut.db")
 
 
 
@@ -48,7 +48,10 @@ def before_request():
 @adsgut.teardown_request
 def shutdown_session(exception=None):
     g.db.commit()
+    g.dbp.commit()
+    print "COMMITTED====="
     g.db.remove()
+    g.dbp.remove()
 
 #EXPLICITLY COMMIT ON POSTS. THOUGH TO DO MULTIPLE THINGS, WE MAY WANT TO 
 #SCHEDULE COMMITS SEPARATELY..really commits not a property of whosdb
@@ -167,6 +170,7 @@ def creategroup():
         groupspec['name']=groupname
         groupspec['description']=description
         newgroup=g.db.addGroup(g.currentuser, user, groupspec)
+        g.db.commit()
         return jsonify({'status':'OK', 'info': newgroup.info()})
     else:
         doabort("BAD_REQ", "GET not supported")
@@ -182,6 +186,7 @@ def makeinvitetogroup(groupowner, groupname):
             doabort("BAD_REQ", "No User Specified")
         user=g.db.getUserForNick(g.currentuser, nick)
         g.db.inviteUserToGroup(g.currentuser, fqgn, user, None)
+        g.db.commit()
         return jsonify({'status':'OK', 'info': {'invited':nick, 'to':fqgn}})
     else:
         doabort("BAD_REQ", "GET not supported")
@@ -194,6 +199,7 @@ def acceptinvitetogroup(nick, groupowner, groupname):
         accept=request.form.get('accept', 'NA')
         if accept==True:
             g.db.acceptInviteToGroup(g.currentuser, fqgn, user, None)
+            g.db.commit()
             return jsonify({'status':'OK', 'info': {'invited':nick, 'to': fqgn, 'accepted':True}})
         elif accept==False:
             return jsonify({'status': 'OK', 'info': {'invited':nick, 'to': fqgn, 'accepted':False}})
@@ -216,6 +222,7 @@ def addusertogrouporgroupusers(groupowner, groupname):
             doabort("BAD_REQ", "No User Specified")
         user=g.db.getUserForNick(g.currentuser, nick)
         g.db.addUserToGroup(g.currentuser, fqgn, user, None)
+        g.db.commit()
         return jsonify({'status':'OK', 'info': {'user':nick, 'group':fqgn}})
     else:
         users=g.db.usersInGroup(g.currentuser,fqgn)
@@ -240,6 +247,7 @@ def createapp():
         appspec['name']=appname
         appspec['description']=description
         newapp=g.db.addApplication(g.currentuser, user, appspec)
+        g.db.commit()
         return jsonify({'status':'OK', 'info':newapp.info()})
     else:
         doabort("BAD_REQ", "GET not supported")
@@ -255,6 +263,7 @@ def makeinvitetoapp(appowner, appname):
             doabort("BAD_REQ", "No User Specified")
         user=g.db.getUserForNick(g.currentuser, nick)
         g.db.inviteUserToApp(g.currentuser, fqan, user, None)
+        g.db.commit()
         return jsonify({'status':'OK',  'info': {'invited':nick, 'to': fqan}})
     else:
         doabort("BAD_REQ", "GET not supported")
@@ -267,6 +276,7 @@ def acceptinvitetoapp(nick, appowner, appname):
         accept=request.form.get('accept', 'NA')
         if accept==True:
             g.db.acceptInviteToApp(g.currentuser, fqan, user, None)
+            g.db.commit()
             return jsonify({'status':'OK','info': {'invited':nick, 'to': fqan, 'accepted':True}})
         elif accept==False:
             return jsonify({'status': 'OK', 'info': {'invited':nick, 'to': fqan, 'accepted':False}})
@@ -288,6 +298,7 @@ def addusertoapporappusers(appowner, appname):
             doabort("BAD_REQ", "No User Specified")
         user=g.db.getUserForNick(g.currentuser, nick)
         g.db.addUserToApp(g.currentuser, fqan, user, None)
+        g.db.commit()
         return jsonify({'status':'OK', 'info': {'user':nick, 'app':fqan}})
     else:
         users=g.db.usersInApp(g.currentuser,fqan)
@@ -306,6 +317,7 @@ def addgrouptoapporappgroups(appowner, appname):
             doabort("BAD_REQ", "No Group Specified")
         user=g.db.getUserForNick(g.currentuser, nick)
         grpadded=g.db.addGroupToApp(g.currentuser, fqan, fqgn, None)
+        g.db.commit()
         return jsonify({'status':'OK', 'info':{'group':fqgn, 'app': fqan}})
     else:
         groups=g.db.groupsInApp(g.currentuser,fqan)
@@ -379,7 +391,7 @@ def app_profile(username, appname):
 
 #POST item
 #masqueradable BUT WE DONT SUPPORT IT FOR NOW
-@adsgut.route('/items/<nick>', methods=['POST'])#name/itemtype/uri/description
+@adsgut.route('/items/<nick>', methods=['POST'])#name/itemtype/uri/
 def useritempost(nick):
     user=g.db.getUserForNick(g.currentuser, nick)
     #print "hello", user.nick
@@ -396,12 +408,13 @@ def useritempost(nick):
             doabort("BAD_REQ", "No itemtype specified for item")
         #print "world"
         md5u=hashlib.md5()
-        itspec['uri']=request.form.get('uri', md5u.update(creator.nick+"/"+name))
-        itspec['description']=request.form.get('description', '')
+        itspec['uri']=request.form.get('uri', md5u.update(user.nick+"/"+itspec['name']))
+        #itspec['description']=request.form.get('description', '')
         #itspec['uri']=request.form.get('uri', ''
         #print "aaa", itspec
         newitem=g.dbp.saveItem(g.currentuser, user, itspec)
-        #print "kkk"
+        print "kkk", newitem
+        g.dbp.commit()#needed to get isoformats? YES
         return jsonify({'status':'OK', 'info':newitem.info()})
     else:
         doabort("BAD_REQ", "GET not supported")
@@ -432,6 +445,7 @@ def usertagpost(nick, itemname):
         iteminfo=g.dbp.getItemByFqin(g.currentuser, nsuser+"/"+itemname)
         newtag, newtagging=g.dbp.tagItem(g.currentuser, user, iteminfo['fqin'], tagspec)
         #print "kkk"
+        g.dbp.commit()
         return jsonify({'status':'OK', 'info':{'item': iteminfo['fqin'], 'tagging':newtagging.info()}})
     else:
         criteria=_getTagQuery(request.args)
@@ -465,6 +479,7 @@ def useritemgrouppost(groupowner, groupname):
         user=g.db.getUserForNick(g.currentuser, nick)
         fqgn=groupowner+"/group:"+groupname
         item=g.dbp.postItemIntoGroup(g.currentuser, user, fqgn, fqin)
+        g.dbp.commit()
         return jsonify({'status':'OK', 'info':{'item':item.info(), 'group':fqgn}})
     else:
         #later support via GET all items in group, perhaps based on spec
@@ -486,6 +501,7 @@ def useritemapppost(ns, itemname):
         user=g.db.getUserForNick(g.currentuser, nick)
         fqan=appowner+"/app:"+appname
         item=g.dbp.postItemToGroup(g.currentuser, user, fqan, fqin)
+        g.dbp.commit()
         return jsonify({'status':'OK', 'info':{'item':item.info(), 'app':fqan}})
     else:
         #later support via GET all items in app, perhaps based on spec
@@ -510,12 +526,14 @@ def usertaggrouppost(groupowner, groupname):
             doabort("BAD_REQ", "User doing posting not specified")
         user=g.db.getUserForNick(g.currentuser, nick)
         it, itg=g.dbp.postTaggingIntoGroup(g.currentuser, user, fqgn, fqin, fqtn)
+        g.dbp.commit()
         return jsonify({'status':'OK', 'info': itg.info()})
     else:
         doabort("BAD_REQ", "GET not supported")
 
 #This posts an item, its tags, and all that to a single group
-@adsgut.route('/group/<groupowner>/group:<groupname>/itemsandtags', methods=['POST'])#user/name/itemtype/description/uri/tags=[[name, tagtype, description]...]
+
+@adsgut.route('/group/<groupowner>/group:<groupname>/itemsandtags', methods=['POST'])#user/name/itemtype/uri/tags=[[name, tagtype, description]...]
 def useritemtaggrouppost(groupowner, groupname):
     #user=g.currentuser#The current user is doing the posting
     #print "hello", user.nick
@@ -536,11 +554,13 @@ def useritemtaggrouppost(groupowner, groupname):
             doabort("BAD_REQ", "No itemtype specified for item")
         #print "world"
         md5u=hashlib.md5()
-        itspec['uri']=request.form.get('uri', md5u.update(creator.nick+"/"+name))
-        itspec['description']=request.form.get('description', '')
+        itspec['uri']=request.form.get('uri', md5u.update(user.nick+"/"+itspec['name']))
+        #itspec['description']=request.form.get('description', '')
         #itspec['uri']=request.form.get('uri', ''
         #print "aaa", itspec
         item=g.dbp.saveItem(g.currentuser, user, itspec)
+        item=g.dbp.postItemIntoGroup(g.currentuser, user, grp, item)
+        g.dbp.commit()
         tags=request.form.get('tags', [])#Empty array if no tags
         tagobjects=[]
         for tagname, tagtype, description in tags:
@@ -551,6 +571,7 @@ def useritemtaggrouppost(groupowner, groupname):
             tagspec['description']=description
             tag, tagging=g.dbp.tagItem(g.currentuser, user, item.fqin, tagspec)
             it, itg=g.dbp.postTaggingIntoGroup(g.currentuser, user, grp, item, tag)
+            g.dbp.commit() # move outside to make faster
             tagobjects.append(itg.info())
         return jsonify({'status':'OK', 'info':{'item':item.info(), 'grouptaggings':tagobjects}})
     else:
@@ -565,7 +586,7 @@ def usertagapppost(appowner, appname):
     if request.method == 'POST':
         fqan = request.form.get('fqin', None)
         if not fqan:
-            doabort("BAD_REQ", "tem whos tags are to posted to app not specified")
+            doabort("BAD_REQ", "item whos tags are to posted to app not specified")
         fqtn = request.form.get('fqtn', None)
         if not fqtn:
             doabort("BAD_REQ", "Tag to post to app not specified")
@@ -574,12 +595,13 @@ def usertagapppost(appowner, appname):
             doabort("BAD_REQ", "User doing posting not specified")
         user=g.db.getUserForNick(g.currentuser, nick)
         it, ita = g.dbp.postTaggingIntoApp(g.currentuser, user, fqan, fqin, fqtn)
+        g.dbp.commit()
         return jsonify({'status':'OK', 'info': ita.info()})
     else:
         doabort("BAD_REQ", "GET not supported")  
 
-@adsgut.route('/app/<appowner>/app:<appname>/itemsandtags', methods=['POST'])#user/name/itemtype/description/uri/tags=[[name, tagtype, description]...]
-def useritemtaggrouppost(appowner, appname):
+@adsgut.route('/app/<appowner>/app:<appname>/itemsandtags', methods=['POST'])#user/name/itemtype/uri/tags=[[name, tagtype, description]...]
+def useritemtagapppost(appowner, appname):
     #user=g.currentuser#The current user is doing the posting
     #print "hello", user.nick
     fqan=appowner+"/app:"+appname
@@ -599,11 +621,14 @@ def useritemtaggrouppost(appowner, appname):
             doabort("BAD_REQ", "No itemtype specified for item")
         #print "world"
         md5u=hashlib.md5()
-        itspec['uri']=request.form.get('uri', md5u.update(creator.nick+"/"+name))
-        itspec['description']=request.form.get('description', '')
+        itspec['uri']=request.form.get('uri', md5u.update(user.nick+"/"+itspec['name']))
+        #itspec['description']=request.form.get('description', '')
         #itspec['uri']=request.form.get('uri', ''
         #print "aaa", itspec
         item=g.dbp.saveItem(g.currentuser, user, itspec)
+        item=g.dbp.postItemIntoApp(g.currentuser, user, app, item)
+        g.dbp.commit()
+        g.dbp.commit()
         tags=request.form.get('tags', [])#Empty array if no tags
         tagobjects=[]
         for tagname, tagtype, description in tags:
@@ -614,6 +639,7 @@ def useritemtaggrouppost(appowner, appname):
             tagspec['description']=description
             tag, tagging=g.dbp.tagItem(g.currentuser, user, item.fqin, tagspec)
             it, ita=g.dbp.postTaggingIntoApp(g.currentuser, user, app, item, tag)
+            g.dbp.commit()#move outside for speed when possible
             tagobjects.append(ita.info())
         return jsonify({'status':'OK', 'info':{'item':item.info(), 'apptaggings':tagobjects}})
     else:
@@ -670,7 +696,7 @@ def itemsbyany():
     #permit(g.currentuser!=None and g.currentuser.nick=='rahuldave', "wrong user")
     useras=g.currentuser#BUG: always support this?
     criteria=_getItemQuery(request.args)
-    criteria['userthere']=True
+    #criteria['userthere']=True
     context=criteria.pop('context')
     fqin=criteria.pop('fqin')
     #This should be cleaned for values. BUG nor done yet.   
@@ -682,7 +708,7 @@ def itemsbyany():
 def tagsbyany():
     useras=g.currentuser#BUG: always support this?
     criteria=_getTagQuery(request.args)
-    criteria['userthere']=True
+    #criteria['userthere']=True
     context=criteria.pop('context')
     fqin=criteria.pop('fqin')
     #This should be cleaned for values. BUG nor done yet. 

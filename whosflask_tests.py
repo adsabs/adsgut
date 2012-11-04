@@ -26,9 +26,15 @@ class FlaskrTestCase(unittest.TestCase):
 
 	def getHelper(self, prefix, url, assertion=None):
 		print '----------------------------------------'
-		print 'TEST:', prefix+url
+		print 'GET/TEST:', prefix+url
 		print '----------------------------------------'
 		return self.app.get(prefix+url).data
+
+	def postHelper(self, prefix, url, data, assertion=None):
+		print '----------------------------------------'
+		print 'POST/TEST:', prefix+url
+		print '----------------------------------------'
+		return self.app.post(prefix+url, data=data)
 
 	def test_user_endpoints(self):
 		nick='rahuldave'
@@ -128,7 +134,14 @@ class FlaskrTestCase(unittest.TestCase):
 
 	def test_items_endpoint(self):
 		# @adsgut.route'/items/<nick>', methods=['POST']  |   name/itemtype/uri/description
-		pass
+		nick='rahuldave'
+		prefix="/items/%s" % nick
+		self.login(nick)
+		datadict={'itemtype': 'ads/pub', 
+				'uri': u'1884AnHar..14....1.', 
+				'name': u'Description of photometer.'}
+		print "WALLA"
+		self.postHelper(prefix, '', datadict)
 
 	def test_tags_endpoint(self):
 		pass

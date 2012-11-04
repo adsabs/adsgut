@@ -47,9 +47,33 @@ Web service support needed:
 (f) create a new group x make invite x
 (g) accept invitation to group x
 (h) given Giovanni's information create a user: func or API? In anycase need a is USer inDatabase func
-(i) TOTALLY FORGOT: add web services for POSTING items into groups and apps
+(i) TOTALLY FORGOT: add web services for POSTING items into groups and apps (we have this, dont we?)
 
 html pages desired
 (a) private libraries page
 (b) private librariy for a group page
 (c) profile page
+
+
+================================================================
+Stuff to be done now (not next year, ie no app pages etc)
+[not clear whether one should expose anything about app to users]
+(a) ordering of item results, asc and desc by time. counts.
+(b) html pages: private library, personal profile (for grps invitations, etc), group priv library
+(c) API:deletion web services(simple) for item/tag in group, item/tag in app, item/tag for user (user priv grp)
+(d) API: is an item saved publically (we could parse from groups saved in)
+(e) convert giovanni user to rahul user. And work it in giovanni mode.
+(f) rationalize currentuser vas user being masqueraded as
+(g) complex permits and any routing? (none now)
+(h) textual bootstrap rather than setup python files. --X[use initialize vs testing for now]
+(i) shifting stuff from old pub libs in here. Ask alberto for dump. (see email)
+write script to bring that stuff in)
+(j) ads libs: see requiremenys from ads libraries.
+(h) error handling set of errors: perhaps not needed now
+(i) sqlite AND MySQL support.
+(j) document document document (code + api)
+(k) item tags philosophy document. How notes are set up. 
+(l) how tags are published: web service for omnibus publishing vs  group posting prefernce.
+(m) clean up additional unused fields in tables
+(n) a general item.groupsin is a leak: you ought to only show groups you are a member of
+(o) all POSTS will fail to return appropriate info about the object unless you commit the object into the dbase as part of post in test --X

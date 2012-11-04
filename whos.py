@@ -425,6 +425,11 @@ def initialize_application(db_session):
     adspubsapp=whosdb.addApp(currentuser, dict(name='publications', description="ADS's flagship publication app", creator=adsuser))
     whosdb.commit()
 
+    
+def initialize_testing(db_session):
+    whosdb=Whosdb(db_session)
+    currentuser=None
+    currentuser=whosdb.getUserForNick(currentuser, "adsgut")
     rahuldave=whosdb.addUser(currentuser, dict(nick='rahuldave', email="rahuldave@gmail.com"))
     whosdb.addUserToApp(currentuser, 'ads/app:publications', rahuldave, None)
     #rahuldave.applicationsin.append(adspubsapp)
@@ -442,8 +447,8 @@ def initialize_application(db_session):
     #public.applicationsin.append(adspubsapp)
     #rahuldavedefault.applicationsin.append(adspubsapp)
     whosdb.commit()
-    print "=====", mlg.appgroup, adspubsapp.appgroup
     print "ending init"
+
 
 class TestA(tbase.TBase):
 
@@ -509,3 +514,4 @@ if __name__=="__main__":
     engine, db_session = dbase.setup_db(config.DBASE_FILE)
     dbase.init_db(engine)
     initialize_application(db_session)
+    initialize_testing(db_session)

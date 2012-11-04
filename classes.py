@@ -82,12 +82,12 @@ GroupApplication = Table('group_application', DaBase.metadata,
 #     Column('tagname', String, ForeignKey('items.name'))
 # )
 
-TagApplication = Table('tag_application', DaBase.metadata,
-    Column('tag_id', Integer, ForeignKey('tags.tag_id')),
-    Column('application_id', Integer, ForeignKey('applications.application_id')),
-    Column('user_id', Integer, ForeignKey('users.id')),
-    Column('tagname', String, ForeignKey('items.name'))
-)
+# TagApplication = Table('tag_application', DaBase.metadata,
+#     Column('tag_id', Integer, ForeignKey('tags.tag_id')),
+#     Column('application_id', Integer, ForeignKey('applications.application_id')),
+#     Column('user_id', Integer, ForeignKey('users.id')),
+#     Column('tagname', String, ForeignKey('items.name'))
+# )
 
 #  the group below is for groups, and apps. Posting too anything posts to users private group.
 # so any in not starting with users private group lands up with a posting to users private group.
@@ -185,7 +185,9 @@ class Item(DaBase):
 
     def info(self):
         #print "SELF", self
-        return {'fqin':self.fqin, 'uri':self.uri, 'creator': self.creator.nick, 'name': self.name, 
+        #BUG: groupsin here is a leak. Not everyone should no about others groups this is posted in
+        #plus it would make things very slow.
+        return {'fqin':self.fqin, 'uri':self.uri, 'creator': self.creator.nick, 'name': self.name, 'whencreated': self.whencreated.isoformat(),
             'itemtype':self.itemtype.fqin, 'metajson':self.metajson,
             'groupsin':[ele.fqin for ele in self.groupsin], 'applicationsin':[ele.fqin for ele in self.applicationsin]}
 
@@ -214,7 +216,7 @@ class Tag(Item):
 
     def info(self):
         #print "SELFTAG", self
-        return {'fqtn':self.fqin, 'creator': self.creator.nick, 'name': self.name, 
+        return {'fqtn':self.fqin, 'creator': self.creator.nick, 'name': self.name, 'whencreated': self.whencreated.isoformat(),
             'tagtype':self.tagtype.fqin, 'description':self.description}
 
 
@@ -258,8 +260,8 @@ class Group(Tag):
     def info(self):
         #should return fully qualified name instead
         return {'name': self.name, 'description': self.description, 'owner': self.owner.nick, 
-            'fqgn': self.fqin, 'creator': self.creator.nick, 
-            'whencreated': self.whencreated.strftime("%Y-%m-%d %H:%M:%S"),
+            'fqgn': self.fqin, 'creator': self.creator.nick, 'whencreated': self.whencreated,
+            'whencreated': self.whencreated.isoformat(),
             'groupusers': [ele.nick for ele in self.groupusers],
             'groupsinvitedusers': [ele.nick for ele in self.groupsinvitedusers]}
 
@@ -279,8 +281,8 @@ class Application(Group):
 
     def info(self):
         return {'name': self.name, 'description': self.description, 'owner': self.owner.nick, 
-            'fqan': self.fqin, 'creator': self.creator.nick, 
-            'whencreated': self.whencreated.strftime("%Y-%m-%d %H:%M:%S"),
+            'fqan': self.fqin, 'creator': self.creator.nick, 'whencreated': self.whencreated,
+            'whencreated': self.whencreated.isoformat(),
             'applicationusers': [ele.nick for ele in self.applicationusers],
             'applicationsinvitedusers': [ele.nick for ele in self.applicationsinvitedusers]}
 
@@ -298,6 +300,7 @@ class ItemGroup(DaBase):
     group_id=Column(Integer, ForeignKey('groups.group_id'), primary_key=True)
     user_id=Column(Integer, ForeignKey('users.id'))
     itemtype_id=Column(Integer, ForeignKey('itemtypes.id'))
+    whenposted = Column(DateTime, server_default=text(THENOW))
     itemuri=Column(String)
     user=relationship('User')
     itemtype=relationship('ItemType')
@@ -323,6 +326,7 @@ class ItemApplication(DaBase):
     application_id=Column(Integer, ForeignKey('applications.application_id'), primary_key=True)
     user_id=Column('user_id', Integer, ForeignKey('users.id'))
     itemtype_id=Column(Integer, ForeignKey('itemtypes.id'))
+    whenposted = Column(DateTime, server_default=text(THENOW))
     itemuri=Column(String)
     user=relationship('User')
     itemtype=relationship('ItemType')
@@ -351,6 +355,7 @@ class ItemTag(DaBase):
     user_id=Column(Integer, ForeignKey('users.id'))
     itemtype_id=Column(Integer, ForeignKey('itemtypes.id'))
     tagtype_id=Column(Integer, ForeignKey('tagtypes.tagtype_id'))
+    whentagged = Column(DateTime, server_default=text(THENOW))
     itemuri=Column(String)
     tagname=Column(String)
     user=relationship('User')
@@ -361,7 +366,7 @@ class ItemTag(DaBase):
 
     def info(self):
         return {'item':self.item.fqin, 'itemtype': self.itemtype.fqin, 'iteminfo': self.item.info(), 
-                    'tag':[self.tag.fqin, self.tag.description], 
+                    'tag':[self.tag.fqin, self.tag.description], 'whentagged': self.whentagged.isoformat(),
                     'tagtype':self.tag.tagtype.fqin, 'tagname': self.tagname, 'taginfo':self.tag.info()}
     def __repr__(self):
         return self.item.fqin+':::'+self.tag.fqin
@@ -382,6 +387,7 @@ class TagitemGroup(DaBase):
     user_id=Column('user_id', Integer, ForeignKey('users.id'))
     tagtype_id=Column(Integer, ForeignKey('tagtypes.tagtype_id'))
     tagname=Column(String)
+    whentagposted = Column(DateTime, server_default=text(THENOW))
     user=relationship('User')
     
     def __init__(self, **indict):
@@ -399,7 +405,7 @@ class TagitemGroup(DaBase):
         item=itemtag.item
         tag=itemtag.tag
         return {'item':item.fqin, 'itemtype': item.itemtype.fqin, 'iteminfo': item.info(), 
-                    'tag':[tag.fqin, tag.description], 
+                    'tag':[tag.fqin, tag.description], 'whentagposted': self.whentagposted.isoformat(),
                     'tagtype':self.tagtype.fqin, 'tagname': self.tagname, 'taginfo':tag.info()}
 
     def __repr__(self):
@@ -431,6 +437,7 @@ class TagitemApplication(DaBase):
     user_id=Column('user_id', Integer, ForeignKey('users.id'))
     tagtype_id=Column(Integer, ForeignKey('tagtypes.tagtype_id'))
     tagname=Column(String)
+    whentagposted = Column(DateTime, server_default=text(THENOW))
     user=relationship('User')
     
     def __init__(self, **indict):
@@ -448,7 +455,7 @@ class TagitemApplication(DaBase):
         item=itemtag.item
         tag=itemtag.tag
         return {'item':item.fqin, 'itemtype': item.itemtype.fqin, 'iteminfo': item.info(), 
-                    'tag':[tag.fqin, tag.description], 
+                    'tag':[tag.fqin, tag.description], 'whentagposted': self.whentagposted.isoformat(),
                     'tagtype':self.tagtype.fqin, 'tagname': self.tagname, 'taginfo':tag.info()}
 
     def __repr__(self):

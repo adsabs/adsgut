@@ -334,23 +334,30 @@ class Postdb(dbase.Database):
     def saveItem(self, currentuser, useras, itemspec):
         ##Only for now as we wont allow third parties to save BUG
         #BUG2 now if another user has saed item we just get it! (like tag exists)
+        print "ghhh", itemspec
         permit(currentuser==useras or self.whosdb.isSystemUser(currentuser), "User %s not authorized or not systemuser" % currentuser.nick)
         fqgn=useras.nick+"/group:default"
         personalgrp=self.whosdb.getGroup(currentuser, fqgn)
         itemspec['itemtype']=self.getItemType(currentuser, itemspec['itemtype'])
         itemspec=validatespec(itemspec)
 
-        #print itemspec
+        print 'ggg', itemspec
         #Information about user useras goes as namespace into newitem, but should somehow also be in main lookup table
         try:
-            print "was the item found"
+            print "was the item found?"
             newitem=self.getItemByFqin(currentuser, itemspec['fqin'])
         except:
             #the item was not found. Create it
             try:
                 print "try creating item"
+                print "ITSPEC", itemspec
+                print '//////////////////////////'
                 newitem=Item(**itemspec)
+                print '?????//////////////////////////'
+                # print "Newitem is", newitem.info()
             except:
+                import sys
+                print sys.exc_info()
                 doabort('BAD_REQ', "Failed adding item %s" % itemspec['fqin'])
         self.session.add(newitem)
         self.postItemIntoGroup(currentuser, useras, personalgrp, newitem)
@@ -677,13 +684,14 @@ class Postdb(dbase.Database):
     #This gets the useras's stuff. Should there be permits instead. YES BUG! But we'll leave it for now
     #NEW: just gets item not saving of item in user's personal groups. This now means nick should no longer be used to get a users items.
     #BUG: this now seems similar to the get right at top of document. Perhaps this one should be the API facing one: protected.
+    #NOTE: dosent matter what the currentuser is in this case
     def getItemByFqin(self, currentuser, fullyQualifiedItemName):
         #fullyQualifiedItemName=nsuser.nick+"/"+itemname
         #permit(currentuser==useras or self.whosdb.isSystemUser(currentuser), "User %s not authorized or not systemuser" % currentuser.nick)
         try:
             itm=self.session.query(Item).filter_by(fqin=fullyQualifiedItemName).one()
         except:
-            doabort('NOT_FND', "Item with name %s not saved by %s." % (fullyQualifiedItemName, useras.nick))
+            doabort('NOT_FND', "Item with name %s not found." % fullyQualifiedItemName)
         return itm.info()
 
     #the uri can be saved my multiple users, which would give multiple results here. which user to use
@@ -1115,9 +1123,22 @@ def initialize_application(sess):
     postdb.addItemType(currentuser, dict(name="pub2", creator=adsuser))
     postdb.addTagType(currentuser, dict(name="tag", creator=adsuser))
     postdb.addTagType(currentuser, dict(name="tag2", creator=adsuser))
+    postdb.addTagType(currentuser, dict(name="note", creator=adsuser))
+    postdb.commit()
+
+
+def initialize_testing(db_session):
+    whosdb=Whosdb(db_session)
+    postdb=Postdb(db_session)
+
+    currentuser=None
+    adsuser=whosdb.getUserForNick(currentuser, "ads")
+    currentuser=adsuser
+
     rahuldave=whosdb.getUserForNick(currentuser, "rahuldave")
     postdb.commit()
     currentuser=rahuldave
+    #run this as rahuldave? Whats he point of useras then?
     postdb.saveItem(currentuser, rahuldave, dict(name="hello kitty", 
             uri='xxxlm', itemtype="ads/pub", creator=rahuldave))
     postdb.saveItem(currentuser, rahuldave, dict(name="hello doggy", 
@@ -1127,8 +1148,14 @@ def initialize_application(sess):
     postdb.tagItem(currentuser, rahuldave, "ads/hello kitty", dict(tagtype="ads/tag", creator=rahuldave, name="stupid"))
     print "W++++++++++++++++++"
     postdb.tagItem(currentuser, rahuldave, "ads/hello kitty", dict(tagtype="ads/tag", creator=rahuldave, name="dumb"))
+    postdb.tagItem(currentuser, rahuldave, "ads/hello kitty", dict(tagtype="ads/note", 
+        creator=rahuldave, name="somethingunique1", description="this is a note for the kitty"))
+
     postdb.tagItem(currentuser, rahuldave, "ads/hello doggy", dict(tagtype="ads/tag", creator=rahuldave, name="dumbdog"))
     postdb.tagItem(currentuser, rahuldave, "ads/hello doggy", dict(tagtype="ads/tag2", creator=rahuldave, name="dumbdog2"))
+    postdb.tagItem(currentuser, rahuldave, "ads/hello kitty", dict(tagtype="ads/note", 
+        creator=rahuldave, name="somethingunique2", description="this is a note for the doggy"))
+
     postdb.commit()
     print "LALALALALA"
     #Wen a tagging is posted to a group, the item should be autoposted into there too BUG NOT ONE NOW
@@ -1147,6 +1174,9 @@ def initialize_application(sess):
     postdb.postTaggingIntoApp(currentuser, rahuldave, "ads/app:publications", "ads/hello doggy", "rahuldave/ads/tag2:dumbdog2")
 
     postdb.commit()
+    datadict={'itemtype': 'ads/pub', 
+                'uri': u'1884AnHar..14....1.', 
+                'name': u'Description of photometer.'}    #postdb.saveItem(currentuser, rahuldave, datadict)
 
 class TestB(tbase.TBase):
 
@@ -1192,3 +1222,4 @@ if __name__=="__main__":
     engine, db_session = dbase.setup_db(config.DBASE_FILE)
     dbase.init_db(engine)
     initialize_application(db_session)
+    initialize_testing(db_session)

@@ -37,3 +37,4 @@ class Database(object):
 
     def remove(self):
     	self.session.remove()
+

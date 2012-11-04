@@ -77,7 +77,7 @@ $ ->
       'uri': $(this).attr('uri')
       'name': $(this).attr('name')
     console.log dauser, bdict
-    $.post "/item/"+dauser, bdict, (data) =>
+    $.post "/items/"+dauser, bdict, (data) =>
       console.log('data is', data);
       if (data['status'] is 'OK')
           $(this).hide()           
