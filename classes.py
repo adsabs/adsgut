@@ -176,6 +176,7 @@ class Item(DaBase):
     uri = Column(String, nullable=False, default="")
     metajson = Column(Text)
     whencreated = Column(DateTime, server_default=text(THENOW))
+    #BUG: shouldnt this just be year
     __mapper_args__ = {'polymorphic_on': 'type', 'polymorphic_identity': 'item'}
     
     
@@ -367,7 +368,7 @@ class ItemTag(DaBase):
     def info(self):
         return {'item':self.item.fqin, 'itemtype': self.itemtype.fqin, 'iteminfo': self.item.info(), 
                     'tag':[self.tag.fqin, self.tag.description], 'whentagged': self.whentagged.isoformat(),
-                    'tagtype':self.tag.tagtype.fqin, 'tagname': self.tagname, 'taginfo':self.tag.info()}
+                    'tagtype':self.tag.tagtype.fqin, 'tagname': self.tagname, 'taginfo':self.tag.info(), 'whentagposted': None}
     def __repr__(self):
         return self.item.fqin+':::'+self.tag.fqin
 
@@ -405,7 +406,7 @@ class TagitemGroup(DaBase):
         item=itemtag.item
         tag=itemtag.tag
         return {'item':item.fqin, 'itemtype': item.itemtype.fqin, 'iteminfo': item.info(), 
-                    'tag':[tag.fqin, tag.description], 'whentagposted': self.whentagposted.isoformat(),
+                    'tag':[tag.fqin, tag.description], 'whentagged': itemtag.whentagged.isoformat(), 'whentagposted': self.whentagposted.isoformat(),
                     'tagtype':self.tagtype.fqin, 'tagname': self.tagname, 'taginfo':tag.info()}
 
     def __repr__(self):

@@ -7,6 +7,7 @@ import config
 from sqlalchemy.orm import join, aliased
 from permissions import permit
 from errors import abort, doabort
+from sqlalchemy import desc
 #wont worry about permissions right now
 #wont worry about cascade deletion right now either.
 #what about permissions? MUCH LATER
@@ -29,6 +30,72 @@ MUSTHAVEKEYS={
     'itemtype':['creator', 'name'],
     'tagtype':['creator', 'name']
 }
+
+ORDERDICT={
+    'uri':Item.uri,
+    'name':Item.name,
+    'whencreated':Item.whencreated,
+    'tagname':ItemTag.tagname,
+    'tagtype':ItemTag.tagtype,
+    'whentagged':ItemTag.whentagged,
+    'itemuri':Item.uri,
+    'itemname':Item.name,
+    'itemwhencreated':Item.whencreated,
+    'itemtype':Item.itemtype,
+    'groupwhenposted':ItemGroup.whenposted,
+    'appwhenposted': ItemApplication.whenposted,
+    'groupwhentagposted': TagitemGroup.whentagposted,
+    'appwhentagposted': TagitemApplication.whentagposted
+}
+
+def FILTERDICT(tagctxt):
+    thedict={
+        'uri':Item.uri,
+        'name':Item.name,
+        'whencreated':Item.whencreated,
+        'tagname':tagctxt.tagname,
+        'tagtype':tagctxt.tagtype,
+        'whentagged':ItemTag.whentagged,
+        'itemuri':Item.uri,
+        'itemname':Item.name,
+        'itemwhencreated':Item.whencreated,
+        'itemtype':Item.itemtype,
+        'groupwhenposted':ItemGroup.whenposted,
+        'appwhenposted': ItemApplication.whenposted,
+        'groupwhentagposted': TagitemGroup.whentagposted,
+        'appwhentagposted': TagitemApplication.whentagposted
+    }
+    return thedict
+#as a result of not having whenposteds in itemtaggroup type things, we cant sort taggings based on when the item was posted into the
+#group, which is arguably quite useful BUG: we should have this: but first we must answer: does the item need to be in the group?
+
+def _getOrder(fieldvallist, orderer, extender=[]):
+    fieldvallist.extend(extender)
+    print fieldvallist, orderer
+    if len(orderer)>0:
+        outorderer=[]
+        for ele in orderer:
+            print "ELE", ele
+            orderersplit=ele.split(':')
+            if len(orderersplit)==2:
+                order_by, updown=orderersplit
+                if updown not in ['asc', 'desc']:
+                    updown='asc'
+            elif len(orderersplit)==1:
+                order_by=orderersplit[0]
+                updown='asc'
+            else:
+                return []
+            if order_by in fieldvallist:
+                print 'ob', order_by
+                if updown=='asc':
+                    oo = ORDERDICT[order_by]
+                elif updown=='desc':
+                    oo = desc(ORDERDICT[order_by])
+                outorderer.append(oo)
+        print "oooo", outorderer
+        return outorderer
+    return []
 
 def validatespec(specdict, spectype="item"):
     keysneeded=MUSTHAVEKEYS[spectype]
@@ -713,32 +780,7 @@ class Postdb(dbase.Database):
     #the ones in this section should go sway at some point. CURRENTLY Nminimal ERROR HANDLING HERE as selects should
     #return null arrays atleast
 
-    def getItems(self, currentuser, useras, context=None, fqin=None, criteria={}):
-        if criteria.has_key('itemtype'):
-            criteria['itemtype']=self.getItemType(currentuser,criteria['itemtype'])   
-        if context == None:
-            permit(self.whosdb.isSystemUser(currentuser), "Only System User allowed")
-            items=self.session.query(Item).filter_by(**criteria)
-        elif context == 'group':
-            grp=self.whosdb.getGroup(currentuser, fqin)
-            permit(self.whosdb.isMemberOfGroup(useras, grp),
-                "Only member of group %s allowed" % grp.fqin)
-            permit(currentuser==useras or self.whosdb.isOwnerOfGroup(currentuser, grp) or self.whosdb.isSystemUser(currentuser),
-                "Current user must be useras or only owner of group %s or systemuser can masquerade as user" % grp.fqin)
-            
-            items=self.session.query(Item).select_from(join(Item, ItemGroup))\
-                            .filter(ItemGroup.group==grp)\
-                            .filter_by(**criteria)
-        elif context == 'app':
-            app=self.whosdb.getApp(currentuser, fqin)
-            permit(self.whosdb.isMemberOfApp(useras, app),
-                "Only member of app %s allowed" % app.fqin)
-            permit(currentuser==useras or self.whosdb.isOwnerOfApp(currentuser, app) or self.whosdb.isSystemUser(currentuser),
-                "Current user must be useras or only owner of app %s or systemuser can masquerade as user" % app.fqin)
-            items=self.session.query(Item).select_from(join(Item, ItemApplication))\
-                            .filter(ItemApplication.application==app)\
-                            .filter_by(**criteria)
-        return [ele.info() for ele in items]
+ 
 
     #Not needed any more due to above but kept around for quicker use:
     # def getItemsForApp(self, currentuser, useras, fullyQualifiedAppName):
@@ -749,36 +791,98 @@ class Postdb(dbase.Database):
     #     grp=self.session.query(Group).filter_by(fqin=fullyQualifiedGroupName).one()
     #     return [ele.info() for ele in grp.itemsposted]
 
+    def _doItemFilter(self, context, userwanted, contextobject, contextitemobject, criteria={}, fvlist={}, orderer={}, additional=[]):
+        if context==None:
+            tuples=self.session.query(Item, 'NULL')
+        else:
+            tuples=self.session.query(Item, contextitemobject.whenposted)
+        if userwanted==None:
+            if context==None:
+                tuples=tuples.filter_by(**criteria)
+            else:
+                tuples=tuples.select_from(join(Item, contextitemobject))\
+                                            .filter(contextitemobject.group==contextobject)\
+                                            .filter_by(**criteria)
+        else:
+            tuples=tuples.select_from(join(Item, contextitemobject))\
+                                            .filter(contextitemobject.user==userwanted, contextitemobject.group==contextobject)\
+                                            .filter_by(**criteria)
+        order_by=_getOrder(fvlist, orderer, additional)
+        if len(order_by)>0:
+            tuples=tuples.order_by(*order_by)
+        items=[t[0] for t in tuples]
+        whenposteds=[t[1] for t in tuples]
+        return items, whenposteds
+
+    def getItems(self, currentuser, useras, context=None, fqin=None, criteria={}, fvlist=[], orderer=[]):
+        if criteria.has_key('itemtype'):
+            criteria['itemtype']=self.getItemType(currentuser,criteria['itemtype'])   
+        if context == None:
+            permit(self.whosdb.isSystemUser(currentuser), "Only System User allowed")
+            items, whenposteds = self._doItemFilter(context, None, None, None, criteria, fvlist, orderer)
+        elif context == 'group':
+            grp=self.whosdb.getGroup(currentuser, fqin)
+            permit(self.whosdb.isMemberOfGroup(useras, grp) or self.whosdb.isSystemUser(currentuser),
+                "Only member of group %s allowed" % grp.fqin)
+            permit(currentuser==useras or self.whosdb.isOwnerOfGroup(currentuser, grp) or self.whosdb.isSystemUser(currentuser),
+                "Current user must be useras or only owner of group %s or systemuser can masquerade as user" % grp.fqin)
+            additional=['groupwhenposted']
+            items, whenposteds = self._doItemFilter(context, None, grp, ItemGroup, criteria, fvlist, orderer, additional)
+        elif context == 'app':
+            app=self.whosdb.getApp(currentuser, fqin)
+            permit(self.whosdb.isMemberOfApp(useras, app) or self.whosdb.isSystemUser(currentuser),
+                "Only member of app %s allowed" % app.fqin)
+            permit(currentuser==useras or self.whosdb.isOwnerOfApp(currentuser, app) or self.whosdb.isSystemUser(currentuser),
+                "Current user must be useras or only owner of app %s or systemuser can masquerade as user" % app.fqin)
+            additional=['appwhenposted']
+            items,whenposteds=self._doItemFilter(context, None, app, ItemApplication, criteria, fvlist, orderer, additional)
+
+        eleinfo=[ele.info() for ele in items]
+        for i in range(len(eleinfo)):
+            if whenposteds[i]==None:
+                eleinfo[i]['whenposted']=None
+            else:
+                eleinfo[i]['whenposted']=whenposteds[i].isoformat()
+
+        return eleinfo
+
     #we are doing joins here but ought we do subselects?
-    def getItemsForUser(self, currentuser, useras, context=None, fqin=None, criteria={}):
+    def getItemsForUser(self, currentuser, useras, context=None, fqin=None, criteria={}, fvlist=[], orderer=[]):
         if criteria.has_key('itemtype'):
             criteria['itemtype']=self.getItemType(currentuser,criteria['itemtype'])
         if context == None:
             permit(currentuser==useras or self.whosdb.isSystemUser(currentuser), "User %s not authorized or not systemuser" % currentuser.nick)
             fqin=useras.nick+"/group:default"
             grp=self.whosdb.getGroup(currentuser, fqin)
-            items=self.session.query(Item).select_from(join(Item, ItemGroup))\
-                                        .filter(ItemGroup.group==grp)\
-                                        .filter_by(**criteria)
+            items,whenposteds=self._doItemFilter(context, useras, grp, ItemGroup, criteria, fvlist, orderer)
+            #items=tuples
+            #whenposteds=[]
         elif context=='group':
             grp=self.whosdb.getGroup(currentuser, fqin)
-            permit(self.whosdb.isMemberOfGroup(useras, grp),
+            permit(self.whosdb.isMemberOfGroup(useras, grp) or self.whosdb.isSystemUser(currentuser),
                 "Only member of group %s allowed" % grp.fqin)
             permit(currentuser==useras or self.whosdb.isOwnerOfGroup(currentuser, grp) or self.whosdb.isSystemUser(currentuser),
                 "Current user must be useras or only owner of group %s or systemuser can masquerade as user" % grp.fqin)
-            items=self.session.query(Item).select_from(join(Item, ItemGroup))\
-                                        .filter(ItemGroup.user==useras, ItemGroup.group==grp)\
-                                        .filter_by(**criteria)
+            additional=['groupwhenposted']
+            items,whenposteds=self._doItemFilter(context, useras, grp, ItemGroup, criteria, fvlist, orderer, additional)
+
         elif context=='app':
             app=self.whosdb.getApp(currentuser, fqin)
-            permit(self.whosdb.isMemberOfApp(useras, app),
+            permit(self.whosdb.isMemberOfApp(useras, app) or self.whosdb.isSystemUser(currentuser),
                 "Only member of app %s allowed" % app.fqin)
             permit(currentuser==useras or self.whosdb.isOwnerOfApp(currentuser, app) or self.whosdb.isSystemUser(currentuser),
-                "Current user must be useras or only owner of app %s or systemuser can masquerade as user" % app.fqin)
-            items=self.session.query(Item).select_from(join(Item, ItemApplication))\
-                                        .filter(ItemApplication.user==useras, ItemApplication.application==app)\
-                                        .filter_by(**criteria)
-        return [ele.info() for ele in items]
+                "Current user must be useras or only owner of app %s or systemuser can masquerade as user" % app.fqin)         
+            additional=['appwhenposted']
+            items,whenposteds=self._doItemFilter(context, useras, app, ItemApplication, criteria, fvlist, orderer, additional)
+
+        eleinfo=[ele.info() for ele in items]
+        for i in range(len(eleinfo)):
+            if whenposteds[i]==None:
+                eleinfo[i]['whenposted']=None
+            else:
+                eleinfo[i]['whenposted']=whenposteds[i].isoformat()
+
+        return eleinfo
 
     #we're going through tagitem group and tagitemapp. Not sure this is the best choice.
     # def getTaggings(self, currentuser, useras, context=None, fqin=None, criteria={}):
@@ -867,7 +971,7 @@ class Postdb(dbase.Database):
                 items=items.filter_by(itemtype=itemtype)
         elif context is 'group':
             grp=self.whosdb.getGroup(currentuser, fqin)
-            permit(self.whosdb.isMemberOfGroup(useras, grp),
+            permit(self.whosdb.isMemberOfGroup(useras, grp) or self.whosdb.isSystemUser(currentuser),
                 "Only member of group %s allowed" % grp.fqin)
             permit(currentuser==useras or self.whosdb.isOwnerOfGroup(currentuser, grp) or self.whosdb.isSystemUser(currentuser),
                 "Current user must be useras or only owner of group %s or systemuser can masquerade as user" % grp.fqin)
@@ -877,7 +981,7 @@ class Postdb(dbase.Database):
             items=[ele.item for ele in itemtaggrps]
         elif context is 'app':
             app=self.whosdb.getApp(currentuser, fqin)
-            permit(self.whosdb.isMemberOfApp(useras, app),
+            permit(self.whosdb.isMemberOfApp(useras, app) or self.whosdb.isSystemUser(currentuser),
                 "Only member of app %s allowed" % app.fqin)
             permit(currentuser==useras or self.whosdb.isOwnerOfApp(currentuser, app) or self.whosdb.isSystemUser(currentuser),
                 "Current user must be useras or only owner of app %s or systemuser can masquerade as user" % app.fqin)
@@ -949,7 +1053,7 @@ class Postdb(dbase.Database):
             taggings=self.getTaggingsByItem(currentuser, item).filter_by(**criteria)
         elif context=='group':
             grp=self.whosdb.getGroup(currentuser, fqin)
-            permit(self.whosdb.isMemberOfGroup(useras, grp),
+            permit(self.whosdb.isMemberOfGroup(useras, grp) or self.whosdb.isSystemUser(currentuser),
                 "Only member of group %s allowed" % grp.fqin)
             permit(currentuser==useras or self.whosdb.isOwnerOfGroup(currentuser, grp) or self.whosdb.isSystemUser(currentuser),
                 "Current user must be useras or only owner of group %s or systemuser can masquerade as user" % grp.fqin)
@@ -960,7 +1064,7 @@ class Postdb(dbase.Database):
             rhash['group']=grp.fqin
         elif context=='app':
             app=self.whosdb.getApp(currentuser, fqin)
-            permit(self.whosdb.isMemberOfApp(useras, app),
+            permit(self.whosdb.isMemberOfApp(useras, app) or self.whosdb.isSystemUser(currentuser),
                 "Only member of app %s allowed" % app.fqin)
             permit(currentuser==useras or self.whosdb.isOwnerOfApp(currentuser, app) or self.whosdb.isSystemUser(currentuser),
                 "Current user must be useras or only owner of app %s or systemuser can masquerade as user" % app.fqin)
@@ -982,8 +1086,8 @@ class Postdb(dbase.Database):
     def _getTaggingsWithCriterion(self, currentuser, useras, context, fqin, criteria, rhash):
         itemtype=None
         userthere=False       
-        itemselections={'itemname':'name', 'itemuri': 'uri', 'itemtype': 'itemtype'}
-        tagselections={'tagname':'tagname', 'tagtype': 'tagtype'}
+        itemselections={'itemname':'name', 'itemuri': 'uri', 'itemtype': 'itemtype', 'itemwhencreated': 'whencreated', 'itempubdate':'pubdate'}
+        tagselections={'tagname':'tagname', 'tagtype': 'tagtype', 'whentagged':'whentagged'}
         print "CRIT", criteria
         if criteria.has_key('tagtype'):
             criteria['tagtype']=self.getTagType(currentuser, criteria['tagtype'])
@@ -1011,7 +1115,7 @@ class Postdb(dbase.Database):
                 permit(self.whosdb.isSystemUser(currentuser), "Only System User allowed")
         elif context=='group':            
             grp=self.whosdb.getGroup(currentuser, fqin)
-            permit(self.whosdb.isMemberOfGroup(useras, grp),
+            permit(self.whosdb.isMemberOfGroup(useras, grp) or self.whosdb.isSystemUser(currentuser),
                 "Only member of group %s allowed" % grp.fqin)
             permit(currentuser==useras or self.whosdb.isOwnerOfGroup(currentuser, grp) or self.whosdb.isSystemUser(currentuser),
                 "Current user must be useras or only owner of group %s or systemuser can masquerade as user" % grp.fqin)
@@ -1022,7 +1126,7 @@ class Postdb(dbase.Database):
                 taggings=taggings.filter(TagitemGroup.user==useras)
         elif context=='app':
             app=self.whosdb.getApp(currentuser, fqin)
-            permit(self.whosdb.isMemberOfApp(useras, app),
+            permit(self.whosdb.isMemberOfApp(useras, app) or self.whosdb.isSystemUser(currentuser),
                 "Only member of app %s allowed" % app.fqin)
             permit(currentuser==useras or self.whosdb.isOwnerOfApp(currentuser, app) or self.whosdb.isSystemUser(currentuser),
                 "Current user must be useras or only owner of app %s or systemuser can masquerade as user" % app.fqin)
@@ -1040,10 +1144,66 @@ class Postdb(dbase.Database):
 
         return taggings
 
-    def getTaggingForItemspec(self, currentuser, useras, context=None, fqin=None, criteria={}):
+
+    def _getTaggingsWithCriterion2(self, currentuser, useras, context, fqin, criteria, rhash, fvlist, orderer):
+        userthere=False       
+        if criteria.has_key('tagtype'):
+            criteria['tagtype']=self.getTagType(currentuser, criteria['tagtype'])
+        if criteria.has_key('itemtype'):
+            criteria['itemtype']=self.getItemType(currentuser, criteria['itemtype'])
+        if criteria.has_key('userthere'):
+            userthere=criteria.pop('userthere')
+        filterlist=[]
+
+        if context==None:
+            thechoice=ItemTag
+            taggings=self.session.query(ItemTag).select_from(join(ItemTag, Item))
+            if userthere:
+                permit(currentuser==useras, "Current user is not useras")
+                taggings=taggings.filter(ItemTag.user==useras)
+            else:
+                permit(self.whosdb.isSystemUser(currentuser), "Only System User allowed")
+            additional=[]
+        elif context=='group':
+            thechoice=TagitemGroup         
+            grp=self.whosdb.getGroup(currentuser, fqin)
+            permit(self.whosdb.isMemberOfGroup(useras, grp) or self.whosdb.isSystemUser(currentuser),
+                "Only member of group %s allowed" % grp.fqin)
+            permit(currentuser==useras or self.whosdb.isOwnerOfGroup(currentuser, grp) or self.whosdb.isSystemUser(currentuser),
+                "Current user must be useras or only owner of group %s or systemuser can masquerade as user" % grp.fqin)
+            taggingothers=self.session.query(TagitemGroup).filter_by(group=grp)
+            taggings=taggingothers.join(Item, TagitemGroup.item_id==Item.id)
+            if userthere:
+                taggings=taggings.filter(TagitemGroup.user==useras)
+            additional=['groupwhentagposted']
+        elif context=='app':
+            thechoice=TagitemApplication
+            app=self.whosdb.getApp(currentuser, fqin)
+            permit(self.whosdb.isMemberOfApp(useras, app) or self.whosdb.isSystemUser(currentuser),
+                "Only member of app %s allowed" % app.fqin)
+            permit(currentuser==useras or self.whosdb.isOwnerOfApp(currentuser, app) or self.whosdb.isSystemUser(currentuser),
+                "Current user must be useras or only owner of app %s or systemuser can masquerade as user" % app.fqin)
+            taggingothers=self.session.query(TagitemApplication).filter_by(application=app)
+            rhash['app']=app.fqin
+            taggings=taggingothers.join(Item, TagitemApplication.item_id==Item.id)
+            if userthere:
+                taggings=taggings.filter(TagitemApplication.user==useras)
+            additional=['appwhentagposted']
+        #this does not prevent something from apps being used in something from groups, but i think only the ordering is
+        #not common so its ok.
+        for ele in criteria.keys():
+            taggings=taggings.filter(FILTERDICT(thechoice)[ele] == criteria[ele])
+        if userthere:
+            rhash['user']=useras.nick
+        order_by=_getOrder(fvlist, orderer, additional)
+        if len(order_by)>0:
+            taggings=taggings.order_by(*order_by)
+        return taggings
+
+    def getTaggingForItemspec(self, currentuser, useras, context=None, fqin=None, criteria={}, fvlist=[], orderer=[]):
         rhash={}
         titems={}
-        taggings=self._getTaggingsWithCriterion(currentuser, useras, context, fqin, criteria, rhash)
+        taggings=self._getTaggingsWithCriterion2(currentuser, useras, context, fqin, criteria, rhash, fvlist, orderer)
         for ele in taggings:
             eled=ele.info()
             #print "eled", eled
@@ -1054,15 +1214,16 @@ class Postdb(dbase.Database):
         rhash.update({'taggings':titems})
         return rhash
 
-    def getItemsForTagspec(self, currentuser, useras, context=None, fqin=None, criteria={}):
+    def getItemsForTagspec(self, currentuser, useras, context=None, fqin=None, criteria={}, fvlist=[], orderer=[]):
         rhash={}
         titems={}
-        taggings=self._getTaggingsWithCriterion(currentuser, useras, context, fqin, criteria, rhash)
+        taggings=self._getTaggingsWithCriterion2(currentuser, useras, context, fqin, criteria, rhash, fvlist, orderer)
 
-        #Perhaps fluff this up with tags in a reasonable way! TODO
+        #Perhaps fluff this up with tags in a reasonable way! TODO BUG: want as only the items show and not the tag,
+        #or immediate counts, or something like that
         for ele in taggings:
             eled=ele.info()
-            #print "eled", eled
+            print "eled", eled['taginfo']
             eledfqin=eled['item']
             if not titems.has_key(eledfqin):
                 titems[eledfqin]=eled['iteminfo']

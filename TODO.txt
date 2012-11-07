@@ -58,7 +58,7 @@ html pages desired
 ================================================================
 Stuff to be done now (not next year, ie no app pages etc)
 [not clear whether one should expose anything about app to users]
-(a) ordering of item results, asc and desc by time. counts.
+(a) ordering of item results, asc and desc by time. counts. [we are on ordering but dont have counts]
 (b) html pages: private library, personal profile (for grps invitations, etc), group priv library
 (c) API:deletion web services(simple) for item/tag in group, item/tag in app, item/tag for user (user priv grp)
 (d) API: is an item saved publically (we could parse from groups saved in)
@@ -77,3 +77,7 @@ write script to bring that stuff in)
 (m) clean up additional unused fields in tables
 (n) a general item.groupsin is a leak: you ought to only show groups you are a member of
 (o) all POSTS will fail to return appropriate info about the object unless you commit the object into the dbase as part of post in test --X
+(p) cant sort on itemtype as its a different table join --X
+(q) All items will currently give groups and such. Perhaps this should be suppressed.
+(r) we do not support range or IN queries for searching. If we use filter instead of filter_by we ought to be able to do that.
+(s) we need counts and pagination later

@@ -32,7 +32,7 @@ def formwithdefaults(specdict, spec, request):
 
 @adsgut.before_request
 def before_request():
-        print "BEFORE REQUEST"
+        #print "BEFORE REQUEST", session
         #g.db=whos.Whosdb(db_session)
         g.dbp=posts.Postdb(db_session)
         g.db=g.dbp.whosdb
@@ -92,7 +92,7 @@ def logout():
     session.pop('username', None)
     session.pop('logged_in', None)
     flash('You were logged out')
-    return redirect(url_for('whosflask.index'))
+    return redirect(url_for('index'))
 
 #######################################################################################################################
 #######################################################################################################################
@@ -448,7 +448,7 @@ def usertagpost(nick, itemname):
         g.dbp.commit()
         return jsonify({'status':'OK', 'info':{'item': iteminfo['fqin'], 'tagging':newtagging.info()}})
     else:
-        criteria=_getTagQuery(request.args)
+        criteria, fvlist, orderer=_getTagQuery(request.args)
         context=criteria.pop('context')
         fqin=criteria.pop('fqin')
         user=g.db.getUserForNick(g.currentuser, nick)
@@ -674,19 +674,37 @@ def _getQuery(querydict, fieldlist):
                 criteria[ele]=qele
     return criteria
 
+
+#import classes
+#from sqlalchemy import desc
+
+
+
+
 def _getItemQuery(querydict):
     fieldlist=[('uri',''), ('name',''), ('itemtype',''), ('context', None), ('fqin', None)]
-    return _getQuery(querydict, fieldlist)
+    fieldvallist=['uri', 'name', 'whencreated', 'itemtype']
+    orderer=querydict.getlist('order_by')
+    return _getQuery(querydict, fieldlist), fieldvallist, orderer
+
 
 def _getTagQuery(querydict):
     #one can combine name and tagtype to get, for example, tag:lensing
     fieldlist=[('tagname',''), ('tagtype',''), ('context', None), ('fqin', None)]
-    return _getQuery(querydict, fieldlist)
+    fieldvallist=['tagname', 'tagtype', 'whentagged']
+    orderer=querydict.getlist('order_by')
+    return _getQuery(querydict, fieldlist), fieldvallist, orderer
+
 
 def _getTagsForItemQuery(querydict):
     #one can combine name and tagtype to get, for example, tag:lensing
-    fieldlist=[('tagname',''), ('tagtype',''), ('context', None), ('fqin', None), ('itemuri', ''), ('itemname', ''), ('itemtype', '')]
-    return _getQuery(querydict, fieldlist)
+    fieldlist=[('tagname',''), ('tagtype',''), ('context', None), ('fqin', None), ('uri', ''), ('name', ''), ('itemtype', '')]
+    fieldvallist=['tagname', 'tagtype', 'whentagged', 'uri', 'whencreated', 'name', 'itemtype']
+    orderer=querydict.getlist('order_by')
+    return _getQuery(querydict, fieldlist), fieldvallist, orderer
+
+
+
 #query uri/name/itemtype
 #BUG: this returns all items including tags and is thus farely useless. We dont want any inherited tables
 #Can do this with a boolean or figure the sqlalchemyway
@@ -695,19 +713,19 @@ def _getTagsForItemQuery(querydict):
 def itemsbyany():
     #permit(g.currentuser!=None and g.currentuser.nick=='rahuldave', "wrong user")
     useras=g.currentuser#BUG: always support this?
-    criteria=_getItemQuery(request.args)
+    criteria, fvlist, orderer=_getItemQuery(request.args)
     #criteria['userthere']=True
     context=criteria.pop('context')
     fqin=criteria.pop('fqin')
     #This should be cleaned for values. BUG nor done yet.   
-    items=g.dbp.getItems(g.currentuser, useras, context, fqin, criteria)
+    items=g.dbp.getItems(g.currentuser, useras, context, fqin, criteria, fvlist, orderer)
     return jsonify({'items':items})
 
 #add tagtype/tagname to query. Must this also be querying item attributes?
 @adsgut.route('/tags')#q=fieldlist=[('tagname',''), ('tagtype',''), ('context', None), ('fqin', None)]
 def tagsbyany():
     useras=g.currentuser#BUG: always support this?
-    criteria=_getTagQuery(request.args)
+    criteria, fvlist, orderer=_getTagQuery(request.args)
     #criteria['userthere']=True
     context=criteria.pop('context')
     fqin=criteria.pop('fqin')
@@ -730,7 +748,7 @@ def tagsbyany():
 @adsgut.route('/items/<nick>/<tagspace>/<tagtypename>:<tagname>')#q=fieldlist=[('uri',''), ('name',''), ('itemtype',''), ('context', None), ('fqin', None)]
 def itemsfortag(nick, tagspace, tagtypename, tagname):
     tagtype=tagspace+"/"+tagtypename
-    criteria=_getItemQuery(request.args)
+    criteria, fvlist, orderer=_getItemQuery(request.args)
     context=criteria.pop('context')
     fqin=criteria.pop('fqin')
     user=g.db.getUserForNick(g.currentuser, nick)
@@ -741,7 +759,7 @@ def itemsfortag(nick, tagspace, tagtypename, tagname):
 #for groups/apps, as long as users are in them, one user can get the otherusers items and tags. Cool!
 @adsgut.route('/tags/<nick>/byspec')#q=fieldlist=[('tagname',''), ('tagtype',''), ('context', None), ('fqin', None), ('itemuri', ''), ('itemname', ''), ('itemtype', '')]
 def tagsforitemspec(nick):
-    criteria=_getTagsForItemQuery(request.args)
+    criteria, fvlist, orderer=_getTagsForItemQuery(request.args)
     if nick=='any':
         useras=g.currentuser
     else:
@@ -750,12 +768,13 @@ def tagsforitemspec(nick):
     context=criteria.pop('context')
     fqin=criteria.pop('fqin')
     #This should be cleaned for values. BUG nor done yet.   
-    taggings=g.dbp.getTaggingForItemspec(g.currentuser, useras, context, fqin, criteria)
+    taggings=g.dbp.getTaggingForItemspec(g.currentuser, useras, context, fqin, criteria, fvlist, orderer)
     return jsonify(taggings)
 
 @adsgut.route('/items/<nick>/byspec')#q=fieldlist=[('tagname',''), ('tagtype',''), ('context', None), ('fqin', None), ('itemuri', ''), ('itemname', ''), ('itemtype', '')]
 def itemsfortagspec(nick):
-    criteria=_getTagsForItemQuery(request.args)
+    criteria, fvlist, orderer=_getTagsForItemQuery(request.args)
+    print "nick", nick, g, g.currentuser
     if nick=='any':
         useras=g.currentuser
     else:
@@ -763,8 +782,9 @@ def itemsfortagspec(nick):
         criteria['userthere']=True
     context=criteria.pop('context')
     fqin=criteria.pop('fqin')
-    #This should be cleaned for values. BUG nor done yet.   
-    items=g.dbp.getItemsForTagspec(g.currentuser, useras, context, fqin, criteria)
+    #This should be cleaned for values. BUG nor done yet.  
+    print "userAS", useras.nick, g.currentuser.nick 
+    items=g.dbp.getItemsForTagspec(g.currentuser, useras, context, fqin, criteria, fvlist, orderer)
     return jsonify(items)
 #######################################################################################################################
 
@@ -775,19 +795,20 @@ def itemsfortagspec(nick):
 #query itemtype, context, fqin
 @adsgut.route('/user/<nick>/items')#q=fieldlist=[('itemtype',''), ('context', None), ('fqin', None)]
 def usersitems(nick):
-    criteria=_getQuery(request.args, [('itemtype',''), ('context', None), ('fqin', None)])
+    #criteria, fvlist, orderer=_getQuery(request.args, [('itemtype',''), ('context', None), ('fqin', None)])
+    criteria, fvlist, orderer=_getItemQuery(request.args)
     context=criteria.pop('context')
     fqin=criteria.pop('fqin')
     user=g.db.getUserForNick(g.currentuser, nick)
     # if user==g.currentuser: This throws a bug. remove BUG
     #     criteria['userthere']=True
-    items=g.dbp.getItemsForUser(g.currentuser, user, context, fqin, criteria)
+    items=g.dbp.getItemsForUser(g.currentuser, user, context, fqin, criteria, fvlist, orderer)
     return jsonify({'items':items})
 
 #query itemtype, tagtype, tagname? This is just a specialization of the above
 @adsgut.route('/user/<nick>/tags')#q=fieldlist=[('tagname',''), ('tagtype',''), ('context', None), ('fqin', None)]
 def userstags(nick):
-    criteria=_getTagQuery(request.args)
+    criteria, fvlist, orderer=_getTagQuery(request.args)
     context=criteria.pop('context')
     fqin=criteria.pop('fqin')
     user=g.db.getUserForNick(g.currentuser, nick)
