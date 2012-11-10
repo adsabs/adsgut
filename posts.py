@@ -816,10 +816,20 @@ class Postdb(dbase.Database):
 
     def getItems(self, currentuser, useras, context=None, fqin=None, criteria={}, fvlist=[], orderer=[]):
         if criteria.has_key('itemtype'):
-            criteria['itemtype']=self.getItemType(currentuser,criteria['itemtype'])   
+            criteria['itemtype']=self.getItemType(currentuser,criteria['itemtype'])
+        if criteria.has_key('userthere'):
+            userthere=criteria.pop('userthere')
         if context == None:
-            permit(self.whosdb.isSystemUser(currentuser), "Only System User allowed")
-            items, whenposteds = self._doItemFilter(context, None, None, None, criteria, fvlist, orderer)
+            if userthere:
+                permit(currentuser==useras, "Current user is not useras")
+                fqin=useras.nick+"/group:default"
+                grp=self.whosdb.getGroup(currentuser, fqin)
+                items,whenposteds=self._doItemFilter(context, useras, grp, ItemGroup, criteria, fvlist, orderer)
+            else:
+                permit(self.whosdb.isSystemUser(currentuser), "Only System User allowed")
+                items, whenposteds = self._doItemFilter(context, None, None, None, criteria, fvlist, orderer)
+            #permit(self.whosdb.isSystemUser(currentuser), "Only System User allowed")
+            #items, whenposteds = self._doItemFilter(context, None, None, None, criteria, fvlist, orderer)
         elif context == 'group':
             grp=self.whosdb.getGroup(currentuser, fqin)
             permit(self.whosdb.isMemberOfGroup(useras, grp) or self.whosdb.isSystemUser(currentuser),
@@ -827,7 +837,10 @@ class Postdb(dbase.Database):
             permit(currentuser==useras or self.whosdb.isOwnerOfGroup(currentuser, grp) or self.whosdb.isSystemUser(currentuser),
                 "Current user must be useras or only owner of group %s or systemuser can masquerade as user" % grp.fqin)
             additional=['groupwhenposted']
-            items, whenposteds = self._doItemFilter(context, None, grp, ItemGroup, criteria, fvlist, orderer, additional)
+            if userthere:
+                items,whenposteds=self._doItemFilter(context, useras, grp, ItemGroup, criteria, fvlist, orderer, additional)
+            else:
+                items, whenposteds = self._doItemFilter(context, None, grp, ItemGroup, criteria, fvlist, orderer, additional)
         elif context == 'app':
             app=self.whosdb.getApp(currentuser, fqin)
             permit(self.whosdb.isMemberOfApp(useras, app) or self.whosdb.isSystemUser(currentuser),
@@ -835,7 +848,10 @@ class Postdb(dbase.Database):
             permit(currentuser==useras or self.whosdb.isOwnerOfApp(currentuser, app) or self.whosdb.isSystemUser(currentuser),
                 "Current user must be useras or only owner of app %s or systemuser can masquerade as user" % app.fqin)
             additional=['appwhenposted']
-            items,whenposteds=self._doItemFilter(context, None, app, ItemApplication, criteria, fvlist, orderer, additional)
+            if userthere:
+                items,whenposteds=self._doItemFilter(context, useras, app, ItemApplication, criteria, fvlist, orderer, additional)
+            else:
+                items,whenposteds=self._doItemFilter(context, None, app, ItemApplication, criteria, fvlist, orderer, additional)
 
         eleinfo=[ele.info() for ele in items]
         for i in range(len(eleinfo)):
@@ -847,7 +863,7 @@ class Postdb(dbase.Database):
         return eleinfo
 
     #we are doing joins here but ought we do subselects?
-    def getItemsForUser(self, currentuser, useras, context=None, fqin=None, criteria={}, fvlist=[], orderer=[]):
+    def getItemsForUserOld(self, currentuser, useras, context=None, fqin=None, criteria={}, fvlist=[], orderer=[]):
         if criteria.has_key('itemtype'):
             criteria['itemtype']=self.getItemType(currentuser,criteria['itemtype'])
         if context == None:
@@ -949,7 +965,9 @@ class Postdb(dbase.Database):
 
     #######################################################################################################################
     #Even this one could be done through the spec
-    def getItemsForTag(self, currentuser, useras, tagorfullyQualifiedTagName, context=None, fqin=None, criteria={}):
+    #I am not sure his ought to come from specs
+
+    def getItemsForTagOld(self, currentuser, useras, tagorfullyQualifiedTagName, context=None, fqin=None, criteria={}):
         itemtype=None
         if criteria.has_key('itemtype'):
             criteria['itemtype']=self.getItemType(currentuser, criteria['itemtype'])
@@ -1035,7 +1053,7 @@ class Postdb(dbase.Database):
 
 
     #BUG: cant we use more direct collections in the simple cases?
-    def getTagsForItem(self, currentuser, useras, itemorfullyQualifiedItemName, context=None, fqin=None, criteria={}):
+    def getTagsForItemOld(self, currentuser, useras, itemorfullyQualifiedItemName, context=None, fqin=None, criteria={}):
         if criteria.has_key('tagtype'):
             criteria['tagtype']=self.getTagType(currentuser, criteria['tagtype'])
         if is_stringtype(itemorfullyQualifiedItemName):
@@ -1083,7 +1101,7 @@ class Postdb(dbase.Database):
 
 
     #BUG: the permitting here is not proper
-    def _getTaggingsWithCriterion(self, currentuser, useras, context, fqin, criteria, rhash):
+    def _getTaggingsWithCriterionOld(self, currentuser, useras, context, fqin, criteria, rhash):
         itemtype=None
         userthere=False       
         itemselections={'itemname':'name', 'itemuri': 'uri', 'itemtype': 'itemtype', 'itemwhencreated': 'whencreated', 'itempubdate':'pubdate'}
@@ -1145,7 +1163,7 @@ class Postdb(dbase.Database):
         return taggings
 
 
-    def _getTaggingsWithCriterion2(self, currentuser, useras, context, fqin, criteria, rhash, fvlist, orderer):
+    def _getTaggingsWithCriterion(self, currentuser, useras, context, fqin, criteria, rhash, fvlist, orderer):
         userthere=False       
         if criteria.has_key('tagtype'):
             criteria['tagtype']=self.getTagType(currentuser, criteria['tagtype'])
@@ -1230,48 +1248,39 @@ class Postdb(dbase.Database):
         rhash.update({'items':titems.values()})
         return rhash
 
-    # def getTagsForItemuri(self, currentuser, useras, itemuri, context=None, fqin=None):
-    #     rhash={}
-    #     titems={}
-    #     if context is None:
-    #         taggings=self.session.query(ItemTag).select_from(join(ItemTag, Item)).filter(Item.uri==itemuri).all()
-    #     elif context is 'group':
-    #         grp=self.session.query(Group).filter_by(fqin=fqin).one()
-    #         taggings=[ele.itemtag for ele in self.session.query(TagitemGroup).select_from(join(TagitemGroup, Item)).filter(Item.uri==itemuri,TagitemGroup.group==grp)]
-    #         rhash['group']=grp.fqin
-    #     elif context is 'app':
-    #         app=self.session.query(Application).filter_by(fqin=fqin).one()
-    #         taggings=[ele.itemtag for ele in self.session.query(TagitemApplication).select_from(join(TagitemApplication, Item)).filter(Item.uri==itemuri,TagitemApplication.application==app)]
-    #         rhash['app']=app.fqin
-    #     for ele in taggings:
-    #         eled=ele.info()
-    #         if not titems.has_key(ele.item.fqin):
-    #             titems[ele.item.fqin]=[]
-    #         titems[ele.item.fqin].append(eled)
-    #     rhash.update({'user':useras.nick, 'taggings':titems})
-    #     return rhash
 
-    # def getTagsForItemtype(self, currentuser, useras, itemtypefqin, context=None, fqin=None):
-    #     itemtypeobject=self.session.query(Itemtype).filter_by(fqin=itemtypefqin).one()
-    #     rhash={}
-    #     titems={}
-    #     if context is None:
-    #         taggings=self.session.query(ItemTag).select_from(join(ItemTag, Item)).filter(Item.itemtype==itemtypeobject).all()
-    #     elif context is 'group':
-    #         grp=self.session.query(Group).filter_by(fqin=fqin).one()
-    #         taggings=[ele.itemtag for ele in self.session.query(TagitemGroup).select_from(join(TagitemGroup, Item)).filter(Item.itemtype==itemtypeobject,TagitemGroup.group==grp)]
-    #         rhash['group']=grp.fqin
-    #     elif context is 'app':
-    #         app=self.session.query(Application).filter_by(fqin=fqin).one()
-    #         taggings=[ele.itemtag for ele in self.session.query(TagitemApplication).select_from(join(TagitemApplication, Item)).filter(Item.itemtype==itemtypeobject,TagitemApplication.application==app)]
-    #         rhash['app']=app.fqin
-    #     for ele in taggings:
-    #         eled=ele.info()
-    #         if not titems.has_key(ele.item.fqin):
-    #             titems[ele.item.fqin]=[]
-    #         titems[ele.item.fqin].append(eled)
-    #     rhash.update({'user':useras.nick, 'taggings':titems})
-    #     return rhash
+    def getItemsForTag(self, currentuser, useras, tagorfullyQualifiedTagName, context=None, fqin=None, criteria={}, fvlist=[], orderer=[]):
+        #in addition to whatever criteria (which ones are allowed ought to be in web service or here?) are speced
+        #we need to get the tag
+        rhash={}
+        if is_stringtype(tagorfullyQualifiedTagName):
+            tag=self.getTag(currentuser, tagorfullyQualifiedTagName)
+        else:
+            tag=tagorfullyQualifiedTagName
+        print "TAG", tag, tagorfullyQualifiedTagName
+        #You would think that this ought to not be here because of the groups and apps, but remember, tags are specific
+        #to users. Use the spec functions in this situation.
+        permit(useras==tag.creator, "User must be creator of tag %s" % tag.fqin)
+        criteria['tagtype']=tag.tagtype.fqin
+        criteria['tagname']=tag.name
+        rhash=self.getItemsForTagspec(currentuser, useras, context, fqin, criteria, rhash, fvlist, orderer)
+        return rhash
+
+
+    #BUG: cant we use more direct collections in the simple cases?
+    def getTagsForItem(self, currentuser, useras, itemorfullyQualifiedItemName, context=None, fqin=None, criteria={}, fvlist=[], orderer=[]):
+        rhash={}
+        titems={}
+        if is_stringtype(itemorfullyQualifiedItemName):
+            item=self.getItem(currentuser, itemorfullyQualifiedItemName)
+        else:
+            item=itemorfullyQualifiedItemName
+
+        #BUG: whats the security I can see the item?
+        criteria['name']=item.name
+        criteria['itemtype']=item.itemtype.fqin
+        rhash=self.getTaggingForItemspec(currentuser, useras, context, fqin, criteria, rhash, fvlist, orderer)
+        return rhash
 
 
 def initialize_application(sess):

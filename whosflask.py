@@ -802,7 +802,8 @@ def usersitems(nick):
     user=g.db.getUserForNick(g.currentuser, nick)
     # if user==g.currentuser: This throws a bug. remove BUG
     #     criteria['userthere']=True
-    items=g.dbp.getItemsForUser(g.currentuser, user, context, fqin, criteria, fvlist, orderer)
+    criteria['userthere']=True
+    items=g.dbp.getItems(g.currentuser, user, context, fqin, criteria, fvlist, orderer)
     return jsonify({'items':items})
 
 #query itemtype, tagtype, tagname? This is just a specialization of the above
@@ -820,8 +821,9 @@ def userstags(nick):
 @adsgut.route('/user/<nick>/items/html')
 def usersitemshtml(nick):
     user=g.db.getUserForNick(g.currentuser, nick)
+    criteria['userthere']=True
     userinfo=user.info()
-    items=g.dbp.getItemsForUser(g.currentuser, user)
+    items=g.dbp.getItem(g.currentuser, user)
     return render_template('usersaved.html', theuser=userinfo, items=items)
 
 #######################################################################################################################
