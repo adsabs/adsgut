@@ -6,7 +6,7 @@ import sys, os
 import hashlib
 from permissions import permit
 from errors import abort
-engine, db_session=setup_db("/tmp/adsgut.db")
+engine, db_session=setup_db("./adsgut.db")
 
 
 
@@ -820,10 +820,11 @@ def userstags(nick):
 
 @adsgut.route('/user/<nick>/items/html')
 def usersitemshtml(nick):
+    criteria={}
     user=g.db.getUserForNick(g.currentuser, nick)
     criteria['userthere']=True
     userinfo=user.info()
-    items=g.dbp.getItem(g.currentuser, user)
+    items=g.dbp.getItems(g.currentuser, user, None, None, criteria)
     return render_template('usersaved.html', theuser=userinfo, items=items)
 
 #######################################################################################################################
