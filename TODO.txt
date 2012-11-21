@@ -58,26 +58,62 @@ html pages desired
 ================================================================
 Stuff to be done now (not next year, ie no app pages etc)
 [not clear whether one should expose anything about app to users]
-(a) ordering of item results, asc and desc by time. counts. [we are on ordering but dont have counts]
+BIG: (a) ordering of item results, asc and desc by time. counts. [we are on ordering but dont have counts] (s) we need counts and pagination later
 (b) html pages: private library, personal profile (for grps invitations, etc), group priv library
-(c) API:deletion web services(simple) for item/tag in group, item/tag in app, item/tag for user (user priv grp)
+BIG(c) API:deletion web services(simple) for item/tag in group, item/tag in app, item/tag for user (user priv grp)
 (d) API: is an item saved publically (we could parse from groups saved in)
-(e) convert giovanni user to rahul user. And work it in giovanni mode.
-(f) rationalize currentuser vas user being masqueraded as
-(g) complex permits and any routing? (none now)
+--(e) convert giovanni user to rahul user. And work it in giovanni mode.
+BIG(f) rationalize currentuser vas user being masqueraded as (useras)
+(g) complex permits and any routing? (none now) -X
 (h) textual bootstrap rather than setup python files. --X[use initialize vs testing for now]
-(i) shifting stuff from old pub libs in here. Ask alberto for dump. (see email)
+BIG(i) shifting stuff from old pub libs in here. Ask alberto for dump. (see email)
 write script to bring that stuff in)
-(j) ads libs: see requiremenys from ads libraries.
-(h) error handling set of errors: perhaps not needed now
-(i) sqlite AND MySQL support.
-(j) document document document (code + api)
-(k) item tags philosophy document. How notes are set up. 
-(l) how tags are published: web service for omnibus publishing vs  group posting prefernce.
-(m) clean up additional unused fields in tables
-(n) a general item.groupsin is a leak: you ought to only show groups you are a member of
+--(j) ads libs: see requiremenys from ads libraries.
+(h) error handling set of errors: perhaps not needed now -X
+--(i) sqlite AND MySQL support.
+BIG(j) document document document (code + api) (k) item tags philosophy document. How notes are set up. 
+--(l) how tags are published: web service for omnibus publishing vs  group posting prefernce.
+(m) clean up additional unused fields in tables -X
+--(n) a general item.groupsin is a leak: you ought to only show groups you are a member of..(q) All items will currently give groups and such. Perhaps this should be suppressed.
 (o) all POSTS will fail to return appropriate info about the object unless you commit the object into the dbase as part of post in test --X
 (p) cant sort on itemtype as its a different table join --X
-(q) All items will currently give groups and such. Perhaps this should be suppressed.
-(r) we do not support range or IN queries for searching. If we use filter instead of filter_by we ought to be able to do that.
-(s) we need counts and pagination later
+BIG(r) we do not support range or IN queries for searching. If we use filter instead of filter_by we ought to be able to do that.
+BIG(s) JS client library taking use cases into a/c.
+=================================================================
+BIG THING ON ROUTING
+Since we have no routing, we have no match between the itemtype and the app autopost. Eg an ads/pub needs to
+be autoposted to the ads pubs app. Lets hardcode this into the itemtype. Additional postings require routing, but we have only one app for now.
+But then we dont need this, as we can just go with all items. But why not support the correct interface? We do now.
+
+
+
+BEEEEG things that need painstaking decisionmaking:
+(a) currentuser vs useras
+(b) tags posting vs items posting
+(c) A question is this: how do we arrange commits like when we did redis so that we dont have partial updates. as big a question as the tag vs item
+and currentuser vs useras
+
+USE CASES
+----------
+(a) on web site urer takes item, saves it. 
+then tags it. then posts into group. tags must also be posted into group
+or posts into group. then tags it. tags must again be posted into group
+the individual web services for ragging or group posting do not take care of this. routing could be used.
+but we dont have  routing right now. thus we could instrument the funcs. this seems like a bad idea. what if we change policy.
+we could also rely on the user interface to do it as a result of the ajax success response. Go with that, and 
+TODO: provide a function to do this in js, with callback capability. This indeed is the best for ADS too.
+LONG TERM doing this server side is better. maybe we should do routing now? Atleast a simplified form.
+
+(b)Also what about things like multiple groups at a time? sounds like a reason for dealing with arrays in POST. currently we explicitly
+POST to groups with a group endpoint, but it might be worth doing as an array to an item or tag or itemtag endpoint. In terms of the usecase,
+a select box with multiple groups, we'd dsave item, tag in, and post stuff to multiple groups. Also ad the ability to simultaneously post multiplw tags to an item
+
+(c) now lets tackle the use case of a note being added. this is just like another tag.so writing a note on an item is like making a tag on that item. However, the note might want to be held private, or posted to the groups (or made public..which is just another group, so lets not worry about that). For note to be held private, put a checkbox which says keep note private, which then will post the tag only into the personal group. This then is an argument
+for separating tagging from posting tagging to groups. In other words, even if item X is scheduled to be posted to N groups i might want to keep note private. So how does this play with A?
+
+Its obvious than one omnibus is not the solution. But we do want to make things easy for the client.
+
+
+ERRORS:
+running outside of app context in script due to http error handling
+There is no api validation to make sure junk is not being sent in.

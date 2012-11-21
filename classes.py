@@ -50,6 +50,11 @@ GroupApplication = Table('group_application', DaBase.metadata,
     Column('application_id', Integer, ForeignKey('applications.application_id'))
 )
 
+
+# ItemtypeApplication = Table('itemtype_application', DaBase.metadata,
+#     Column('itemtype_id', Integer, ForeignKey('itemtypes.id')),
+#     Column('application_id', Integer, ForeignKey('applications.application_id'))
+# )
 #To the following add user. For items add uris. For tags add the tagname.
 # ItemTag = Table('item_tag', DaBase.metadata,
 #     Column('item_id', Integer, ForeignKey('items.id')),
@@ -144,12 +149,17 @@ class ItemType(DaBase):
     __tablename__='itemtypes'
     id = Column(Integer, primary_key=True)
     creator_id = Column(Integer, ForeignKey('users.id'))
+    #app_id = Column(Integer, ForeignKey('applications.application_id'))
     name = Column(String)
     type=Column(String)
     fqin = Column(String, unique=True, nullable=False)
     description = Column(Text)
     whencreated = Column(DateTime, server_default=text(THENOW))
     creator = relationship('User', backref=backref('itemtypes', lazy='dynamic'))
+    #app = relationship('Application', post_update=True, backref=backref('itemtypes', lazy='dynamic'))
+    # app = relationship('Application', secondary=ItemtypeApplication,
+    #                         backref=backref('itemtypes', lazy='dynamic'))
+    app=Column(String)#BUG: currently do as string so as not to struggle with fkeys at this point.
     __mapper_args__ = {'polymorphic_identity': 'itemtype', 'polymorphic_on': 'type'}
 
 #bug: cant figure how to inherit this from itemtype
@@ -184,13 +194,22 @@ class Item(DaBase):
     def __repr__(self):
         return "<Item:%s,%s>" % (self.itemtype.name, self.name)
 
-    def info(self):
+    def info(self, user=None):
         #print "SELF", self
         #BUG: groupsin here is a leak. Not everyone should no about others groups this is posted in
         #plus it would make things very slow.
+        if user:
+            print 'userthere'
+            groupsin=self.query.filter(Item.items_groups.any(user=user))
+            applicationsin=self.query.filter(Item.items_groups.any(user=user))
+            #groupsin=self.groupsin
+            #applicationsin=self.applicationsin
+        else:
+            groupsin=self.groupsin
+            applicationsin=self.applicationsin
         return {'fqin':self.fqin, 'uri':self.uri, 'creator': self.creator.nick, 'name': self.name, 'whencreated': self.whencreated.isoformat(),
             'itemtype':self.itemtype.fqin, 'metajson':self.metajson,
-            'groupsin':[ele.fqin for ele in self.groupsin], 'applicationsin':[ele.fqin for ele in self.applicationsin]}
+            'groupsin':[ele.fqin for ele in groupsin], 'applicationsin':[ele.fqin for ele in self.applicationsin]}
 
 
 
@@ -299,7 +318,7 @@ class ItemGroup(DaBase):
     __tablename__='item_group'
     item_id=Column(Integer, ForeignKey('items.id'), primary_key=True)
     group_id=Column(Integer, ForeignKey('groups.group_id'), primary_key=True)
-    user_id=Column(Integer, ForeignKey('users.id'))
+    user_id=Column(Integer, ForeignKey('users.id'), primary_key=True)
     itemtype_id=Column(Integer, ForeignKey('itemtypes.id'))
     whenposted = Column(DateTime, server_default=text(THENOW))
     itemuri=Column(String)
@@ -325,7 +344,7 @@ class ItemApplication(DaBase):
     __tablename__='item_application'
     item_id=Column('item_id', Integer, ForeignKey('items.id'), primary_key=True)
     application_id=Column(Integer, ForeignKey('applications.application_id'), primary_key=True)
-    user_id=Column('user_id', Integer, ForeignKey('users.id'))
+    user_id=Column('user_id', Integer, ForeignKey('users.id'), primary_key=True)
     itemtype_id=Column(Integer, ForeignKey('itemtypes.id'))
     whenposted = Column(DateTime, server_default=text(THENOW))
     itemuri=Column(String)
@@ -366,7 +385,7 @@ class ItemTag(DaBase):
             )
 
     def info(self):
-        return {'item':self.item.fqin, 'itemtype': self.itemtype.fqin, 'iteminfo': self.item.info(), 
+        return {'item':self.item.fqin, 'itemtype': self.itemtype.fqin, 'iteminfo': self.item.info(self.user), 
                     'tag':[self.tag.fqin, self.tag.description], 'whentagged': self.whentagged.isoformat(),
                     'tagtype':self.tag.tagtype.fqin, 'tagname': self.tagname, 'taginfo':self.tag.info(), 'whentagposted': None}
     def __repr__(self):
@@ -405,7 +424,7 @@ class TagitemGroup(DaBase):
         itemtag=self.itemtag
         item=itemtag.item
         tag=itemtag.tag
-        return {'item':item.fqin, 'itemtype': item.itemtype.fqin, 'iteminfo': item.info(), 
+        return {'item':item.fqin, 'itemtype': item.itemtype.fqin, 'iteminfo': item.info(self.user), 
                     'tag':[tag.fqin, tag.description], 'whentagged': itemtag.whentagged.isoformat(), 'whentagposted': self.whentagposted.isoformat(),
                     'tagtype':self.tagtype.fqin, 'tagname': self.tagname, 'taginfo':tag.info()}
 
@@ -455,7 +474,7 @@ class TagitemApplication(DaBase):
         itemtag=self.itemtag
         item=itemtag.item
         tag=itemtag.tag
-        return {'item':item.fqin, 'itemtype': item.itemtype.fqin, 'iteminfo': item.info(), 
+        return {'item':item.fqin, 'itemtype': item.itemtype.fqin, 'iteminfo': item.info(self.user), 
                     'tag':[tag.fqin, tag.description], 'whentagposted': self.whentagposted.isoformat(),
                     'tagtype':self.tagtype.fqin, 'tagname': self.tagname, 'taginfo':tag.info()}
 

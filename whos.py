@@ -100,6 +100,8 @@ class Whosdb(dbase.Database):
             newuser=User(**vspec)
             self.session.add(newuser)
         except:
+            import sys
+            print sys.exc_info()
             doabort('BAD_REQ', "Failed adding user %s" % userspec['nick'])
         #Also add user to private default group and public group
         
@@ -450,62 +452,6 @@ def initialize_testing(db_session):
     print "ending init"
 
 
-class TestA(tbase.TBase):
-
-    def test_something(self):
-        print "HELLO"
-        sess=self.session
-        currentuser=None
-        whosdb=Whosdb(sess)
-        adsgutuser=whosdb.addUser(currentuser, dict(nick='adsgut', email='adsgut@adslabs.org'))
-        currentuser=adsgutuser
-        adsgutdefault=whosdb.addGroup(currentuser, dict(name='default', creator=adsgutuser))
-        public=whosdb.addGroup(currentuser, dict(name='public', creator=adsgutuser))
-        whosdb.commit()
-        #adsgutuser=User(name='adsgut', email='adsgut@adslabs.org')
-        adsuser=whosdb.addUser(currentuser, dict(nick='ads', email='ads@adslabs.org'))
-        adsdefault=whosdb.addGroup(currentuser, dict(name='default', creator=adsuser))
-        #adsuser=User(name='ads', email='ads@adslabs.org')
-        whosdb.commit()
-        
-        adspubsapp=whosdb.addApp(currentuser, dict(name='publications', creator=adsuser))
-        whosdb.commit()
-
-        rahuldave=whosdb.addUser(currentuser, dict(nick='rahuldave', email="rahuldave@gmail.com"))
-        whosdb.addUserToGroup(currentuser, 'adsgut/public', rahuldave, None)
-        #rahuldave.groupsin.append(public)
-        rahuldavedefault=whosdb.addGroup(currentuser, dict(name='default', creator=rahuldave))
-        rahuldave.groupsin.append(rahuldavedefault)
-        whosdb.addUserToApp(currentuser, 'ads/publications', rahuldave, None)
-        #rahuldave.applicationsin.append(adspubsapp)
-
-        mlg=whosdb.addGroup(currentuser, dict(name='ml', creator=rahuldave))
-        rahuldave.groupsin.append(mlg)
-        whosdb.commit()
-        jayluker=whosdb.addUser(currentuser, dict(nick='jayluker', email="jluker@gmail.com"))
-        whosdb.addUserToGroup(currentuser, 'adsgut/public', jayluker, None)
-        #jayluker.groupsin.append(public)
-        jaylukerdefault=whosdb.addGroup(currentuser, dict(name='default', creator=jayluker))
-        jayluker.groupsin.append(jaylukerdefault)
-        whosdb.addUserToApp(currentuser, 'ads/publications', jayluker, None)
-        #jayluker.applicationsin.append(adspubsapp)
-        whosdb.commit()
-        whosdb.inviteUserToGroup(currentuser, 'rahuldave/ml', jayluker, None)
-        whosdb.commit()
-        whosdb.acceptInviteToGroup(currentuser, 'rahuldave/ml', jayluker, None)
-        whosdb.addGroupToApp(currentuser, 'ads/publications', 'adsgut/public', None )
-        #public.applicationsin.append(adspubsapp)
-        rahuldavedefault.applicationsin.append(adspubsapp)
-        whosdb.commit()
-        print whosdb.allUsers(currentuser)
-        print whosdb.allGroups(currentuser)#[this includes apps]
-        print whosdb.usersInGroup(currentuser, 'adsgut/public')
-        print whosdb.usersInGroup(currentuser, 'rahuldave/ml')
-        print whosdb.usersInApp(currentuser, 'ads/publications')
-        print whosdb.groupsInApp(currentuser, 'ads/publications')
-        print adspubsapp.applicationgroups.all()
-        print whosdb.groupsForUser(currentuser, rahuldave)
-        whosdb.edu()
 
 if __name__=="__main__":
     import os, os.path
