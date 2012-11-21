@@ -1,1 +1,1 @@
-DBASE_FILE="./adsgut.db"
+DBASE_FILE="/tmp//adsgut.db"

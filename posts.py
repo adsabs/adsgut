@@ -950,7 +950,7 @@ class Postdb(dbase.Database):
         titems={}
         taggings=self._getTaggingsWithCriterion(currentuser, useras, context, fqin, criteria, rhash, fvlist, orderer)
         for ele in taggings:
-            eled=ele.info(useras)
+            eled=ele.info()#DONT pass useras as the tag class uses its own user to make sure security is not breached
             #print "eled", eled
             eledfqin=eled['item']
             if not titems.has_key(eledfqin):
@@ -967,7 +967,7 @@ class Postdb(dbase.Database):
         #Perhaps fluff this up with tags in a reasonable way! TODO BUG: want as only the items show and not the tag,
         #or immediate counts, or something like that
         for ele in taggings:
-            eled=ele.info(useras)
+            eled=ele.info()
             print "eled", eled['taginfo']
             eledfqin=eled['item']
             if not titems.has_key(eledfqin):

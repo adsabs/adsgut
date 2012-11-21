@@ -6,7 +6,7 @@ import sys, os
 import hashlib
 from permissions import permit
 from errors import abort
-engine, db_session=setup_db("./adsgut.db")
+engine, db_session=setup_db("/tmp/adsgut.db")
 
 
 
