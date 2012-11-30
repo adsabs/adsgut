@@ -58,6 +58,7 @@ def shutdown_session(exception=None):
 #currently explicit for simplicity
 
 #######################################################################################################################
+#The methods here are to support Poal and other testing infrastructure.
 
 @adsgut.route('/all')
 def indexall():
@@ -472,7 +473,7 @@ def usermultitagpost(nick, itemname):
         for ti in taginfos:
             if not ti['tagname']:
                 doabort('BAD_REQ', "No names specified for tag")
-            if not ti'tagtype']:
+            if not ti['tagtype']:
                 doabort('BAD_REQ', "No tagtypes specified for tag")
             tagspec={}
             tagspec['creator']=user
@@ -517,6 +518,26 @@ def useritemgrouppost(groupowner, groupname):
         user=g.db.getUserForNick(g.currentuser, nick)
         fqgn=groupowner+"/group:"+groupname
         item=g.dbp.postItemIntoGroup(g.currentuser, user, fqgn, fqin)
+        g.dbp.commit()
+        return jsonify({'status':'OK', 'info':{'item':item.info(), 'group':fqgn}})
+    else:
+        #later support via GET all items in group, perhaps based on spec
+        doabort("BAD_REQ", "GET not supported")
+
+@adsgut.route('/group/public/items', methods=['POST'])#user/fqin
+def useritempublicpost():
+    #user=g.currentuser#The current user is doing the posting
+    #print "hello", user.nick
+    if request.method == 'POST':
+        fqin = request.form.get('fqin', None)
+        if not fqin:
+            doabort("BAD_REQ", "Item to post to group not specified")
+        nick = request.form.get('user', None)
+        if not nick:
+            doabort("BAD_REQ", "User doing posting not specified")
+        user=g.db.getUserForNick(g.currentuser, nick)
+        fqgn="adsgut/group:public"
+        item=g.dbp.postItemPublic(g.currentuser, user, fqin)
         g.dbp.commit()
         return jsonify({'status':'OK', 'info':{'item':item.info(), 'group':fqgn}})
     else:

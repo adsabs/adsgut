@@ -9,6 +9,8 @@ from dbase import DaBase
 
 #redis setup
 
+#BUG: sorting in groups and apps will give us multiple peoples posts of the same items. Deal with it how?
+
 #in mem setup
 #our clases
 #Base=object
@@ -194,22 +196,26 @@ class Item(DaBase):
     def __repr__(self):
         return "<Item:%s,%s>" % (self.itemtype.name, self.name)
 
-    def info(self, user=None):
-        #print "SELF", self
-        #BUG: groupsin here is a leak. Not everyone should no about others groups this is posted in
-        #plus it would make things very slow.
+    def get_groupsin(self, user=None):
         if user:
-            print 'userthere'
             groupsin=self.query.filter(Item.items_groups.any(user=user))
-            applicationsin=self.query.filter(Item.items_groups.any(user=user))
-            #groupsin=self.groupsin
-            #applicationsin=self.applicationsin
         else:
             groupsin=self.groupsin
+        return groupsin
+
+    def get_applicationsin(self, user=None):
+        if user:
+            applicationsin=self.query.filter(Item.items_groups.any(user=user))
+        else:
             applicationsin=self.applicationsin
+        return applicationsin
+
+    def info(self, user=None):
+        groupsin=self.get_groupsin(user)
+        applicationsin=self.get_applicationsin(user)
         return {'fqin':self.fqin, 'uri':self.uri, 'creator': self.creator.nick, 'name': self.name, 'whencreated': self.whencreated.isoformat(),
             'itemtype':self.itemtype.fqin, 'metajson':self.metajson,
-            'groupsin':[ele.fqin for ele in groupsin], 'applicationsin':[ele.fqin for ele in self.applicationsin]}
+            'groupsin':[ele.fqin for ele in groupsin], 'applicationsin':[ele.fqin for ele in applicationsin]}
 
 
 

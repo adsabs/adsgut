@@ -116,4 +116,6 @@ Its obvious than one omnibus is not the solution. But we do want to make things 
 
 ERRORS:
 running outside of app context in script due to http error handling
+
+DELETIONS get even more whack when we start adding stuff to groups and all.
 There is no api validation to make sure junk is not being sent in.
