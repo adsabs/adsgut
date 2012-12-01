@@ -993,6 +993,8 @@ class Postdb(dbase.Database):
         rhash.update({'taggings':titems})
         return rhash
 
+#should there be a getTagsForItemSpec
+
     def getItemsForTagspec(self, currentuser, useras, context=None, fqin=None, criteria={}, fvlist=[], orderer=[]):
         rhash={}
         titems={}
@@ -1007,6 +1009,8 @@ class Postdb(dbase.Database):
                 titems[eledfqin]=eled['iteminfo']
         rhash.update({'items':titems.values()})
         return rhash
+
+
 
 
     def getItemsForTag(self, currentuser, useras, tagorfullyQualifiedTagName, context=None, fqin=None, criteria={}, fvlist=[], orderer=[]):
@@ -1041,6 +1045,8 @@ class Postdb(dbase.Database):
         rhash=self.getTaggingForItemspec(currentuser, useras, context, fqin, criteria, rhash, fvlist, orderer)
         return rhash
 
+#should there be a function to just return tags. Dont TODO we need funcs to return simple tagclouds and stuff?
+#do this with the UI. The funcs do exist here as small getTagging funcs
 
 def initialize_application(sess):
     currentuser=None

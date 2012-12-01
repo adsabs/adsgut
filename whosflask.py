@@ -98,9 +98,7 @@ def logout():
 #######################################################################################################################
 #######################################################################################################################
 
-#use this for op based POSTS?
-#currentuser=g.db.getCurrentuser(session.username)
-#GET for info
+#Information about users, groups, and apps
 @adsgut.route('/user/<nick>')
 def douser(nick):
     userinfo=g.db.getUserInfo(g.currentuser, nick)
@@ -390,35 +388,7 @@ def app_profile(username, appname):
 #Can a group or app post an item for a user? The answer is yes, but the implementation is complex. This is as it must post
 #items to apps and groups too. So the question is: where do we develop this functionality
 
-#POST item
-#masqueradable BUT WE DONT SUPPORT IT FOR NOW
-@adsgut.route('/items/<nick>', methods=['POST'])#name/itemtype/uri/
-def useritempost(nick):
-    user=g.db.getUserForNick(g.currentuser, nick)
-    #print "hello", user.nick
-    if request.method == 'POST':
-        #print request.form
-        itspec={}
-        #nick = request.form.get('user', None)
-        itspec['creator']=user
-        itspec['name'] = request.form.get('name', None)
-        if not itspec['name']:
-            doabort("BAD_REQ", "No name specified for item")
-        itspec['itemtype'] = request.form.get('itemtype', None)
-        if not itspec['itemtype']:
-            doabort("BAD_REQ", "No itemtype specified for item")
-        #print "world"
-        md5u=hashlib.md5()
-        itspec['uri']=request.form.get('uri', md5u.update(user.nick+"/"+itspec['name']))
-        #itspec['description']=request.form.get('description', '')
-        #itspec['uri']=request.form.get('uri', ''
-        #print "aaa", itspec
-        newitem=g.dbp.saveItem(g.currentuser, user, itspec)
-        print "kkk", newitem
-        g.dbp.commit()#needed to get isoformats? YES
-        return jsonify({'status':'OK', 'info':newitem.info()})
-    else:
-        doabort("BAD_REQ", "GET not supported")
+
 
 #POST tag
 #masqueradable BUT WE DONT SUPPORT IT FOR NOW
@@ -504,7 +474,8 @@ def usermultitagpost(nick, itemname):
 #perhaps sstemuser should be tested first?
 
 #@adsgut.route('/item/<ns>/<itemname>/grouppost', methods=['POST'])#user/fqin
-@adsgut.route('/group/<groupowner>/group:<groupname>/items', methods=['POST'])#user/fqin
+#TODOAPI: do easy way of getting items in group BUG: how about particular user via userthere?
+@adsgut.route('/group/<groupowner>/group:<groupname>/items', methods=['POST', 'GET'])#user/fqin fieldlist=[('uri',''), ('name',''), ('itemtype',''), ('context', None), ('fqin', None)]
 def useritemgrouppost(groupowner, groupname):
     #user=g.currentuser#The current user is doing the posting
     #print "hello", user.nick
@@ -522,9 +493,21 @@ def useritemgrouppost(groupowner, groupname):
         return jsonify({'status':'OK', 'info':{'item':item.info(), 'group':fqgn}})
     else:
         #later support via GET all items in group, perhaps based on spec
-        doabort("BAD_REQ", "GET not supported")
+        #doabort("BAD_REQ", "GET not supported")
+        criteria, fvlist, orderer=_getItemQuery(request.args)
+        #criteria['userthere']=True
+        useras=None
+        throwawaycontext=criteria.pop('context')
+        throwawayfqin=criteria.pop('fqin')
+        context="group"
+        fqin=groupowner+"/group:"+groupname
+        #This should be cleaned for values. BUG nor done yet.   
+        items=g.dbp.getItems(g.currentuser, useras, context, fqin, criteria, fvlist, orderer)
+        return jsonify({'items':items})
 
-@adsgut.route('/group/public/items', methods=['POST'])#user/fqin
+#TODOAPI: do easy way of getting items in group
+#BUG: add userthere support (do we want to add it via GET or url?)
+@adsgut.route('/group/public/items', methods=['POST', 'GET'])#user/fqin fieldlist=[('uri',''), ('name',''), ('itemtype',''), ('context', None), ('fqin', None)]
 def useritempublicpost():
     #user=g.currentuser#The current user is doing the posting
     #print "hello", user.nick
@@ -542,9 +525,19 @@ def useritempublicpost():
         return jsonify({'status':'OK', 'info':{'item':item.info(), 'group':fqgn}})
     else:
         #later support via GET all items in group, perhaps based on spec
-        doabort("BAD_REQ", "GET not supported")
+        #doabort("BAD_REQ", "GET not supported")
+        criteria, fvlist, orderer=_getItemQuery(request.args)
+        #criteria['userthere']=True
+        useras=None
+        throwawaycontext=criteria.pop('context')
+        throwawayfqin=criteria.pop('fqin')
+        context="group"
+        fqin="adsgut/group:public"
+        #This should be cleaned for values. BUG nor done yet.   
+        items=g.dbp.getItems(g.currentuser, useras, context, fqin, criteria, fvlist, orderer)
+        return jsonify({'items':items})
 
-@adsgut.route('/groups/<nick>/<ns>/<itemname>/multi', methods=['POST'])#fqins=[fqin]
+@adsgut.route('/item/<nick>/<ns>/<itemname>/multigrouppost', methods=['POST'])#fqins=[fqin]
 def useritemmultigrouppost(groupowner, groupname):
     #user=g.currentuser#The current user is doing the posting
     #print "hello", user.nick
@@ -565,8 +558,10 @@ def useritemmultigrouppost(groupowner, groupname):
         doabort("BAD_REQ", "GET not supported")
 
 #@adsgut.route('/item/<ns>/<itemname>/apppost', methods=['POST'])#user/fqin
-@adsgut.route('/app/<appowner>/app:<appname>/items', methods=['POST'])#user/fqin
-def useritemapppost(ns, itemname):
+#TODOAPI: do easy way of getting items in group
+#BUG add userthere support
+@adsgut.route('/app/<appowner>/app:<appname>/items', methods=['POST'])#user/fqin fieldlist=[('uri',''), ('name',''), ('itemtype',''), ('context', None), ('fqin', None)]
+def useritemapppost(appowner, appname):
     #user=g.currentuser#The current user is doing the posting
     #print "hello", user.nick
     if request.method == 'POST':
@@ -578,15 +573,27 @@ def useritemapppost(ns, itemname):
             doabort("BAD_REQ", "User doing posting not specified")
         user=g.db.getUserForNick(g.currentuser, nick)
         fqan=appowner+"/app:"+appname
-        item=g.dbp.postItemToGroup(g.currentuser, user, fqan, fqin)
+        item=g.dbp.postItemIntoApp(g.currentuser, user, fqan, fqin)
         g.dbp.commit()
         return jsonify({'status':'OK', 'info':{'item':item.info(), 'app':fqan}})
     else:
         #later support via GET all items in app, perhaps based on spec
-        doabort("BAD_REQ", "GET not supported")
+        #doabort("BAD_REQ", "GET not supported")
+        criteria, fvlist, orderer=_getItemQuery(request.args)
+        #criteria['userthere']=True
+        useras=None
+        throwawaycontext=criteria.pop('context')
+        throwawayfqin=criteria.pop('fqin')
+        context="app"
+        fqin=appowner+"/app:"+appname
+        #This should be cleaned for values. BUG nor done yet.   
+        items=g.dbp.getItems(g.currentuser, useras, context, fqin, criteria, fvlist, orderer)
+        return jsonify({'items':items})
+
 
 #@adsgut.route('/tag/<ns>/<itemname>/grouppost', methods=['POST'])#user/fqin/fqtn
 #How should this be presented in GET?
+#TODOAPI: do easy way of getting tags in grp: use spec methods
 @adsgut.route('/group/<groupowner>/group:<groupname>/tags', methods=['POST'])#user/fqin/fqtn
 def usertaggrouppost(groupowner, groupname):
     #user=g.currentuser#The current user is doing the posting
@@ -607,10 +614,24 @@ def usertaggrouppost(groupowner, groupname):
         g.dbp.commit()
         return jsonify({'status':'OK', 'info': itg.info()})
     else:
-        doabort("BAD_REQ", "GET not supported")
+        #doabort("BAD_REQ", "GET not supported")
+        criteria, fvlist, orderer=_getTagsForItemQuery(request.args)
+        # if nick=='any':
+        #     useras=g.currentuser
+        # else:
+        #     useras=g.db.getUserForNick(g.currentuser, nick)
+        #     criteria['userthere']=True
+        useras=None
+        throwawaycontext=criteria.pop('context')
+        throwawayfqin=criteria.pop('fqin')
+        context="group"
+        fqin=fqgn
+        #This should be cleaned for values. BUG nor done yet.   
+        taggings=g.dbp.getTaggingForItemspec(g.currentuser, useras, context, fqin, criteria, fvlist, orderer)
+        return jsonify(taggings)
 
 #This posts an item, its tags, and all that to a single group
-
+#TODOAPI: do easy way of getting tags in grp: use spec methods
 @adsgut.route('/group/<groupowner>/group:<groupname>/itemsandtags', methods=['POST'])#user/name/itemtype/uri/tags=[[name, tagtype, description]...]
 def useritemtaggrouppost(groupowner, groupname):
     #user=g.currentuser#The current user is doing the posting
@@ -653,9 +674,24 @@ def useritemtaggrouppost(groupowner, groupname):
             tagobjects.append(itg.info())
         return jsonify({'status':'OK', 'info':{'item':item.info(), 'grouptaggings':tagobjects}})
     else:
-        doabort("BAD_REQ", "GET not supported")
+        #doabort("BAD_REQ", "GET not supported")
+        criteria, fvlist, orderer=_getTagsForItemQuery(request.args)
+        # if nick=='any':
+        #     useras=g.currentuser
+        # else:
+        #     useras=g.db.getUserForNick(g.currentuser, nick)
+        #     criteria['userthere']=True
+        useras=None
+        throwawaycontext=criteria.pop('context')
+        throwawayfqin=criteria.pop('fqin')
+        context="group"
+        fqin=fqgn
+        #This should be cleaned for values. BUG nor done yet.   
+        taggings=g.dbp.getTaggingForItemspec(g.currentuser, useras, context, fqin, criteria, fvlist, orderer)
+        return jsonify(taggings)
 
 #@adsgut.route('/tag/<ns>/<itemname>/apppost', methods=['POST'])#user/fqin/fqtn
+#TODOAPI: do easy way of getting tags in grp: use spec methods
 @adsgut.route('/app/<appowner>/app:<appname>/tags', methods=['POST'])#user/fqin/fqtn
 def usertagapppost(appowner, appname):
     #user=g.currentuser#The current user is doing the posting
@@ -676,8 +712,23 @@ def usertagapppost(appowner, appname):
         g.dbp.commit()
         return jsonify({'status':'OK', 'info': ita.info()})
     else:
-        doabort("BAD_REQ", "GET not supported")  
+        #doabort("BAD_REQ", "GET not supported")
+        criteria, fvlist, orderer=_getTagsForItemQuery(request.args)
+        # if nick=='any':
+        #     useras=g.currentuser
+        # else:
+        #     useras=g.db.getUserForNick(g.currentuser, nick)
+        #     criteria['userthere']=True
+        useras=None
+        throwawaycontext=criteria.pop('context')
+        throwawayfqin=criteria.pop('fqin')
+        context="app"
+        fqin=fqan
+        #This should be cleaned for values. BUG nor done yet.   
+        taggings=g.dbp.getTaggingForItemspec(g.currentuser, useras, context, fqin, criteria, fvlist, orderer)
+        return jsonify(taggings)#should this be just tags and not tags indexed by items? 
 
+#TODOAPI: do easy way of getting tags in grp: use spec methods
 @adsgut.route('/app/<appowner>/app:<appname>/itemsandtags', methods=['POST'])#user/name/itemtype/uri/tags=[[name, tagtype, description]...]
 def useritemtagapppost(appowner, appname):
     #user=g.currentuser#The current user is doing the posting
@@ -721,7 +772,21 @@ def useritemtagapppost(appowner, appname):
             tagobjects.append(ita.info())
         return jsonify({'status':'OK', 'info':{'item':item.info(), 'apptaggings':tagobjects}})
     else:
-        doabort("BAD_REQ", "GET not supported")
+        #doabort("BAD_REQ", "GET not supported")
+        criteria, fvlist, orderer=_getTagsForItemQuery(request.args)
+        # if nick=='any':
+        #     useras=g.currentuser
+        # else:
+        #     useras=g.db.getUserForNick(g.currentuser, nick)
+        #     criteria['userthere']=True
+        useras=None
+        throwawaycontext=criteria.pop('context')
+        throwawayfqin=criteria.pop('fqin')
+        context="app"
+        fqin=fqan
+        #This should be cleaned for values. BUG nor done yet.   
+        taggings=g.dbp.getTaggingForItemspec(g.currentuser, useras, context, fqin, criteria, fvlist, orderer)
+        return jsonify(taggings)
 #######################################################################################################################
 #These can be used as "am i saved" web services. Also gives groups and apps per item
 #a 404 not found would be an ideal error
@@ -783,21 +848,114 @@ def _getTagsForItemQuery(querydict):
 
 
 
+#######################################################################################################################
+
+#users items/posts
+#currently get the items. worry about tags later
+#think we'll do tags as tags=tagtype | all
+
+#query itemtype, context, fqin
+@adsgut.route('/user/<nick>/items')#q=fieldlist=[('uri',''), ('name',''), ('itemtype',''), ('context', None), ('fqin', None)]
+def usersitems(nick):
+    #criteria, fvlist, orderer=_getQuery(request.args, [('itemtype',''), ('context', None), ('fqin', None)])
+    criteria, fvlist, orderer=_getItemQuery(request.args)
+    context=criteria.pop('context')
+    fqin=criteria.pop('fqin')
+    user=g.db.getUserForNick(g.currentuser, nick)
+    # if user==g.currentuser: This throws a bug. remove BUG
+    #     criteria['userthere']=True
+    criteria['userthere']=True
+    items=g.dbp.getItems(g.currentuser, user, context, fqin, criteria, fvlist, orderer)
+    return jsonify({'items':items})
+
+#query itemtype, tagtype, tagname? This is just a specialization of the above
+@adsgut.route('/user/<nick>/tags')#q=fieldlist=[('tagname',''), ('tagtype',''), ('context', None), ('fqin', None)]
+def userstags(nick):
+    criteria, fvlist, orderer=_getTagQuery(request.args)
+    context=criteria.pop('context')
+    fqin=criteria.pop('fqin')
+    user=g.db.getUserForNick(g.currentuser, nick)
+    if user==g.currentuser:
+        criteria['userthere']=True
+    taggings=g.dbp.getTaggingForItemspec(g.currentuser, user, context, fqin, criteria)
+    return jsonify(taggings)
+
+@adsgut.route('/user/<nick>/items/html')
+def usersitemshtml(nick):
+    criteria={}
+    user=g.db.getUserForNick(g.currentuser, nick)
+    criteria['userthere']=True
+    userinfo=user.info()
+    items=g.dbp.getItems(g.currentuser, user, None, None, criteria)
+    return render_template('usersaved.html', theuser=userinfo, items=items)
+
+#POST item
+#masqueradable BUT WE DONT SUPPORT IT FOR NOW
+#wait for useras/currentuser division.
+@adsgut.route('/items/<nick>', methods=['POST', 'GET'])#name/itemtype/uri/ #q=fieldlist=[('itemtype',''), ('context', None), ('fqin', None)]
+def useritempost(nick):
+    user=g.db.getUserForNick(g.currentuser, nick)
+    #print "hello", user.nick
+    if request.method == 'POST':
+        #print request.form
+        itspec={}
+        #nick = request.form.get('user', None)
+        itspec['creator']=user
+        itspec['name'] = request.form.get('name', None)
+        if not itspec['name']:
+            doabort("BAD_REQ", "No name specified for item")
+        itspec['itemtype'] = request.form.get('itemtype', None)
+        if not itspec['itemtype']:
+            doabort("BAD_REQ", "No itemtype specified for item")
+        #print "world"
+        md5u=hashlib.md5()
+        itspec['uri']=request.form.get('uri', md5u.update(user.nick+"/"+itspec['name']))
+        #itspec['description']=request.form.get('description', '')
+        #itspec['uri']=request.form.get('uri', ''
+        #print "aaa", itspec
+        newitem=g.dbp.saveItem(g.currentuser, user, itspec)
+        print "kkk", newitem
+        g.dbp.commit()#needed to get isoformats? YES
+        return jsonify({'status':'OK', 'info':newitem.info()})
+    else:
+        return usersitems(nick)
+
 #query uri/name/itemtype
 #BUG: this returns all items including tags and is thus farely useless. We dont want any inherited tables
 #Can do this with a boolean or figure the sqlalchemyway
 #But can be worked around currently using itemtype and such
-@adsgut.route('/items')#q=fieldlist=[('uri',''), ('name',''), ('itemtype',''), ('context', None), ('fqin', None)]
+@adsgut.route('/items', methods=['POST', 'GET'])##name/itemtype/uri/ #q=fieldlist=[('uri',''), ('name',''), ('itemtype',''), ('context', None), ('fqin', None)]
 def itemsbyany():
     #permit(g.currentuser!=None and g.currentuser.nick=='rahuldave', "wrong user")
-    useras=g.currentuser#BUG: always support this?
-    criteria, fvlist, orderer=_getItemQuery(request.args)
-    #criteria['userthere']=True
-    context=criteria.pop('context')
-    fqin=criteria.pop('fqin')
-    #This should be cleaned for values. BUG nor done yet.   
-    items=g.dbp.getItems(g.currentuser, useras, context, fqin, criteria, fvlist, orderer)
-    return jsonify({'items':items})
+    useras=g.currentuser#BUG: always support this? This one has complex permitting!!!
+    if request.method=='POST':
+        itspec={}
+        #nick = request.form.get('user', None)
+        itspec['creator']=user
+        itspec['name'] = request.form.get('name', None)
+        if not itspec['name']:
+            doabort("BAD_REQ", "No name specified for item")
+        itspec['itemtype'] = request.form.get('itemtype', None)
+        if not itspec['itemtype']:
+            doabort("BAD_REQ", "No itemtype specified for item")
+        #print "world"
+        md5u=hashlib.md5()
+        itspec['uri']=request.form.get('uri', md5u.update(user.nick+"/"+itspec['name']))
+        #itspec['description']=request.form.get('description', '')
+        #itspec['uri']=request.form.get('uri', ''
+        #print "aaa", itspec
+        newitem=g.dbp.saveItem(g.currentuser, user, itspec)
+        print "kkk", newitem
+        g.dbp.commit()#needed to get isoformats? YES
+        return jsonify({'status':'OK', 'info':newitem.info()})
+    else:
+        criteria, fvlist, orderer=_getItemQuery(request.args)
+        #criteria['userthere']=True
+        context=criteria.pop('context')
+        fqin=criteria.pop('fqin')
+        #This should be cleaned for values. BUG nor done yet.   
+        items=g.dbp.getItems(g.currentuser, useras, context, fqin, criteria, fvlist, orderer)
+        return jsonify({'items':items})
 
 #add tagtype/tagname to query. Must this also be querying item attributes?
 @adsgut.route('/tags')#q=fieldlist=[('tagname',''), ('tagtype',''), ('context', None), ('fqin', None)]
@@ -864,46 +1022,6 @@ def itemsfortagspec(nick):
     print "userAS", useras.nick, g.currentuser.nick 
     items=g.dbp.getItemsForTagspec(g.currentuser, useras, context, fqin, criteria, fvlist, orderer)
     return jsonify(items)
-#######################################################################################################################
-
-#users items/posts
-#currently get the items. worry about tags later
-#think we'll do tags as tags=tagtype | all
-
-#query itemtype, context, fqin
-@adsgut.route('/user/<nick>/items')#q=fieldlist=[('itemtype',''), ('context', None), ('fqin', None)]
-def usersitems(nick):
-    #criteria, fvlist, orderer=_getQuery(request.args, [('itemtype',''), ('context', None), ('fqin', None)])
-    criteria, fvlist, orderer=_getItemQuery(request.args)
-    context=criteria.pop('context')
-    fqin=criteria.pop('fqin')
-    user=g.db.getUserForNick(g.currentuser, nick)
-    # if user==g.currentuser: This throws a bug. remove BUG
-    #     criteria['userthere']=True
-    criteria['userthere']=True
-    items=g.dbp.getItems(g.currentuser, user, context, fqin, criteria, fvlist, orderer)
-    return jsonify({'items':items})
-
-#query itemtype, tagtype, tagname? This is just a specialization of the above
-@adsgut.route('/user/<nick>/tags')#q=fieldlist=[('tagname',''), ('tagtype',''), ('context', None), ('fqin', None)]
-def userstags(nick):
-    criteria, fvlist, orderer=_getTagQuery(request.args)
-    context=criteria.pop('context')
-    fqin=criteria.pop('fqin')
-    user=g.db.getUserForNick(g.currentuser, nick)
-    if user==g.currentuser:
-        criteria['userthere']=True
-    taggings=g.dbp.getTaggingForItemspec(g.currentuser, user, context, fqin, criteria)
-    return jsonify(taggings)
-
-@adsgut.route('/user/<nick>/items/html')
-def usersitemshtml(nick):
-    criteria={}
-    user=g.db.getUserForNick(g.currentuser, nick)
-    criteria['userthere']=True
-    userinfo=user.info()
-    items=g.dbp.getItems(g.currentuser, user, None, None, criteria)
-    return render_template('usersaved.html', theuser=userinfo, items=items)
 
 #######################################################################################################################
 #These too are redundant but we might want to support them as a different uri scheme
