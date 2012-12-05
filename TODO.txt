@@ -119,3 +119,28 @@ running outside of app context in script due to http error handling
 
 DELETIONS get even more whack when we start adding stuff to groups and all.
 There is no api validation to make sure junk is not being sent in.
+
+
+Criticals for Mon:
+(a) where we want items, make sure items dosent send down tags and such. LATER
+(b) a pythonic api to add users in bulk and other things SOON
+
+this turns out to be very hard to do via pure decorators with g.db and the request object. perhaps a class is needed to front the 
+currentuser, g.db, g.dbp, and request objects. this class could then carry state in both the web and pythoniac api's. [g.class]
+(c) proper currentuser/useras dance and the permit raj wed/thu
+(d) continual scanning of BUG's in whosflask and whos and posts TUENIGHT
+(e) fix the userthere situation for some of the web apis. done
+(f) validation of web based input (or maybe at api func level too is a must) SOON
+(g) run as a blueprint application LATER
+(h) error handling as pythonic request or while running posts.py(or whos.py) as opposed to werkzeug error handling LATER
+(i) tags vs taggings for items TUE
+(j) orderbys currently have duplicates.	LATER
+(k) make tagmode the default and test. TUE [testing is left to be done yet]
+(l) go over use cases in head and see if we satisfy. Seems itemsandtags for eg need a multi. In this case check if work of routing is done multiply TUENOW
+(m) dont we want small API func which give numbers for a tag and such like we had in the redis version? these could do tag purely by name too
+perhaps this can be run off the spec funcs? i think so. do this as we make the ui.
+
+
+===============
+addUserToGroup dosent get permission from user to add. same as addUserToApp.
+Whats the use case for this?Bulk adds? and whats the permitting issues?

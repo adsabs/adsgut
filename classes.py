@@ -196,11 +196,14 @@ class Item(DaBase):
     def __repr__(self):
         return "<Item:%s,%s>" % (self.itemtype.name, self.name)
 
+
+#BUG: these filters select items..not groups!!!!
     def get_groupsin(self, user=None):
         if user:
             groupsin=self.query.filter(Item.items_groups.any(user=user))
         else:
             groupsin=self.groupsin
+        print "GROUPSIN::::::", groupsin
         return groupsin
 
     def get_applicationsin(self, user=None):
@@ -285,11 +288,12 @@ class Group(Tag):
 
     def info(self):
         #should return fully qualified name instead
-        return {'name': self.name, 'description': self.description, 'owner': self.owner.nick, 
+        infodict = {'name': self.name, 'description': self.description, 'owner': self.owner.nick, 
             'fqgn': self.fqin, 'creator': self.creator.nick, 'whencreated': self.whencreated,
             'whencreated': self.whencreated.isoformat(),
             'groupusers': [ele.nick for ele in self.groupusers],
             'groupsinvitedusers': [ele.nick for ele in self.groupsinvitedusers]}
+        return infodict
 
 class Application(Group):
     __tablename__='applications'

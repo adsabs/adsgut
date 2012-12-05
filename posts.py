@@ -5,7 +5,8 @@ import dbase
 import types
 import config
 from sqlalchemy.orm import join, aliased
-from permissions import permit
+from permissions import permit, authorize
+from permissions import authorize_context_owner, authorize_context_member
 from errors import abort, doabort
 from sqlalchemy import desc
 #wont worry about permissions right now
@@ -342,17 +343,21 @@ class Postdb(dbase.Database):
             personalgrp=self.whosdb.getGroup(currentuser, personalfqgn)
             if item not in personalgrp.itemsposted:
                 print "NOT IN PERSONAL GRP"
-                self.postItemIntoGroup(currentuser, useras, personalgrp, item)
+                self.postItemIntoGroup(currentuser, useras, personalgrp, item, tagmode)
                 #self.commit() is this needed?
-                appstring=item.itemtype.app
-                itemtypesapp=self.whosdb.getApp(currentuser, appstring)
-                #every time an item is added to a group:add it to the app corresponding to the group
-                #if multiple people do this wont we have multiple postings. But isnt this ok
-                #IN LIEU OF ROUTING 
-                #NOTE: we o it only in personal group (since this is alreay added) as otherwise we'd have to
-                #assure idempotency for each group the user added the item to
-                self.postItemIntoApp(currentuser, useras, itemtypesapp, item)
-
+        else:
+            #the only time we want to add an item to an app is when we put it in our personal group
+            #if we do it for each group then we will not be unique
+            #how will this work when we let groups subscribe to apps? TODO
+            appstring=item.itemtype.app
+            itemtypesapp=self.whosdb.getApp(currentuser, appstring)
+            #every time an item is added to a group:add it to the app corresponding to the group
+            #if multiple people do this wont we have multiple postings. But isnt this ok
+            #IN LIEU OF ROUTING 
+            #NOTE: we o it only in personal group (since this is alreay added) as otherwise we'd have to
+            #assure idempotency for each group the user added the item to
+            self.postItemIntoApp(currentuser, useras, itemtypesapp, item, tagmode)
+        #is taggings, ensure they are posted into group too, personal or otherwise
         if tagmode:
             taggings=self.getTaggingsByItemAndUser(currentuser, useras, item)
             if grp.fqin!=fqgn: #trying to post to personal group, prevent!
@@ -467,7 +472,8 @@ class Postdb(dbase.Database):
 
         #print "APPSTRING\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\", appstring
         #itemtypesapp=self.whosdb.getApp(currentuser, appstring)
-        self.postItemIntoGroup(currentuser, useras, personalgrp, newitem)
+        tagmode=True
+        self.postItemIntoGroup(currentuser, useras, personalgrp, newitem, tagmode)
         print '**********************'        
         #IN LIEU OF ROUTING
         #self.postItemIntoApp(currentuser, useras, itemtypesapp, newitem)
@@ -527,6 +533,7 @@ class Postdb(dbase.Database):
         print "adding to %s" % personalgrp.fqin
 
         self.postTaggingIntoGroupFromItemtag(currentuser, useras, personalgrp, newtagging)
+        #at this point it goes to the itemtypes app too.
         #This will get the personal, and since no commit, i think we will not hit personal. 
         #nevertheless we protect against it below
         if tagmode:
@@ -534,6 +541,7 @@ class Postdb(dbase.Database):
             #the groups user is in that item is in: in tagmode we make sure, whatever groups item is in, tags are in
             for grp in groupsitemisin:
                 if grp.fqin!=personalfqgn:
+                    #wont be added to app for these
                     self.postTaggingIntoGroupFromItemtag(currentuser, useras, grp, newtagging)
         #print itemtobetagged.itemtags, "WEE", newtag.taggeditems, newtagging.tagtype.name
         return newtag, newtagging
@@ -593,7 +601,9 @@ class Postdb(dbase.Database):
         self.session.add(newitg)
 
         personalfqgn=useras.nick+"/group:default"
-        if grp.fqin!=personalfqgn:
+        #post item tagging to app only when we post tag to personal group. 
+        #this way its only posted once
+        if grp.fqin==personalfqgn:
             personalgrp=self.whosdb.getGroup(currentuser, personalfqgn)
             appstring=itm.itemtype.app
             itemtypesapp=self.whosdb.getApp(currentuser, appstring)
@@ -621,8 +631,13 @@ class Postdb(dbase.Database):
             "Only member of group %s can post into it" % grp.fqin)
         permit(useras==itemtag.user,
             "Only creator of tag can post into group %s" % grp.fqin)
+        #TODO: below tells us who can masquerade. thats about oauth or other 
+        #authorization. But the context like grp is important. That an appowner
+        #can masquerade the currentuser to be the groupowner must be expressed
+        #elsewhere
+        #so perhaps we need a routing structure for that. Keep this in mind
         permit(currentuser==useras or self.whosdb.isOwnerOfGroup(currentuser, grp) or self.whosdb.isSystemUser(currentuser),
-            "Current user must be useras or only owner of group %s or systemuser can masquerade as user" % grp.fqin)
+             "Current user must be useras or only owner of group %s or systemuser can masquerade as user" % grp.fqin)
         try:
             tag=itemtag.tag
             newitg=TagitemGroup(itemtag=itemtag, group=grp, tagname=tag.name, tagtype=tag.tagtype, user=useras)
@@ -632,7 +647,8 @@ class Postdb(dbase.Database):
         self.session.add(newitg)
 
         personalfqgn=useras.nick+"/group:default"
-        if grp.fqin!=personalfqgn:
+        #only when we do post tagging to personal group do we post tagging to app. this ensures app dosent have multiples.
+        if grp.fqin==personalfqgn:
             personalgrp=self.whosdb.getGroup(currentuser, personalfqgn)
             appstring=item.itemtype.app
             itemtypesapp=self.whosdb.getApp(currentuser, appstring)
@@ -679,9 +695,11 @@ class Postdb(dbase.Database):
             tag=self.getTag(currentuser, tagorfullyQualifiedTagName)
         else:
             tag=tagorfullyQualifiedTagName
-        item=self.postItemIntoGroup(currentuser, useras, grp, itm)
+        tagmode=False
+        item=self.postItemIntoGroup(currentuser, useras, grp, itm, tagmode)
+        #at this point we have a tag not a existing tagging so we should let the tagmode be false.
         itemtag, itg = self.postTaggingIntoGroup(currentuser, useras, grp, itm, tag)
-        return itemtag, itg
+        return item
 
     def postItemAndTaggingPublic(self, currentuser, useras, itemorfullyQualifiedItemName, tagorfullyQualifiedTagName):
         grp=self.whosdb.getGroup(currentuser, 'adsgut/group:public')
@@ -791,7 +809,8 @@ class Postdb(dbase.Database):
             tag=self.getTag(currentuser, tagorfullyQualifiedTagName)
         else:
             tag=tagorfullyQualifiedTagName
-        item=self.postItemIntoApp(currentuser, useras, app, itm)
+        tagmode=False
+        item=self.postItemIntoApp(currentuser, useras, app, itm, tagmode)
         itemtag, ita=self.postTaggingIntoApp(currentuser, useras, app, itm, tag)
         return itemtag, ita
     #######################################################################################################################
@@ -1027,13 +1046,11 @@ class Postdb(dbase.Database):
         permit(useras==tag.creator, "User must be creator of tag %s" % tag.fqin)
         criteria['tagtype']=tag.tagtype.fqin
         criteria['tagname']=tag.name
-        rhash=self.getItemsForTagspec(currentuser, useras, context, fqin, criteria, rhash, fvlist, orderer)
+        rhash=self.getItemsForTagspec(currentuser, useras, context, fqin, criteria, fvlist, orderer)
         return rhash
 
 
     def getTagsForItem(self, currentuser, useras, itemorfullyQualifiedItemName, context=None, fqin=None, criteria={}, fvlist=[], orderer=[]):
-        rhash={}
-        titems={}
         if is_stringtype(itemorfullyQualifiedItemName):
             item=self.getItem(currentuser, itemorfullyQualifiedItemName)
         else:
@@ -1042,7 +1059,7 @@ class Postdb(dbase.Database):
         #BUG: whats the security I can see the item?
         criteria['name']=item.name
         criteria['itemtype']=item.itemtype.fqin
-        rhash=self.getTaggingForItemspec(currentuser, useras, context, fqin, criteria, rhash, fvlist, orderer)
+        rhash=self.getTaggingForItemspec(currentuser, useras, context, fqin, criteria, fvlist, orderer)
         return rhash
 
 #should there be a function to just return tags. Dont TODO we need funcs to return simple tagclouds and stuff?
@@ -1099,6 +1116,7 @@ def initialize_testing(db_session):
     #NOTE: actually this is taken care of by posting into group on tagging, and making sure tags are posted
     #along with items into groups
     postdb.postItemIntoGroup(currentuser,rahuldave, "rahuldave/group:ml", "ads/hello kitty")
+    postdb.postItemIntoGroup(currentuser,rahuldave, "adsgut/group:public", "ads/hello kitty")#public post
     postdb.postItemIntoGroup(currentuser,rahuldave, "rahuldave/group:ml", "ads/hello doggy")
     #TODO: below NOT NEEDED GOT FROM DEFAULT: SHOULD IT ERROR OUT GRACEFULLY OR BE IDEMPOTENT?
     #postdb.postItemIntoApp(currentuser,rahuldave, "ads/app:publications", "ads/hello doggy")

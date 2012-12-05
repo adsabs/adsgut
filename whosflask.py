@@ -9,6 +9,15 @@ from errors import abort
 engine, db_session=setup_db("/tmp/adsgut.db")
 
 
+from functools import wraps
+def makejson():
+    def decorator(f):
+        @wraps(f)
+        def decorated_func(*args,**kwargs):
+            retdict=f(*args, **kwargs)
+            return jsonify(**retdict)
+        return decorated_func
+    return decorator
 
 #sys.path.append('..')
 BLUEPRINT_MODE=os.environ.get('BLUEPRINT_MODE', False)
@@ -75,7 +84,7 @@ def poal():
     return render_template('poal.html', poal=True)
 
 #######################################################################################################################
-#BUG: redo this with new user system
+#TODO: redo this with new user system
 
 @adsgut.route('/login', methods=['GET', 'POST'])
 def login():
@@ -100,56 +109,57 @@ def logout():
 
 #Information about users, groups, and apps
 @adsgut.route('/user/<nick>')
-def douser(nick):
+def userInfo(nick):
     userinfo=g.db.getUserInfo(g.currentuser, nick)
-    return jsonify(**userinfo)
+    return jsonify(userinfo)
 
 @adsgut.route('/user/<nick>/profile/html')
-def profile(nick):
+def userProfileHtml(nick):
     userinfo=g.db.getUserInfo(g.currentuser, nick)
     return render_template('userprofile.html', theuser=userinfo)
 
-@adsgut.route('/user/<nick>/groupsin')
-def groupsin(nick):
+@adsgut.route('/user/<nick>/groupsuserisin')
+def groupsUserIsIn(nick):
     user=g.db.getUserForNick(g.currentuser, nick)
     groups=g.db.groupsForUser(g.currentuser, user)
-    return jsonify({'groups':groups})
+    groupdict={'groups':groups}
+    return jsonify(groupdict)
 
-@adsgut.route('/user/<nick>/groupsowned')
-def groupsowned(nick):
+@adsgut.route('/user/<nick>/groupsuserowns')
+def groupsUserOwns(nick):
     user=g.db.getUserForNick(g.currentuser, nick)
     groups=g.db.ownerOfGroups(g.currentuser, user)
-    return jsonify({'groups':groups})
+    groupdict={'groups':groups}
+    return jsonify(groupdict)
 
-#BUG: these returns group info for each group. permits must make sure there is no leakage
-# in classes, we may need to have different functions for info that needs to be embargoed.
-#but thats the right level at which to do it. also means that permit may need to not just
-#raise exceptions, but respond on an if-then basis. (permitwitherror?)
-
-@adsgut.route('/user/<nick>/groupsinvited')
-def groupsinvited(nick):
+@adsgut.route('/user/<nick>/groupsuserisinvitedto')
+def groupsUserIsInvitedTo(nick):
     user=g.db.getUserForNick(g.currentuser, nick)
     groups=g.db.groupInvitationsForUser(g.currentuser, user)
-    return jsonify({'groups':groups})
+    groupdict={'groups':groups}
+    return jsonify(groupdict)
 
-@adsgut.route('/user/<nick>/appsin')
-def appsin(nick):
+@adsgut.route('/user/<nick>/appsuserisin')
+def appsUserIsIn(nick):
     user=g.db.getUserForNick(g.currentuser, nick)
     apps=g.db.appsForUser(g.currentuser, user)
-    return jsonify({'apps':apps})
+    appdict={'apps':apps}
+    return jsonify(appdict)
 
-@adsgut.route('/user/<nick>/appsowned')
-def appsowned(nick):
+@adsgut.route('/user/<nick>/appsuserowns')
+def appsUserOwns(nick):
     user=g.db.getUserForNick(g.currentuser, nick)
     apps=g.db.ownerOfApps(g.currentuser, user)
-    return jsonify({'apps':apps})
+    appdict={'apps':apps}
+    return jsonify(appdict)
 
 #use this for the email invitation?
-@adsgut.route('/user/<nick>/appsinvited')
-def appsinvited(nick):
+@adsgut.route('/user/<nick>/appsuserisinvitedto')
+def appsUserIsInvitedTo(nick):
     user=g.db.getUserForNick(g.currentuser, nick)
     apps=g.db.appInvitationsForUser(g.currentuser, user)
-    return jsonify({'apps':apps})
+    appdict={'apps':apps}
+    return jsonify(appdict)
 
 #######################################################################################################################
 #creating groups and apps
@@ -157,7 +167,7 @@ def appsinvited(nick):
 #DELETION methods not there BUG
 
 @adsgut.route('/group', methods=['POST'])#groupname/description
-def creategroup():
+def createGroup():
     user=g.currentuser
     groupspec={}
     if request.method == 'POST':
@@ -175,8 +185,10 @@ def creategroup():
         doabort("BAD_REQ", "GET not supported")
 
 #Currently wont allow you to create app, or accept invites to apps
+#TODO: perhaps combine these two into one invitation as a restian endpoint with action=invite or accept. 
+#This way both currentuser and useras can be supported in here.
 @adsgut.route('/group/<groupowner>/group:<groupname>/invitation', methods=['POST'])#user
-def makeinvitetogroup(groupowner, groupname):
+def makeInviteToGroup(groupowner, groupname):
     #add permit to match user with groupowner
     fqgn=groupowner+"/group:"+groupname
     if request.method == 'POST':
@@ -191,7 +203,7 @@ def makeinvitetogroup(groupowner, groupname):
         doabort("BAD_REQ", "GET not supported")
 
 @adsgut.route('/group/<groupowner>/group:<groupname>/acceptinvitation', methods=['POST'])#accepr
-def acceptinvitetogroup(nick, groupowner, groupname):  
+def acceptInviteToGroup(nick, groupowner, groupname):  
     user=g.currentuser
     fqgn=groupowner+"/group:"+groupname
     if request.method == 'POST':
@@ -207,10 +219,11 @@ def acceptinvitetogroup(nick, groupowner, groupname):
     else:
         doabort("BAD_REQ", "GET not supported")
 
-#This is used for bulk addition of a user. Whats the usecase? current perms protect this
-#BUG: maybe add a bulk version?
+#This is used for addition of a user. Whats the usecase? current perms protect this
+#TODO: maybe add a bulk version? That would seem to need to be added as a pythonic API: also split there into two things in pythonic API?
+#BUG: user leakage as we do user info for all users in group. another users groups should not be obtainable
 @adsgut.route('/group/<groupowner>/group:<groupname>/users', methods=['GET', 'POST'])#user
-def addusertogrouporgroupusers(groupowner, groupname):
+def addUsertoGroup_or_groupUsers(groupowner, groupname):
     #add permit to match user with groupowner
     fqgn=groupowner+"/group:"+groupname
     gowner=g.db.getUserForNick(g.currentuser, groupowner)
@@ -225,7 +238,8 @@ def addusertogrouporgroupusers(groupowner, groupname):
         return jsonify({'status':'OK', 'info': {'user':nick, 'group':fqgn}})
     else:
         users=g.db.usersInGroup(g.currentuser,fqgn)
-        return jsonify({'users':users})
+        userdict={'users':users}
+        return jsonify(userdict)
 
 # @adsgut.route('/group/<username>/group:<groupname>/users')
 # def group_users(username, groupname):
@@ -234,7 +248,7 @@ def addusertogrouporgroupusers(groupowner, groupname):
 #     return jsonify({'users':users})
 
 @adsgut.route('/app', methods=['POST'])#name/description
-def createapp():
+def createApp():
     user=g.currentuser
     appspec={}
     if request.method == 'POST':
@@ -245,15 +259,16 @@ def createapp():
         appspec['creator']=user
         appspec['name']=appname
         appspec['description']=description
-        newapp=g.db.addApplication(g.currentuser, user, appspec)
+        newapp=g.db.addApp(g.currentuser, user, appspec)
         g.db.commit()
         return jsonify({'status':'OK', 'info':newapp.info()})
     else:
         doabort("BAD_REQ", "GET not supported")
 
 #Currently wont allow you to create app, or accept invites to apps
+#TODO: combine below two?, add choices for currentuser, useras.
 @adsgut.route('/app/<appowner>/app:<appname>/invitation', methods=['POST'])#user
-def makeinvitetoapp(appowner, appname):
+def makeInviteToApp(appowner, appname):
     #add permit to match user with groupowner
     fqan=appowner+"/app:"+appname
     if request.method == 'POST':
@@ -268,7 +283,7 @@ def makeinvitetoapp(appowner, appname):
         doabort("BAD_REQ", "GET not supported")
 
 @adsgut.route('/app/<appowner>/app:<appname>/acceptinvitation', methods=['POST'])#accept
-def acceptinvitetoapp(nick, appowner, appname):  
+def acceptInviteToApp(nick, appowner, appname):  
     user=g.currentuser
     fqan=appowner+"/app:"+appname
     if request.method == 'POST':
@@ -285,8 +300,9 @@ def acceptinvitetoapp(nick, appowner, appname):
         doabort("BAD_REQ", "GET not supported")
 
 #Whats the use case for this? bulk app adds which dont go through invites.
+#BUG: user leakage, also, should the pythonic api part be split up into two separates?
 @adsgut.route('/app/<appowner>/app:<appname>/users', methods=['GET', 'POST'])#user
-def addusertoapporappusers(appowner, appname):
+def addUserToApp_or_appUsers(appowner, appname):
     #add permit to match user with groupowner
     fqan=appowner+"/app:"+appname
     aowner=g.db.getUserForNick(g.currentuser, appowner)
@@ -301,11 +317,14 @@ def addusertoapporappusers(appowner, appname):
         return jsonify({'status':'OK', 'info': {'user':nick, 'app':fqan}})
     else:
         users=g.db.usersInApp(g.currentuser,fqan)
-        return jsonify({'users':users}) 
+        userdict={'users':users}
+        return jsonify(userdict) 
 
 
+#BUG: UNCHECKED AS WE are not systemuser or adsuser.
+#TODO: split for pythonic API
 @adsgut.route('/app/<appowner>/app:<appname>/groups', methods=['GET', 'POST'])#group
-def addgrouptoapporappgroups(appowner, appname):
+def addGroupToApp_or_appGroups(appowner, appname):
     #add permit to match user with groupowner
     fqan=appowner+"/app:"+appname
     aowner=g.db.getUserForNick(g.currentuser, appowner)
@@ -320,7 +339,8 @@ def addgrouptoapporappgroups(appowner, appname):
         return jsonify({'status':'OK', 'info':{'group':fqgn, 'app': fqan}})
     else:
         groups=g.db.groupsInApp(g.currentuser,fqan)
-        return jsonify({'groups':groups})  
+        groupdict={'groups':groups}
+        return jsonify(groupdict)  
 #######################################################################################################################
 
 #POST/GET
@@ -330,13 +350,13 @@ def creategrouphtml():
 
 #get group info
 @adsgut.route('/group/<username>/group:<groupname>')
-def dogroup(username, groupname):
+def groupInfo(username, groupname):
     fqgn = username+'/group:'+groupname
     groupinfo=g.db.getGroupInfo(g.currentuser, fqgn)
-    return jsonify(**groupinfo)
+    return jsonify(groupinfo)
 
 @adsgut.route('/group/<username>/group:<groupname>/profile/html')
-def group_profile(username, groupname):
+def groupProfileHtml(username, groupname):
     fqgn = username+'/group:'+groupname
     groupinfo=g.db.getGroupInfo(g.currentuser, fqgn)
     return render_template('groupprofile.html', thegroup=groupinfo)
@@ -359,13 +379,13 @@ def createapphtml():
     pass
 
 @adsgut.route('/app/<username>/app:<appname>')
-def doapp(username, appname):
+def appInfo(username, appname):
     fqan = username+'/app:'+appname
     appinfo=g.db.getAppInfo(g.currentuser, fqan)
-    return jsonify(**appinfo)
+    return jsonify(appinfo)
 
 @adsgut.route('/app/<username>/app:<appname>/profile/html')
-def app_profile(username, appname):
+def appProfileHtml(username, appname):
     fqan = username+'/app:'+appname
     appinfo=g.db.getAppInfo(g.currentuser, fqan)
     return render_template('appprofile.html', theapp=appinfo)
@@ -392,50 +412,21 @@ def app_profile(username, appname):
 
 #POST tag
 #masqueradable BUT WE DONT SUPPORT IT FOR NOW
-@adsgut.route('/tags/<nick>/<ns>/<itemname>', methods=['GET', 'POST'])#tagname/tagtype/description #q=fieldlist=[('tagname',''), ('tagtype',''), ('context', None), ('fqin', None)]
-def usertagpost(nick, itemname):
-    user=g.db.getUserForNick(g.currentuser, nick)
-    nsuser=g.db.getUserForNick(g.currentuser, ns)# can be any user..but will it fail if currentuser is not nsuser? NO, good
-    #print "hello", user.nick
-    if request.method == 'POST':
-        #print request.form
-        tagspec={}
-        tagspec['creator']=user
-        tagspec['name'] = request.form.get('tagname', None)
-        if not tagspec['name']:
-            doabort('BAD_REQ', "No name specified for tag")
-        tagspec['tagtype'] = request.form.get('tagtype', None)
-        if not tagspec['tagtype']:
-            doabort('BAD_REQ', "No tagtype specified for tag")
-        #print "world"
-        #md5u=hashlib.md5()
-        #itspec['uri']=request.form.get('uri', md5u.update(creator+"/"+name))
-        if request.form.has_key('description'):
-            tagspec['description']=request.form['description']
-        #print "aaa", itspec
-        iteminfo=g.dbp.getItemByFqin(g.currentuser, nsuser.nick+"/"+itemname)
-        newtag, newtagging=g.dbp.tagItem(g.currentuser, user, iteminfo['fqin'], tagspec)
-        #print "kkk"
-        g.dbp.commit()
-        #returning the taggings requires a commit at this point
-        return jsonify({'status':'OK', 'info':{'item': iteminfo['fqin'], 'tagging':newtagging.info()}})
-    else:
-        criteria, fvlist, orderer=_getTagQuery(request.args)
-        context=criteria.pop('context')
-        fqin=criteria.pop('fqin')
-        user=g.db.getUserForNick(g.currentuser, nick)
-        taggings=g.dbp.getTagsForItem(g.currentuser, user, ns+"/"+itemname, context, fqin, criteria)
-        return jsonify(taggings)
-
-
-@adsgut.route('/tags/<nick>/<ns>/<itemname>/multi', methods=['GET', 'POST'])#taginfos=[{tagname/tagtype/description}] #q=fieldlist=[('tagname',''), ('tagtype',''), ('context', None), ('fqin', None)]
-def usermultitagpost(nick, itemname):
-    user=g.db.getUserForNick(g.currentuser, nick)
+#BUG: getting rid of nick makes the currentuser permitting complex..or does it?
+#we HAVE REMOVED THE ABILITY TO POST A SINGLE TAG. YOU MUST NOW USE THE ARRAY MODEL FOR POSTING, AND USE USERTHER FOR PEOPLE
+@adsgut.route('/tags/<ns>/<itemname>', methods=['GET', 'POST'])#taginfos=[{tagname/tagtype/description}] #q=fieldlist=[('tagname',''), ('tagtype',''), ('context', None), ('fqin', None)]
+def tagsForItem(ns, itemname):
+    #user=g.db.getUserForNick(g.currentuser, nick)
+    tagmode=True
     nsuser=g.db.getUserForNick(g.currentuser, ns)
     #print "hello", user.nick
     if request.method == 'POST':
         #print request.form
-        
+        nick = request.form.get('userthere', None)
+        if nick:
+            useras=g.db.getUserForNick(g.currentuser, nick)
+        else:
+            useras=g.currentuser
         #print "aaa", itspec#
         iteminfo=g.dbp.getItemByFqin(g.currentuser, nsuser.nick+"/"+itemname)
         taginfos=request.form.get('taginfos', [])
@@ -446,113 +437,113 @@ def usermultitagpost(nick, itemname):
             if not ti['tagtype']:
                 doabort('BAD_REQ', "No tagtypes specified for tag")
             tagspec={}
-            tagspec['creator']=user
+            tagspec['creator']=useras
             tagspec['name'] = ti['tagname']           
             tagspec['tagtype'] = ti['tagtype']       
             if ti.has_key('description'):
                 tagspec['description']=ti['description']
-            newtag, newtagging=g.dbp.tagItem(g.currentuser, user, iteminfo['fqin'], tagspec)
+            newtag, newtagging=g.dbp.tagItem(g.currentuser, useras, iteminfo['fqin'], tagspec, tagmode)
             newtaggings.append[newtagging]
         #print "kkk"
         g.dbp.commit()
         #returning the taggings requires a commit at this point
-        return jsonify({'status':'OK', 'info':{'item': iteminfo['fqin'], 'tagging':[nt.info() for nt in newtaggings]}})
+        taggings={'status':'OK', 'info':{'item': iteminfo['fqin'], 'tagging':[nt.info() for nt in newtaggings]}}
+        return jsonify(taggings)
     else:
         criteria, fvlist, orderer=_getTagQuery(request.args)
         context=criteria.pop('context')
         fqin=criteria.pop('fqin')
-        user=g.db.getUserForNick(g.currentuser, nick)
-        taggings=g.dbp.getTagsForItem(g.currentuser, user, ns+"/"+itemname, context, fqin, criteria)
+        if criteria.get('userthere')==True:
+            nick=criteria.pop('nick')
+            useras=g.db.getUserForNick(g.currentuser, nick)
+        else:
+            nick=None
+            useras=g.currentuser
+        taggings=g.dbp.getTagsForItem(g.currentuser, useras, ns+"/"+itemname, context, fqin, criteria)
         return jsonify(taggings)
 #######################################################################################################################
 #Post to group and post to app. We are nor supporting any deletion web services as yet.
 #Also post tag to group and post tag to app. tag too must be saved and lookupable
-#BUG: we must solve the whose items u can post problem as posting currently (for saving, atleast seems to use
+#TODO: we must solve the whose items u can post problem as posting currently (for saving, atleast seems to use
 #the current user)
 
-#Currently we only support currentuser=useras. Support for authtoken soon. BUG
-#perhaps sstemuser should be tested first?
 
 #@adsgut.route('/item/<ns>/<itemname>/grouppost', methods=['POST'])#user/fqin
 #TODOAPI: do easy way of getting items in group BUG: how about particular user via userthere?
-@adsgut.route('/group/<groupowner>/group:<groupname>/items', methods=['POST', 'GET'])#user/fqin fieldlist=[('uri',''), ('name',''), ('itemtype',''), ('context', None), ('fqin', None)]
-def useritemgrouppost(groupowner, groupname):
+#BUG: rahuldave masquerading as jayluker gives 0 items instead of throwing error
+#BUG: userthere only does masquerading. it dosent seem to filter by user. how do we do this without a nick extension? really? i thought getItems would handle this
+@adsgut.route('/group/<groupowner>/group:<groupname>/items', methods=['POST', 'GET'])#userthere/[fqins] fieldlist=[('uri',''), ('name',''), ('itemtype',''), ('context', None), ('fqin', None), ('userthere', 'False')]
+def itemsForGroup(groupowner, groupname):
     #user=g.currentuser#The current user is doing the posting
     #print "hello", user.nick
     if request.method == 'POST':
-        fqin = request.form.get('fqin', None)
-        if not fqin:
+        fqins = request.form.get('fqins', None)
+        if not fqins:
             doabort("BAD_REQ", "Item to post to group not specified")
-        nick = request.form.get('user', None)
-        if not nick:
-            doabort("BAD_REQ", "User doing posting not specified")
-        user=g.db.getUserForNick(g.currentuser, nick)
+        nick = request.form.get('userthere', None)
+        if nick:
+            useras=g.db.getUserForNick(g.currentuser, nick)
+        else:
+            useras=g.currentuser
         fqgn=groupowner+"/group:"+groupname
-        item=g.dbp.postItemIntoGroup(g.currentuser, user, fqgn, fqin)
+        items=[]
+        for fqin in fqins:
+            item=g.dbp.postItemIntoGroup(g.currentuser, useras, fqgn, fqin)
+            items.append(item)
         g.dbp.commit()
-        return jsonify({'status':'OK', 'info':{'item':item.info(), 'group':fqgn}})
+        itempostings={'status':'OK', 'info':{'items':[item.info() for item in items], 'group':fqgn}}
+        return jsonify(itempostings)
     else:
         #later support via GET all items in group, perhaps based on spec
         #doabort("BAD_REQ", "GET not supported")
         criteria, fvlist, orderer=_getItemQuery(request.args)
         #criteria['userthere']=True
-        useras=None
+        if criteria.get('userthere')==True:
+            nick=criteria.pop('nick')
+            useras=g.db.getUserForNick(g.currentuser, nick)
+        else:
+            nick=None
+            useras=g.currentuser
         throwawaycontext=criteria.pop('context')
         throwawayfqin=criteria.pop('fqin')
         context="group"
-        fqin=groupowner+"/group:"+groupname
+        fqgn=groupowner+"/group:"+groupname
         #This should be cleaned for values. BUG nor done yet.   
-        items=g.dbp.getItems(g.currentuser, useras, context, fqin, criteria, fvlist, orderer)
-        return jsonify({'items':items})
+        items=g.dbp.getItems(g.currentuser, useras, context, fqgn, criteria, fvlist, orderer)
+        grouppostings={'status':'OK', 'group':fqgn, 'items':items}
+        return jsonify(grouppostings)
 
 #TODOAPI: do easy way of getting items in group
 #BUG: add userthere support (do we want to add it via GET or url?)
+#this ought to allow alternate public publishing
 @adsgut.route('/group/public/items', methods=['POST', 'GET'])#user/fqin fieldlist=[('uri',''), ('name',''), ('itemtype',''), ('context', None), ('fqin', None)]
 def useritempublicpost():
-    #user=g.currentuser#The current user is doing the posting
-    #print "hello", user.nick
-    if request.method == 'POST':
-        fqin = request.form.get('fqin', None)
-        if not fqin:
-            doabort("BAD_REQ", "Item to post to group not specified")
-        nick = request.form.get('user', None)
-        if not nick:
-            doabort("BAD_REQ", "User doing posting not specified")
-        user=g.db.getUserForNick(g.currentuser, nick)
-        fqgn="adsgut/group:public"
-        item=g.dbp.postItemPublic(g.currentuser, user, fqin)
-        g.dbp.commit()
-        return jsonify({'status':'OK', 'info':{'item':item.info(), 'group':fqgn}})
-    else:
-        #later support via GET all items in group, perhaps based on spec
-        #doabort("BAD_REQ", "GET not supported")
-        criteria, fvlist, orderer=_getItemQuery(request.args)
-        #criteria['userthere']=True
-        useras=None
-        throwawaycontext=criteria.pop('context')
-        throwawayfqin=criteria.pop('fqin')
-        context="group"
-        fqin="adsgut/group:public"
-        #This should be cleaned for values. BUG nor done yet.   
-        items=g.dbp.getItems(g.currentuser, useras, context, fqin, criteria, fvlist, orderer)
-        return jsonify({'items':items})
+    groupowner="adsgut"
+    groupname="public"
+    return itemsForGroup(groupowner, groupname)
 
-@adsgut.route('/item/<nick>/<ns>/<itemname>/multigrouppost', methods=['POST'])#fqins=[fqin]
+@adsgut.route('/item/<ns>/<itemname>/groups', methods=['POST'])#fqins=[fqin]
 def useritemmultigrouppost(groupowner, groupname):
     #user=g.currentuser#The current user is doing the posting
     #print "hello", user.nick
-    user=g.db.getUserForNick(g.currentuser, nick)
+    #user=g.db.getUserForNick(g.currentuser, nick)
     nsuser=g.db.getUserForNick(g.currentuser, ns)
     iteminfo=g.dbp.getItemByFqin(g.currentuser, nsuser.nick+"/"+itemname)
     fqin=iteminfo['fqin']
     if request.method == 'POST':
-        fqins = request.form.get('fqins', None)
-        if not fqins:
+        nick = request.form.get('userthere', None)
+        if nick:
+            useras=g.db.getUserForNick(g.currentuser, nick)
+        else:
+            useras=g.currentuser
+        fqgns = request.form.get('fqins', None)
+        if not fqgns:
             doabort("BAD_REQ", "groups not specified")
-        for fqgn in fqins:
-            item=g.dbp.postItemIntoGroup(g.currentuser, user, fqgn, fqin)
+        for fqgn in fqgns:
+            item=g.dbp.postItemIntoGroup(g.currentuser, useras, fqgn, fqin)
         g.dbp.commit()
-        return jsonify({'status':'OK', 'info':{'item':item.info(), 'groups':[fqgn for fqgn in fqins]}})
+        grouppostings={'status':'OK', 'info':{'item':item.info(), 'groups':[fqgn for fqgn in fqgns]}}
+        return jsonify(grouppostings)
     else:
         #later support via GET all items in group, perhaps based on spec
         doabort("BAD_REQ", "GET not supported")
@@ -560,59 +551,79 @@ def useritemmultigrouppost(groupowner, groupname):
 #@adsgut.route('/item/<ns>/<itemname>/apppost', methods=['POST'])#user/fqin
 #TODOAPI: do easy way of getting items in group
 #BUG add userthere support
-@adsgut.route('/app/<appowner>/app:<appname>/items', methods=['POST'])#user/fqin fieldlist=[('uri',''), ('name',''), ('itemtype',''), ('context', None), ('fqin', None)]
+@adsgut.route('/app/<appowner>/app:<appname>/items', methods=['POST'])#userthere/[fqin] fieldlist=[('uri',''), ('name',''), ('itemtype',''), ('context', None), ('fqin', None)]
 def useritemapppost(appowner, appname):
     #user=g.currentuser#The current user is doing the posting
     #print "hello", user.nick
     if request.method == 'POST':
-        fqin = request.form.get('fqin', None)
-        if not fqin:
-            doabort("BAD_REQ", "Item to post to app not specified")
-        nick = request.form.get('user', None)
-        if not nick:
-            doabort("BAD_REQ", "User doing posting not specified")
-        user=g.db.getUserForNick(g.currentuser, nick)
+        fqins = request.form.get('fqins', None)
+        if not fqins:
+            doabort("BAD_REQ", "Items to post to app not specified")
+        nick = request.form.get('userthere', None)
+        if nick:
+            useras=g.db.getUserForNick(g.currentuser, nick)
+        else:
+            useras=g.currentuser
         fqan=appowner+"/app:"+appname
-        item=g.dbp.postItemIntoApp(g.currentuser, user, fqan, fqin)
+        items=[]
+        for fqin in fqins:
+            item=g.dbp.postItemIntoApp(g.currentuser, useras, fqan, fqin)
+            items.append(item)
         g.dbp.commit()
-        return jsonify({'status':'OK', 'info':{'item':item.info(), 'app':fqan}})
+        itempostings={'status':'OK', 'info':{'item':[item.info() for item in items], 'app':fqan}}
+        return jsonify(itempostings)
     else:
         #later support via GET all items in app, perhaps based on spec
         #doabort("BAD_REQ", "GET not supported")
         criteria, fvlist, orderer=_getItemQuery(request.args)
         #criteria['userthere']=True
-        useras=None
+        if criteria.get('userthere')==True:
+            nick=criteria.pop('nick')
+            useras=g.db.getUserForNick(g.currentuser, nick)
+        else:
+            nick=None
+            useras=g.currentuser
         throwawaycontext=criteria.pop('context')
         throwawayfqin=criteria.pop('fqin')
         context="app"
         fqin=appowner+"/app:"+appname
-        #This should be cleaned for values. BUG nor done yet.   
         items=g.dbp.getItems(g.currentuser, useras, context, fqin, criteria, fvlist, orderer)
-        return jsonify({'items':items})
+        apppostings={'items':items}
+        return jsonify(apppostings)
 
 
+#TODO:Currently tagging into a group needs to be one by one. Change that to bulk, if it makes sense, later. Also no multiitemapp post for now
+#as the default case is taken care of by 'routing'
 #@adsgut.route('/tag/<ns>/<itemname>/grouppost', methods=['POST'])#user/fqin/fqtn
-#How should this be presented in GET?
+# should this be presented in GET?
 #TODOAPI: do easy way of getting tags in grp: use spec methods
-@adsgut.route('/group/<groupowner>/group:<groupname>/tags', methods=['POST'])#user/fqin/fqtn
+
+#CHECK: IN ALL OF THESE OMNIBUSEN, THE DANGER IS WE REPEAT WHAT IS BEING DOME BEFORE ROUTING AGAIN
+#NEEDS OMNIPOTENCY OR CHECKS
+
+
+@adsgut.route('/group/<groupowner>/group:<groupname>/tags', methods=['POST'])#userthere/fqin/fqtn
 def usertaggrouppost(groupowner, groupname):
     #user=g.currentuser#The current user is doing the posting
     #print "hello", user.nick
     fqgn=groupowner+"/group:"+groupname
     if request.method == 'POST':
+        nick = request.form.get('userthere', None)
+        if nick:
+            useras=g.db.getUserForNick(g.currentuser, nick)
+        else:
+            useras=g.currentuser
         fqin = request.form.get('fqin', None)
         if not fqin:
             doabort("BAD_REQ", "item whos tags are to posted to group not specified")
         fqtn = request.form.get('fqtn', None)
         if not fqtn:
             doabort("BAD_REQ", "Tag to post to group not specified")
-        nick = request.form.get('user', None)
-        if not nick:
-            doabort("BAD_REQ", "User doing posting not specified")
-        user=g.db.getUserForNick(g.currentuser, nick)
-        it, itg=g.dbp.postTaggingIntoGroup(g.currentuser, user, fqgn, fqin, fqtn)
+
+        it, itg=g.dbp.postTaggingIntoGroup(g.currentuser, useras, fqgn, fqin, fqtn)
         g.dbp.commit()
-        return jsonify({'status':'OK', 'info': itg.info()})
+        taggingposted={'status':'OK', 'info': itg.info()}
+        return jsonify(taggingposted)
     else:
         #doabort("BAD_REQ", "GET not supported")
         criteria, fvlist, orderer=_getTagsForItemQuery(request.args)
@@ -621,30 +632,37 @@ def usertaggrouppost(groupowner, groupname):
         # else:
         #     useras=g.db.getUserForNick(g.currentuser, nick)
         #     criteria['userthere']=True
-        useras=None
+        if criteria.get('userthere')==True:
+            nick=criteria.pop('nick')
+            useras=g.db.getUserForNick(g.currentuser, nick)
+        else:
+            nick=None
+            useras=g.currentuser
         throwawaycontext=criteria.pop('context')
         throwawayfqin=criteria.pop('fqin')
         context="group"
-        fqin=fqgn
-        #This should be cleaned for values. BUG nor done yet.   
-        taggings=g.dbp.getTaggingForItemspec(g.currentuser, useras, context, fqin, criteria, fvlist, orderer)
+        taggings=g.dbp.getTaggingForItemspec(g.currentuser, useras, context, fqgn, criteria, fvlist, orderer)
         return jsonify(taggings)
 
 #This posts an item, its tags, and all that to a single group
 #TODOAPI: do easy way of getting tags in grp: use spec methods
-@adsgut.route('/group/<groupowner>/group:<groupname>/itemsandtags', methods=['POST'])#user/name/itemtype/uri/tags=[[name, tagtype, description]...]
-def useritemtaggrouppost(groupowner, groupname):
+#TODO: do as a multi? after all we want to add to multiple groups?
+
+#THIS USES A FALSE TAGMODE? THIS IS THE SUPER BULK MODE. We'd use this for a siple ajax form.
+@adsgut.route('/itemandtags/groups', methods=['POST'])#userthere/name/itemtype/uri/tags=[[name, tagtype, description]...]/fqgns=[fqgn]
+def useritemtaggrouppost():
     #user=g.currentuser#The current user is doing the posting
     #print "hello", user.nick
-    fqgn=groupowner+"/group:"+groupname
-    grp=g.db.getGroup(g.currentuser, fqgn)
+    #fqgn=groupowner+"/group:"+groupname
+    #grp=g.db.getGroup(g.currentuser, fqgn)
     if request.method == 'POST':
         itspec={}
-        nick = request.form.get('user', None)
-        if not nick:
-            doabort("BAD_REQ", "User doing posting not specified")
-        user=g.db.getUserForNick(g.currentuser, nick)
-        itspec['creator']=user
+        nick = request.form.get('userthere', None)
+        if nick:
+            useras=g.db.getUserForNick(g.currentuser, nick)
+        else:
+            useras=g.currentuser
+        itspec['creator']=useras
         itspec['name'] = request.form.get('name', None)
         if not itspec['name']:
             doabort("BAD_REQ", "No name specified for item")
@@ -653,144 +671,155 @@ def useritemtaggrouppost(groupowner, groupname):
             doabort("BAD_REQ", "No itemtype specified for item")
         #print "world"
         md5u=hashlib.md5()
-        itspec['uri']=request.form.get('uri', md5u.update(user.nick+"/"+itspec['name']))
+        itspec['uri']=request.form.get('uri', md5u.update(useras.nick+"/"+itspec['name']))
         #itspec['description']=request.form.get('description', '')
         #itspec['uri']=request.form.get('uri', ''
         #print "aaa", itspec
-        item=g.dbp.saveItem(g.currentuser, user, itspec)
-        item=g.dbp.postItemIntoGroup(g.currentuser, user, grp, item)
+        item=g.dbp.saveItem(g.currentuser, useras, itspec)
+        fqgns = request.form.get('fqins', None)
+        if not fqgns:
+            doabort("BAD_REQ", "groups not specified")
+        tagmode=False#so no tag checks
+        for fqgn in fqgns:
+            item=g.dbp.postItemIntoGroup(g.currentuser, useras, fqgn, fqin, tagmode)
+
         g.dbp.commit()
         tags=request.form.get('tags', [])#Empty array if no tags
         tagobjects=[]
+        tagmode=True#so group checks while tagging.
         for tagname, tagtype, description in tags:
             tagspec={}
-            tagspec['creator']=user
+            tagspec['creator']=useras
             tagspec['name'] = tagname
             tagspec['tagtype'] = tagtype
             tagspec['description']=description
-            tag, tagging=g.dbp.tagItem(g.currentuser, user, item.fqin, tagspec)
-            it, itg=g.dbp.postTaggingIntoGroup(g.currentuser, user, grp, item, tag)
+            tag, tagging=g.dbp.tagItem(g.currentuser, useras, item.fqin, tagspec, tagmode)
+            #BELOW HANDLED BY TAGMODE=true
+            # for fqgn in fqgns:
+            #     it, itg=g.dbp.postTaggingIntoGroup(g.currentuser, useras, grp, item, tag)
             g.dbp.commit() # move outside to make faster
-            tagobjects.append(itg.info())
-        return jsonify({'status':'OK', 'info':{'item':item.info(), 'grouptaggings':tagobjects}})
+            tagobjects.append(tagging)
+        itemandtaggings={'status':'OK', 'info':{'item':item.info(), 'groups': [fqgn for fqgn in fqgns], 'taggings':tagobjects}}
+        return jsonify(itemandtaggings)
     else:
-        #doabort("BAD_REQ", "GET not supported")
-        criteria, fvlist, orderer=_getTagsForItemQuery(request.args)
-        # if nick=='any':
-        #     useras=g.currentuser
-        # else:
-        #     useras=g.db.getUserForNick(g.currentuser, nick)
-        #     criteria['userthere']=True
-        useras=None
-        throwawaycontext=criteria.pop('context')
-        throwawayfqin=criteria.pop('fqin')
-        context="group"
-        fqin=fqgn
-        #This should be cleaned for values. BUG nor done yet.   
-        taggings=g.dbp.getTaggingForItemspec(g.currentuser, useras, context, fqin, criteria, fvlist, orderer)
-        return jsonify(taggings)
+        doabort("BAD_REQ", "GET not supported")
 
 #@adsgut.route('/tag/<ns>/<itemname>/apppost', methods=['POST'])#user/fqin/fqtn
 #TODOAPI: do easy way of getting tags in grp: use spec methods
-@adsgut.route('/app/<appowner>/app:<appname>/tags', methods=['POST'])#user/fqin/fqtn
-def usertagapppost(appowner, appname):
-    #user=g.currentuser#The current user is doing the posting
-    #print "hello", user.nick
-    fqan=appowner+"/app:"+appname
-    if request.method == 'POST':
-        fqan = request.form.get('fqin', None)
-        if not fqan:
-            doabort("BAD_REQ", "item whos tags are to posted to app not specified")
-        fqtn = request.form.get('fqtn', None)
-        if not fqtn:
-            doabort("BAD_REQ", "Tag to post to app not specified")
-        nick = request.form.get('user', None)
-        if not nick:
-            doabort("BAD_REQ", "User doing posting not specified")
-        user=g.db.getUserForNick(g.currentuser, nick)
-        it, ita = g.dbp.postTaggingIntoApp(g.currentuser, user, fqan, fqin, fqtn)
-        g.dbp.commit()
-        return jsonify({'status':'OK', 'info': ita.info()})
-    else:
-        #doabort("BAD_REQ", "GET not supported")
-        criteria, fvlist, orderer=_getTagsForItemQuery(request.args)
-        # if nick=='any':
-        #     useras=g.currentuser
-        # else:
-        #     useras=g.db.getUserForNick(g.currentuser, nick)
-        #     criteria['userthere']=True
-        useras=None
-        throwawaycontext=criteria.pop('context')
-        throwawayfqin=criteria.pop('fqin')
-        context="app"
-        fqin=fqan
-        #This should be cleaned for values. BUG nor done yet.   
-        taggings=g.dbp.getTaggingForItemspec(g.currentuser, useras, context, fqin, criteria, fvlist, orderer)
-        return jsonify(taggings)#should this be just tags and not tags indexed by items? 
+#TODO: change this to bulk too. What about many tags in a group?
 
-#TODOAPI: do easy way of getting tags in grp: use spec methods
-@adsgut.route('/app/<appowner>/app:<appname>/itemsandtags', methods=['POST'])#user/name/itemtype/uri/tags=[[name, tagtype, description]...]
-def useritemtagapppost(appowner, appname):
-    #user=g.currentuser#The current user is doing the posting
-    #print "hello", user.nick
-    fqan=appowner+"/app:"+appname
-    app=g.db.getApp(g.currentuser, fqan)
-    if request.method == 'POST':
-        itspec={}
-        nick = request.form.get('user', None)
-        if not nick:
-            doabort("BAD_REQ", "User doing posting not specified")
-        user=g.db.getUserForNick(g.currentuser, nick)
-        itspec['creator']=user
-        itspec['name'] = request.form.get('name', None)
-        if not itspec['name']:
-            doabort("BAD_REQ", "No name specified for item")
-        itspec['itemtype'] = request.form.get('itemtype', None)
-        if not itspec['itemtype']:
-            doabort("BAD_REQ", "No itemtype specified for item")
-        #print "world"
-        md5u=hashlib.md5()
-        itspec['uri']=request.form.get('uri', md5u.update(user.nick+"/"+itspec['name']))
-        #itspec['description']=request.form.get('description', '')
-        #itspec['uri']=request.form.get('uri', ''
-        #print "aaa", itspec
-        item=g.dbp.saveItem(g.currentuser, user, itspec)
-        item=g.dbp.postItemIntoApp(g.currentuser, user, app, item)
-        g.dbp.commit()
-        g.dbp.commit()
-        tags=request.form.get('tags', [])#Empty array if no tags
-        tagobjects=[]
-        for tagname, tagtype, description in tags:
-            tagspec={}
-            tagspec['creator']=user
-            tagspec['name'] = tagname
-            tagspec['tagtype'] = tagtype
-            tagspec['description']=description
-            tag, tagging=g.dbp.tagItem(g.currentuser, user, item.fqin, tagspec)
-            it, ita=g.dbp.postTaggingIntoApp(g.currentuser, user, app, item, tag)
-            g.dbp.commit()#move outside for speed when possible
-            tagobjects.append(ita.info())
-        return jsonify({'status':'OK', 'info':{'item':item.info(), 'apptaggings':tagobjects}})
-    else:
-        #doabort("BAD_REQ", "GET not supported")
-        criteria, fvlist, orderer=_getTagsForItemQuery(request.args)
-        # if nick=='any':
-        #     useras=g.currentuser
-        # else:
-        #     useras=g.db.getUserForNick(g.currentuser, nick)
-        #     criteria['userthere']=True
-        useras=None
-        throwawaycontext=criteria.pop('context')
-        throwawayfqin=criteria.pop('fqin')
-        context="app"
-        fqin=fqan
-        #This should be cleaned for values. BUG nor done yet.   
-        taggings=g.dbp.getTaggingForItemspec(g.currentuser, useras, context, fqin, criteria, fvlist, orderer)
-        return jsonify(taggings)
+#Unlikely to use this. whats the use case? Most of this would happen behind closed doors/
+# @adsgut.route('/app/<appowner>/app:<appname>/tags', methods=['POST'])#user/fqin/fqtn
+# def usertagapppost(appowner, appname):
+#     #user=g.currentuser#The current user is doing the posting
+#     #print "hello", user.nick
+#     fqan=appowner+"/app:"+appname
+#     if request.method == 'POST':
+#         nick = request.form.get('userthere', None)
+#         if nick:
+#             useras=g.db.getUserForNick(g.currentuser, nick)
+#         else:
+#             useras=g.currentuser
+#         fqin = request.form.get('fqin', None)
+#         if not fqin:
+#             doabort("BAD_REQ", "item whos tags are to posted to app not specified")
+#         fqtn = request.form.get('fqtn', None)
+#         if not fqtn:
+#             doabort("BAD_REQ", "Tag to post to app not specified")
+
+#         it, ita = g.dbp.postTaggingIntoApp(g.currentuser, useras, fqan, fqin, fqtn)
+#         g.dbp.commit()
+#         taggingposted={'status':'OK', 'info': ita.info()}
+#         return jsonify(taggingposted)
+#     else:
+#         #doabort("BAD_REQ", "GET not supported")
+#         criteria, fvlist, orderer=_getTagsForItemQuery(request.args)
+#         # if nick=='any':
+#         #     useras=g.currentuser
+#         # else:
+#         #     useras=g.db.getUserForNick(g.currentuser, nick)
+#         #     criteria['userthere']=True
+#         if criteria.get('userthere')==True:
+#             nick=criteria.pop('nick')
+#             useras=g.db.getUserForNick(g.currentuser, nick)
+#         else:
+#             nick=None
+#             useras=g.currentuser
+#         throwawaycontext=criteria.pop('context')
+#         throwawayfqin=criteria.pop('fqin')
+#         context="app"
+#         taggings=g.dbp.getTaggingForItemspec(g.currentuser, useras, context, fqqn, criteria, fvlist, orderer)
+#         return jsonify(taggings)#should this be just tags and not tags indexed by items? 
+
+# #TODOAPI: do easy way of getting tags in grp: use spec methods
+# #this could be way on onfly getting things into app. on other hand the deep routing should be doing all of this so we shouldnt have to call it.
+# #the pythonic api equivqlent could be used for adding things in bulk. evan thats not particularly useful. I think we should not try and saveItem and such
+# #but just concentrate on the posting. in this sense this is different from groups: the item must be saved, etc. BUG: Ok do it. Currently not touching
+# @adsgut.route('/app/<appowner>/app:<appname>/itemsandtags', methods=['POST'])#user/name/itemtype/uri/tags=[[name, tagtype, description]...]
+# def useritemtagapppost(appowner, appname):
+#     #user=g.currentuser#The current user is doing the posting
+#     #print "hello", user.nick
+#     fqan=appowner+"/app:"+appname
+#     app=g.db.getApp(g.currentuser, fqan)
+#     if request.method == 'POST':
+#         itspec={}
+#         nick = request.form.get('userthere', None)
+#         if nick:
+#             useras=g.db.getUserForNick(g.currentuser, nick)
+#         else:
+#             useras=g.currentuser
+#         itspec['creator']=useras
+#         itspec['name'] = request.form.get('name', None)
+#         if not itspec['name']:
+#             doabort("BAD_REQ", "No name specified for item")
+#         itspec['itemtype'] = request.form.get('itemtype', None)
+#         if not itspec['itemtype']:
+#             doabort("BAD_REQ", "No itemtype specified for item")
+#         #print "world"
+#         md5u=hashlib.md5()
+#         itspec['uri']=request.form.get('uri', md5u.update(user.nickas+"/"+itspec['name']))
+#         #itspec['description']=request.form.get('description', '')
+#         #itspec['uri']=request.form.get('uri', ''
+#         #print "aaa", itspec
+#         item=g.dbp.saveItem(g.currentuser, useras, itspec)
+#         item=g.dbp.postItemIntoApp(g.currentuser, useras, app, item)
+#         g.dbp.commit()
+#         g.dbp.commit()
+#         tags=request.form.get('tags', [])#Empty array if no tags
+#         tagobjects=[]
+#         for tagname, tagtype, description in tags:
+#             tagspec={}
+#             tagspec['creator']=useras
+#             tagspec['name'] = tagname
+#             tagspec['tagtype'] = tagtype
+#             tagspec['description']=description
+#             tag, tagging=g.dbp.tagItem(g.currentuser, useras, item.fqin, tagspec)
+#             it, ita=g.dbp.postTaggingIntoApp(g.currentuser, useras, app, item, tag)
+#             g.dbp.commit()#move outside for speed when possible
+#             tagobjects.append(ita.info())
+#         return jsonify({'status':'OK', 'info':{'item':item.info(), 'apptaggings':tagobjects}})
+#     else:
+#         #doabort("BAD_REQ", "GET not supported")
+#         criteria, fvlist, orderer=_getTagsForItemQuery(request.args)
+#         # if nick=='any':
+#         #     useras=g.currentuser
+#         # else:
+#         #     useras=g.db.getUserForNick(g.currentuser, nick)
+#         #     criteria['userthere']=True
+#         if criteria.get(userthere)==True:
+#             useras=criteria.pop('useras')
+#         else:
+#             useras=None
+#         throwawaycontext=criteria.pop('context')
+#         throwawayfqin=criteria.pop('fqin')
+#         context="app"
+#         fqin=fqan
+#         taggings=g.dbp.getTaggingForItemspec(g.currentuser, useras, context, fqin, criteria, fvlist, orderer)
+#         return jsonify(taggings)
 #######################################################################################################################
 #These can be used as "am i saved" web services. Also gives groups and apps per item
 #a 404 not found would be an ideal error
-#BUG: are we properly protected. NO
+#BUG: are we properly protected. NO...check this..also shouldnt they be internal?
 @adsgut.route('/item/<nick>/<ns>/<itemname>')
 def usersitemget(nick, ns, itemname):
     user=g.db.getUserForNick(g.currentuser, nick)
@@ -808,10 +837,18 @@ def usersitembyuriget(nick, itemuri):
 # No aborts here for things not being there!
 def _getQuery(querydict, fieldlist):
     criteria={}
+    #only the stuff that comes in via fieldlist is allowed. This then acts as a sort of validation, or atleast, junk prevention.
+    #this does not handle order_by, or such
     for ele, elev in fieldlist:
         qele=querydict.get(ele, elev)
         if ele in ['context', 'fqin']:
             criteria[ele]=qele
+        elif ele=='userthere':
+            if qele!=False:
+                criteria['userthere']=True
+                criteria['nick']=qele
+            else:
+                criteria['userthere']=False
         else:
             if qele:
                 criteria[ele]=qele
@@ -825,7 +862,7 @@ def _getQuery(querydict, fieldlist):
 
 
 def _getItemQuery(querydict):
-    fieldlist=[('uri',''), ('name',''), ('itemtype',''), ('context', None), ('fqin', None)]
+    fieldlist=[('uri',''), ('name',''), ('itemtype',''), ('context', None), ('fqin', None), ('userthere', False)]
     fieldvallist=['uri', 'name', 'whencreated', 'itemtype']
     orderer=querydict.getlist('order_by')
     return _getQuery(querydict, fieldlist), fieldvallist, orderer
@@ -833,7 +870,7 @@ def _getItemQuery(querydict):
 
 def _getTagQuery(querydict):
     #one can combine name and tagtype to get, for example, tag:lensing
-    fieldlist=[('tagname',''), ('tagtype',''), ('context', None), ('fqin', None)]
+    fieldlist=[('tagname',''), ('tagtype',''), ('context', None), ('fqin', None), ('userthere', False)]
     fieldvallist=['tagname', 'tagtype', 'whentagged']
     orderer=querydict.getlist('order_by')
     return _getQuery(querydict, fieldlist), fieldvallist, orderer
@@ -841,7 +878,7 @@ def _getTagQuery(querydict):
 
 def _getTagsForItemQuery(querydict):
     #one can combine name and tagtype to get, for example, tag:lensing
-    fieldlist=[('tagname',''), ('tagtype',''), ('context', None), ('fqin', None), ('uri', ''), ('name', ''), ('itemtype', '')]
+    fieldlist=[('tagname',''), ('tagtype',''), ('context', None), ('fqin', None), ('uri', ''), ('name', ''), ('itemtype', ''), ('userthere', False)]
     fieldvallist=['tagname', 'tagtype', 'whentagged', 'uri', 'whencreated', 'name', 'itemtype']
     orderer=querydict.getlist('order_by')
     return _getQuery(querydict, fieldlist), fieldvallist, orderer
@@ -854,71 +891,69 @@ def _getTagsForItemQuery(querydict):
 #currently get the items. worry about tags later
 #think we'll do tags as tags=tagtype | all
 
-#query itemtype, context, fqin
-@adsgut.route('/user/<nick>/items')#q=fieldlist=[('uri',''), ('name',''), ('itemtype',''), ('context', None), ('fqin', None)]
-def usersitems(nick):
-    #criteria, fvlist, orderer=_getQuery(request.args, [('itemtype',''), ('context', None), ('fqin', None)])
-    criteria, fvlist, orderer=_getItemQuery(request.args)
-    context=criteria.pop('context')
-    fqin=criteria.pop('fqin')
-    user=g.db.getUserForNick(g.currentuser, nick)
-    # if user==g.currentuser: This throws a bug. remove BUG
-    #     criteria['userthere']=True
-    criteria['userthere']=True
-    items=g.dbp.getItems(g.currentuser, user, context, fqin, criteria, fvlist, orderer)
-    return jsonify({'items':items})
+# #query itemtype, context, fqin
+# @adsgut.route('/user/<nick>/items')#q=fieldlist=[('uri',''), ('name',''), ('itemtype',''), ('context', None), ('fqin', None)]
+# def usersitems(nick):
+#     #criteria, fvlist, orderer=_getQuery(request.args, [('itemtype',''), ('context', None), ('fqin', None)])
+#     criteria, fvlist, orderer=_getItemQuery(request.args)
+#     context=criteria.pop('context')
+#     fqin=criteria.pop('fqin')
+#     useras=g.db.getUserForNick(g.currentuser, nick)
+#     criteria['userthere']=True
+#     items=g.dbp.getItems(g.currentuser, useras, context, fqin, criteria, fvlist, orderer)
+#     return jsonify({'items':items})
 
 #query itemtype, tagtype, tagname? This is just a specialization of the above
-@adsgut.route('/user/<nick>/tags')#q=fieldlist=[('tagname',''), ('tagtype',''), ('context', None), ('fqin', None)]
-def userstags(nick):
-    criteria, fvlist, orderer=_getTagQuery(request.args)
-    context=criteria.pop('context')
-    fqin=criteria.pop('fqin')
-    user=g.db.getUserForNick(g.currentuser, nick)
-    if user==g.currentuser:
-        criteria['userthere']=True
-    taggings=g.dbp.getTaggingForItemspec(g.currentuser, user, context, fqin, criteria)
-    return jsonify(taggings)
+# @adsgut.route('/user/<nick>/tags')#q=fieldlist=[('tagname',''), ('tagtype',''), ('context', None), ('fqin', None)]
+# def userstags(nick):
+#     criteria, fvlist, orderer=_getTagQuery(request.args)
+#     context=criteria.pop('context')
+#     fqin=criteria.pop('fqin')
+#     user=g.db.getUserForNick(g.currentuser, nick)
+#     if user==g.currentuser:
+#         criteria['userthere']=True
+#     taggings=g.dbp.getTaggingForItemspec(g.currentuser, user, context, fqin, criteria)
+#     return jsonify(taggings)
 
-@adsgut.route('/user/<nick>/items/html')
-def usersitemshtml(nick):
-    criteria={}
-    user=g.db.getUserForNick(g.currentuser, nick)
-    criteria['userthere']=True
-    userinfo=user.info()
-    items=g.dbp.getItems(g.currentuser, user, None, None, criteria)
-    return render_template('usersaved.html', theuser=userinfo, items=items)
+# @adsgut.route('/user/<nick>/items/html')
+# def usersitemshtml(nick):
+#     criteria={}
+#     user=g.db.getUserForNick(g.currentuser, nick)
+#     criteria['userthere']=True
+#     userinfo=user.info()
+#     items=g.dbp.getItems(g.currentuser, user, None, None, criteria)
+#     return render_template('usersaved.html', theuser=userinfo, items=items)
 
-#POST item
-#masqueradable BUT WE DONT SUPPORT IT FOR NOW
-#wait for useras/currentuser division.
-@adsgut.route('/items/<nick>', methods=['POST', 'GET'])#name/itemtype/uri/ #q=fieldlist=[('itemtype',''), ('context', None), ('fqin', None)]
-def useritempost(nick):
-    user=g.db.getUserForNick(g.currentuser, nick)
-    #print "hello", user.nick
-    if request.method == 'POST':
-        #print request.form
-        itspec={}
-        #nick = request.form.get('user', None)
-        itspec['creator']=user
-        itspec['name'] = request.form.get('name', None)
-        if not itspec['name']:
-            doabort("BAD_REQ", "No name specified for item")
-        itspec['itemtype'] = request.form.get('itemtype', None)
-        if not itspec['itemtype']:
-            doabort("BAD_REQ", "No itemtype specified for item")
-        #print "world"
-        md5u=hashlib.md5()
-        itspec['uri']=request.form.get('uri', md5u.update(user.nick+"/"+itspec['name']))
-        #itspec['description']=request.form.get('description', '')
-        #itspec['uri']=request.form.get('uri', ''
-        #print "aaa", itspec
-        newitem=g.dbp.saveItem(g.currentuser, user, itspec)
-        print "kkk", newitem
-        g.dbp.commit()#needed to get isoformats? YES
-        return jsonify({'status':'OK', 'info':newitem.info()})
-    else:
-        return usersitems(nick)
+# #POST item
+# #masqueradable BUT WE DONT SUPPORT IT FOR NOW
+# #wait for useras/currentuser division.
+# @adsgut.route('/items/<nick>', methods=['POST', 'GET'])#name/itemtype/uri/ #q=fieldlist=[('itemtype',''), ('context', None), ('fqin', None)]
+# def useritempost(nick):
+#     user=g.db.getUserForNick(g.currentuser, nick)
+#     #print "hello", user.nick
+#     if request.method == 'POST':
+#         #print request.form
+#         itspec={}
+#         #nick = request.form.get('user', None)
+#         itspec['creator']=user
+#         itspec['name'] = request.form.get('name', None)
+#         if not itspec['name']:
+#             doabort("BAD_REQ", "No name specified for item")
+#         itspec['itemtype'] = request.form.get('itemtype', None)
+#         if not itspec['itemtype']:
+#             doabort("BAD_REQ", "No itemtype specified for item")
+#         #print "world"
+#         md5u=hashlib.md5()
+#         itspec['uri']=request.form.get('uri', md5u.update(user.nick+"/"+itspec['name']))
+#         #itspec['description']=request.form.get('description', '')
+#         #itspec['uri']=request.form.get('uri', ''
+#         #print "aaa", itspec
+#         newitem=g.dbp.saveItem(g.currentuser, user, itspec)
+#         print "kkk", newitem
+#         g.dbp.commit()#needed to get isoformats? YES
+#         return jsonify({'status':'OK', 'info':newitem.info()})
+#     else:
+#         return usersitems(nick)
 
 #query uri/name/itemtype
 #BUG: this returns all items including tags and is thus farely useless. We dont want any inherited tables
@@ -927,11 +962,16 @@ def useritempost(nick):
 @adsgut.route('/items', methods=['POST', 'GET'])##name/itemtype/uri/ #q=fieldlist=[('uri',''), ('name',''), ('itemtype',''), ('context', None), ('fqin', None)]
 def itemsbyany():
     #permit(g.currentuser!=None and g.currentuser.nick=='rahuldave', "wrong user")
-    useras=g.currentuser#BUG: always support this? This one has complex permitting!!!
+    #useras=g.currentuser#???always support this? This one has complex permitting!!!
     if request.method=='POST':
+        nick = request.form.get('userthere', None)
+        if nick:
+            useras=g.db.getUserForNick(g.currentuser, nick)
+        else:
+            useras=g.currentuser
         itspec={}
         #nick = request.form.get('user', None)
-        itspec['creator']=user
+        itspec['creator']=useras
         itspec['name'] = request.form.get('name', None)
         if not itspec['name']:
             doabort("BAD_REQ", "No name specified for item")
@@ -940,85 +980,100 @@ def itemsbyany():
             doabort("BAD_REQ", "No itemtype specified for item")
         #print "world"
         md5u=hashlib.md5()
-        itspec['uri']=request.form.get('uri', md5u.update(user.nick+"/"+itspec['name']))
+        itspec['uri']=request.form.get('uri', md5u.update(useras.nick+"/"+itspec['name']))
         #itspec['description']=request.form.get('description', '')
         #itspec['uri']=request.form.get('uri', ''
         #print "aaa", itspec
-        newitem=g.dbp.saveItem(g.currentuser, user, itspec)
-        print "kkk", newitem
+        newitem=g.dbp.saveItem(g.currentuser, useras, itspec)
+        #it will do the autoposts with the correct tagmode
         g.dbp.commit()#needed to get isoformats? YES
         return jsonify({'status':'OK', 'info':newitem.info()})
     else:
         criteria, fvlist, orderer=_getItemQuery(request.args)
+        if criteria.get('userthere')==True:
+            nick=criteria.pop('nick')
+            useras=g.db.getUserForNick(g.currentuser, nick)
+        else:
+            nick=None
+            useras=g.currentuser
         #criteria['userthere']=True
         context=criteria.pop('context')
         fqin=criteria.pop('fqin')
-        #This should be cleaned for values. BUG nor done yet.   
         items=g.dbp.getItems(g.currentuser, useras, context, fqin, criteria, fvlist, orderer)
         return jsonify({'items':items})
 
-#add tagtype/tagname to query. Must this also be querying item attributes?
-@adsgut.route('/tags')#q=fieldlist=[('tagname',''), ('tagtype',''), ('context', None), ('fqin', None)]
-def tagsbyany():
-    useras=g.currentuser#BUG: always support this?
-    criteria, fvlist, orderer=_getTagQuery(request.args)
-    #criteria['userthere']=True
-    context=criteria.pop('context')
-    fqin=criteria.pop('fqin')
-    #This should be cleaned for values. BUG nor done yet. 
-    print 'CRITTER', criteria  
-    taggings=g.dbp.getTaggingForItemspec(g.currentuser, useras, context, fqin, criteria)
-    return jsonify(taggings)
-#######################################################################################################################
-#tagging based on item spec. BUG: how are we guaranteeing name unique amongst a user. Must specify joint unique for items
-
-# @adsgut.route('/tags/<nick>/<ns>/<itemname>')#q=fieldlist=[('tagname',''), ('tagtype',''), ('context', None), ('fqin', None)]
-# def tagsforitem(nick, ns, itemname):
-#     criteria=_getTagQuery(request.args)
+# #add tagtype/tagname to query. Must this also be querying item attributes?
+# @adsgut.route('/tags')#q=fieldlist=[('tagname',''), ('tagtype',''), ('context', None), ('fqin', None)]
+# def tagsbyany():
+#     useras=g.currentuser#BUG: always support this?
+#     criteria, fvlist, orderer=_getTagQuery(request.args)
+#     #criteria['userthere']=True
 #     context=criteria.pop('context')
 #     fqin=criteria.pop('fqin')
-#     user=g.db.getUserForNick(g.currentuser, nick)
+#     #This should be cleaned for values. BUG nor done yet. What i mean is wherever we get this we must make sure we get
+#     #sensible values, consistent values
+#     print 'CRITTER', criteria  
+#     taggings=g.dbp.getTaggingForItemspec(g.currentuser, useras, context, fqin, criteria)
+#     return jsonify(taggings)
+#######################################################################################################################
+
+# @adsgut.route('/tags/<ns>/<itemname>')#q=fieldlist=[('tagname',''), ('tagtype',''), ('context', None), ('fqin', None)]
+# def tagsforitem(ns, itemname):
+#     criteria=_getTagQuery(request.args)
+#     if criteria.get('userthere')==True:
+#         nick=criteria.pop('nick')
+#         useras=g.db.getUserForNick(g.currentuser, nick)
+#     else:
+#         nick=None
+#         useras=g.currentuser
+#     context=criteria.pop('context')
+#     fqin=criteria.pop('fqin')
 #     taggings=g.dbp.getTagsForItem(g.currentuser, user, ns+"/"+itemname, context, fqin, criteria)
 #     return jsonify(taggings)
 
-@adsgut.route('/items/<nick>/<tagspace>/<tagtypename>:<tagname>')#q=fieldlist=[('uri',''), ('name',''), ('itemtype',''), ('context', None), ('fqin', None)]
-def itemsfortag(nick, tagspace, tagtypename, tagname):
-    tagtype=tagspace+"/"+tagtypename
+@adsgut.route('/items/<ns>/<tagspace>/<tagtypename>:<tagname>')#q=fieldlist=[('uri',''), ('name',''), ('itemtype',''), ('context', None), ('fqin', None)]
+def itemsfortag(ns, tagspace, tagtypename, tagname):
     criteria, fvlist, orderer=_getItemQuery(request.args)
+    if criteria.get('userthere')==True:
+        nick=criteria.pop('nick')
+        useras=g.db.getUserForNick(g.currentuser, nick)
+    else:
+        nick=None
+        useras=g.currentuser
+    tagtype=tagspace+"/"+tagtypename
+    tag=ns+'/'+tagtype+":"+tagname
     context=criteria.pop('context')
     fqin=criteria.pop('fqin')
-    user=g.db.getUserForNick(g.currentuser, nick)
-    items=g.dbp.getItemsForTag(g.currentuser, user, nick+'/'+tagtype+":"+tagname, context, fqin, criteria)
+    items=g.dbp.getItemsForTag(g.currentuser, useras, tag, context, fqin, criteria)
     return jsonify({'items':items})
 
 
 #for groups/apps, as long as users are in them, one user can get the otherusers items and tags. Cool!
-@adsgut.route('/tags/<nick>/byspec')#q=fieldlist=[('tagname',''), ('tagtype',''), ('context', None), ('fqin', None), ('itemuri', ''), ('itemname', ''), ('itemtype', '')]
-def tagsforitemspec(nick):
+@adsgut.route('/tags')#q=fieldlist=[('tagname',''), ('tagtype',''), ('context', None), ('fqin', None), ('itemuri', ''), ('itemname', ''), ('itemtype', '')]
+def tagsforitemspec():
     criteria, fvlist, orderer=_getTagsForItemQuery(request.args)
-    if nick=='any':
-        useras=g.currentuser
-    else:
+    if criteria.get('userthere')==True:
+        nick=criteria.pop('nick')
         useras=g.db.getUserForNick(g.currentuser, nick)
-        criteria['userthere']=True
+    else:
+        nick=None
+        useras=g.currentuser
     context=criteria.pop('context')
     fqin=criteria.pop('fqin')
-    #This should be cleaned for values. BUG nor done yet.   
     taggings=g.dbp.getTaggingForItemspec(g.currentuser, useras, context, fqin, criteria, fvlist, orderer)
     return jsonify(taggings)
 
-@adsgut.route('/items/<nick>/byspec')#q=fieldlist=[('tagname',''), ('tagtype',''), ('context', None), ('fqin', None), ('itemuri', ''), ('itemname', ''), ('itemtype', '')]
-def itemsfortagspec(nick):
+@adsgut.route('/items/byspec')#q=fieldlist=[('tagname',''), ('tagtype',''), ('context', None), ('fqin', None), ('itemuri', ''), ('itemname', ''), ('itemtype', '')]
+def itemsfortagspec():
     criteria, fvlist, orderer=_getTagsForItemQuery(request.args)
-    print "nick", nick, g, g.currentuser
-    if nick=='any':
-        useras=g.currentuser
-    else:
+    if criteria.get('userthere')==True:
+        nick=criteria.pop('nick')
         useras=g.db.getUserForNick(g.currentuser, nick)
-        criteria['userthere']=True
+    else:
+        nick=None
+        useras=g.currentuser
     context=criteria.pop('context')
     fqin=criteria.pop('fqin')
-    #This should be cleaned for values. BUG nor done yet.  
     print "userAS", useras.nick, g.currentuser.nick 
     items=g.dbp.getItemsForTagspec(g.currentuser, useras, context, fqin, criteria, fvlist, orderer)
     return jsonify(items)
