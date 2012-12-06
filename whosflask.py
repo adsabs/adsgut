@@ -108,56 +108,60 @@ def logout():
 #######################################################################################################################
 
 #Information about users, groups, and apps
+#TODO: should we support a modicum of user information for others
+#like group and app owners?
 @adsgut.route('/user/<nick>')
 def userInfo(nick):
-    userinfo=g.db.getUserInfo(g.currentuser, nick)
+    useras=self.getUserForNick(currentuser, nick)
+    userinfo=g.db.getUserInfo(g.currentuser, useras)
     return jsonify(userinfo)
 
 @adsgut.route('/user/<nick>/profile/html')
 def userProfileHtml(nick):
-    userinfo=g.db.getUserInfo(g.currentuser, nick)
+    useras=self.getUserForNick(currentuser, nick)
+    userinfo=g.db.getUserInfo(g.currentuser, useras)
     return render_template('userprofile.html', theuser=userinfo)
 
 @adsgut.route('/user/<nick>/groupsuserisin')
 def groupsUserIsIn(nick):
-    user=g.db.getUserForNick(g.currentuser, nick)
-    groups=g.db.groupsForUser(g.currentuser, user)
+    useras=g.db.getUserForNick(g.currentuser, nick)
+    groups=g.db.groupsForUser(g.currentuser, useras)
     groupdict={'groups':groups}
     return jsonify(groupdict)
 
 @adsgut.route('/user/<nick>/groupsuserowns')
 def groupsUserOwns(nick):
-    user=g.db.getUserForNick(g.currentuser, nick)
-    groups=g.db.ownerOfGroups(g.currentuser, user)
+    useras=g.db.getUserForNick(g.currentuser, nick)
+    groups=g.db.ownerOfGroups(g.currentuser, useras)
     groupdict={'groups':groups}
     return jsonify(groupdict)
 
 @adsgut.route('/user/<nick>/groupsuserisinvitedto')
 def groupsUserIsInvitedTo(nick):
-    user=g.db.getUserForNick(g.currentuser, nick)
-    groups=g.db.groupInvitationsForUser(g.currentuser, user)
+    useras=g.db.getUserForNick(g.currentuser, nick)
+    groups=g.db.groupInvitationsForUser(g.currentuser, useras)
     groupdict={'groups':groups}
     return jsonify(groupdict)
 
 @adsgut.route('/user/<nick>/appsuserisin')
 def appsUserIsIn(nick):
-    user=g.db.getUserForNick(g.currentuser, nick)
-    apps=g.db.appsForUser(g.currentuser, user)
+    useras=g.db.getUserForNick(g.currentuser, nick)
+    apps=g.db.appsForUser(g.currentuser, useras)
     appdict={'apps':apps}
     return jsonify(appdict)
 
 @adsgut.route('/user/<nick>/appsuserowns')
 def appsUserOwns(nick):
-    user=g.db.getUserForNick(g.currentuser, nick)
-    apps=g.db.ownerOfApps(g.currentuser, user)
+    useras=g.db.getUserForNick(g.currentuser, nick)
+    apps=g.db.ownerOfApps(g.currentuser, useras)
     appdict={'apps':apps}
     return jsonify(appdict)
 
 #use this for the email invitation?
 @adsgut.route('/user/<nick>/appsuserisinvitedto')
 def appsUserIsInvitedTo(nick):
-    user=g.db.getUserForNick(g.currentuser, nick)
-    apps=g.db.appInvitationsForUser(g.currentuser, user)
+    useras=g.db.getUserForNick(g.currentuser, nick)
+    apps=g.db.appInvitationsForUser(g.currentuser, useras)
     appdict={'apps':apps}
     return jsonify(appdict)
 
@@ -195,8 +199,8 @@ def makeInviteToGroup(groupowner, groupname):
         nick=request.form.get('user', None)
         if not nick:
             doabort("BAD_REQ", "No User Specified")
-        user=g.db.getUserForNick(g.currentuser, nick)
-        g.db.inviteUserToGroup(g.currentuser, fqgn, user, None)
+        usertobeadded=g.db.getUserForNick(g.currentuser, nick)
+        g.db.inviteUserToGroup(g.currentuser, fqgn, usertobeadded, None)
         g.db.commit()
         return jsonify({'status':'OK', 'info': {'invited':nick, 'to':fqgn}})
     else:
@@ -204,12 +208,12 @@ def makeInviteToGroup(groupowner, groupname):
 
 @adsgut.route('/group/<groupowner>/group:<groupname>/acceptinvitation', methods=['POST'])#accepr
 def acceptInviteToGroup(nick, groupowner, groupname):  
-    user=g.currentuser
+    userinvited=g.currentuser
     fqgn=groupowner+"/group:"+groupname
     if request.method == 'POST':
         accept=request.form.get('accept', 'NA')
         if accept==True:
-            g.db.acceptInviteToGroup(g.currentuser, fqgn, user, None)
+            g.db.acceptInviteToGroup(g.currentuser, fqgn, userinvited, None)
             g.db.commit()
             return jsonify({'status':'OK', 'info': {'invited':nick, 'to': fqgn, 'accepted':True}})
         elif accept==False:
@@ -275,8 +279,8 @@ def makeInviteToApp(appowner, appname):
         nick=request.form.get('user', None)
         if not nick:
             doabort("BAD_REQ", "No User Specified")
-        user=g.db.getUserForNick(g.currentuser, nick)
-        g.db.inviteUserToApp(g.currentuser, fqan, user, None)
+        usertobeadded=g.db.getUserForNick(g.currentuser, nick)
+        g.db.inviteUserToApp(g.currentuser, fqan, usertobeadded, None)
         g.db.commit()
         return jsonify({'status':'OK',  'info': {'invited':nick, 'to': fqan}})
     else:
@@ -284,12 +288,12 @@ def makeInviteToApp(appowner, appname):
 
 @adsgut.route('/app/<appowner>/app:<appname>/acceptinvitation', methods=['POST'])#accept
 def acceptInviteToApp(nick, appowner, appname):  
-    user=g.currentuser
+    userinvited=g.currentuser
     fqan=appowner+"/app:"+appname
     if request.method == 'POST':
         accept=request.form.get('accept', 'NA')
         if accept==True:
-            g.db.acceptInviteToApp(g.currentuser, fqan, user, None)
+            g.db.acceptInviteToApp(g.currentuser, fqan, userinvited, None)
             g.db.commit()
             return jsonify({'status':'OK','info': {'invited':nick, 'to': fqan, 'accepted':True}})
         elif accept==False:

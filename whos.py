@@ -29,6 +29,20 @@ MUSTHAVEKEYS={
     'app':['creator', 'name']
 }
 
+def _group(db, grouporfullyQualifiedGroupName):
+    if is_stringtype(grouporfullyQualifiedGroupName):
+        grp=db.getGroup(currentuser, grouporfullyQualifiedGroupName)
+    else:
+        grp=grouporfullyQualifiedGroupName
+    return grp
+
+def _app(db, apporfullyQualifiedAppName):
+    if is_stringtype(apporfullyQualifiedAppName):
+        app=db.getApp(currentuser, apporfullyQualifiedAppName)
+    else:
+        app=apporfullyQualifiedAppName
+    return app
+
 #Validate spec for users, groups, and apps
 def validatespec(specdict, spectype="user"):
     keysneeded=MUSTHAVEKEYS[spectype]
@@ -51,7 +65,7 @@ class Whosdb(dbase.Database):
         else:
             return False
 
-    #this one is completely unprotected
+    #this one is completely UNPROTECTED
     def getUserForNick(self, currentuser, nick):
         try:
             user=self.session.query(User).filter_by(nick=nick).one()
@@ -60,9 +74,9 @@ class Whosdb(dbase.Database):
         return user
 
     #Get user info for nickname nick
-    def getUserInfo(self, currentuser, userwantednick):
-        user=self.getUserForNick(currentuser, userwantednick)
-        authorize(False, self, currentuser, user)
+    #either the system user or the user herself can get this. No one else.
+    def getUserInfo(self, currentuser, useras):     
+        authorize(False, self, currentuser, useras)
         return user.info()
 
     #Get group object given fqgn, unprotected
@@ -193,8 +207,10 @@ class Whosdb(dbase.Database):
     #The only person who can remove a group is the system user or the owner
     def removeGroup(self,currentuser, fullyQualifiedGroupName):
         remgrp=self.getGroup(currentuser, fullyQualifiedGroupName)
-        permit(self.isOwnerOfGroup(currentuser, remgrp) or self.isSystemUser(currentuser),
-                "Only owner of group %s or systemuser can remove group" % remgrp.fqin)
+        authorize_context_owner(False, self, currentuser, None, remgrp)
+        
+        # permit(self.isOwnerOfGroup(currentuser, remgrp) or self.isSystemUser(currentuser),
+        #         "Only owner of group %s or systemuser can remove group" % remgrp.fqin)
         #How will the cascades work? removing users? should we not archive?
         #from an ORM perspective its like groups should be added to a new table ArchivedGroup,
         #or perhaps just flagged "archived"
@@ -216,8 +232,10 @@ class Whosdb(dbase.Database):
 
     def removeApp(self,currentuser, fullyQualifiedAppName):
         remapp=self.getApp(currentuser, fullyQualifiedAppName)
-        permit(self.isOwnerOfApp(currentuser, remapp) or self.isSystemUser(currentuser),
-                "Only owner of app %s or systemuser can remove app" % remapp.fqin)
+        authorize_context_owner(False, self, currentuser, None, remapp)
+        
+        # permit(self.isOwnerOfApp(currentuser, remapp) or self.isSystemUser(currentuser),
+        #         "Only owner of app %s or systemuser can remove app" % remapp.fqin)
         #How will the cascades work? removing users? should we not archive?
         #from an ORM perspective its like groups should be added to a new table ArchivedGroup,
         #or perhaps just flagged "archived"
@@ -233,10 +251,7 @@ class Whosdb(dbase.Database):
 
     #Also on group subscriptions, wouldnt we do this without invites? BUG
     def addUserToGroup(self, currentuser, grouporfullyQualifiedGroupName, usertobeadded, authspec):
-        if is_stringtype(grouporfullyQualifiedGroupName):
-            grp=self.getGroup(currentuser, grouporfullyQualifiedGroupName)
-        else:
-            grp=grouporfullyQualifiedGroupName
+        grp=_group(self, grouporfullyQualifiedGroupName)
         if grp.fqin!='adsgut/group:public':
             #special case so any user can add themselves to public group
             #permit(self.isOwnerOfGroup(currentuser, grp) or self.isSystemUser(currentuser), "User %s must be owner of group %s or systemuser" % (currentuser.nick, grp.fqin))
@@ -259,8 +274,10 @@ class Whosdb(dbase.Database):
 
     def acceptInviteToGroup(self, currentuser, fullyQualifiedGroupName, me, authspec):
         grp=self.getGroup(currentuser, fullyQualifiedGroupName)
-        authorize(False, self, currentuser, currentuser)
-        permit(self.isInvitedToGroup(me, grp) or self.isSystemUser(currentuser), "User %s must be invited to group %s or currentuser must be systemuser" % (me.nick, grp.fqin))
+        authorize(False, self, currentuser, me)
+        permit(self.isInvitedToGroup(me, grp), "User %s must be invited to group %s" % (me.nick, grp.fqin))
+        #permit(self.isInvitedToGroup(me, grp) or self.isSystemUser(currentuser), "User %s must be invited to group %s or currentuser must be systemuser" % (me.nick, grp.fqin))
+
         try:
             me.groupsin.append(grp)
         except:
@@ -282,7 +299,7 @@ class Whosdb(dbase.Database):
         grp=self.getGroup(currentuser, fullyQualifiedGroupName)
         #permit(self.isOwnerOfGroup(currentuser, grp) or self.isSystemUser(currentuser), "User %s must be owner of group %s or systemuser" % (currentuser.nick, grp.fqin))
         authorize_context_owner(False, self, currentuser, None, grp)
-        permit(self.isMemberOfGroup(usertobenewowner, grp) or self.isSystemUser(currentuser), " User %s must be member of grp %s  or currentuser must be systemuser" % (currentuser.nick, grp.fqin))
+        permit(self.isMemberOfGroup(usertobenewowner, grp), " User %s must be member of grp %s" % (currentuser.nick, grp.fqin))
         try:
             oldownernick=grp.owner.nick
             grp.owner = usertobenewowner
@@ -293,11 +310,10 @@ class Whosdb(dbase.Database):
 
     #EVEN MORE DERIVED
     #who runs this? is it run on acceptance of group to app? How to permit for that?
+    #BUG: complication is with itemtypes app. Currently i have no invite, and the adsuser
+    #never runs anything to invite users to the app. How do i manage this?
     def addUserToApp(self, currentuser, apporfullyQualifiedAppName, usertobeadded, authspec):
-        if is_stringtype(apporfullyQualifiedAppName):
-            app=self.getApp(currentuser, apporfullyQualifiedAppName)
-        else:
-            app=apporfullyQualifiedAppName
+        app=_app(self, apporfullyQualifiedAppName)
         #permit(self.isOwnerOfApp(currentuser, app) or self.isSystemUser(currentuser), "User %s must be owner of app %s or systemuser" % (currentuser.nick, app.fqin))
         authorize_context_owner(False, self, currentuser, None, app)
         try:
@@ -306,7 +322,8 @@ class Whosdb(dbase.Database):
             doabort('BAD_REQ', "Failed adding user %s to app %s" % (usertobeadded.nick, app.fqin))
         return usertobeadded
 
-    #and who runs this?
+    #and who runs this? invitations may be fundamentally different for apps and people
+    #would be added automatically.
     def inviteUserToApp(self, currentuser, fullyQualifiedAppName, usertobeadded, authspec):
         app=self.getApp(currentuser, fullyQualifiedAppName)
         #permit(self.isOwnerOfApp(currentuser, app) or self.isSystemUser(currentuser), "User %s must be owner of app %s or systemuser" % (currentuser.nick, app.fqin))
@@ -319,8 +336,8 @@ class Whosdb(dbase.Database):
 
     def acceptInviteToApp(self, currentuser, fullyQualifiedAppName, me, authspec):
         app=self.getApp(currentuser, fullyQualifiedAppName)
-        authorize(False, self, currentuser, currentuser)
-        permit(self.isInvitedToApp(me, app) or self.isSystemUser(currentuser), "User %s must be invited to app %s or currentuser must be systemuser" % (me.nick, app.fqin))
+        authorize(False, self, currentuser, me)
+        permit(self.isInvitedToApp(me, app), "User %s must be invited to app %s" % (me.nick, app.fqin))
         try:
             me.applicationsin.append(app)
         except:
@@ -342,6 +359,7 @@ class Whosdb(dbase.Database):
         app=self.getApp(currentuser, fullyQualifiedAppName)
         grp=self.getGroup(currentuser, fullyQualifiedGroupName)
         #You must be owner of the group and member of the app
+        #no useras stuff here?
         #permit(self.isOwnerOfGroup(currentuser, grp) or self.isSystemUser(currentuser), "User %s must be owner of group %s or systemuser" % (currentuser.nick, grp.fqin))
         #permit(self.isMemberOfApp(currentuser, app) or self.isSystemUser(currentuser), "User %s must be member of app %s or systemuser" % (currentuser.nick, app.fqin))
         authorize_context_owner(False, self, currentuser, None, grp)
@@ -369,6 +387,7 @@ class Whosdb(dbase.Database):
 
 
     #INFORMATIONAL: no aborts for these informationals as just queries that could returm empty.
+    #BUG: do we want to support user based filtering here?
 
     def allUsers(self, currentuser):
         authorize(False, self, currentuser, None)
@@ -386,43 +405,45 @@ class Whosdb(dbase.Database):
         return [e.info() for e in apps]
 
 
-    def ownerOfGroups(self, currentuser, userwanted):
-        authorize(False, self, currentuser, userwanted)
-        #permit(currentuser==userwanted or self.isSystemUser(currentuser), "User %s not authorized or not systemuser" % currentuser.nick)
-        groups=userwanted.groupsowned
+    def ownerOfGroups(self, currentuser, useras):
+        authorize(False, self, currentuser, useras)
+        #permit(currentuser==useras or self.isSystemUser(currentuser), "User %s not authorized or not systemuser" % currentuser.nick)
+        groups=useras.groupsowned
         #print "GROUPS", groups
         return [e.info() for e in groups]
 
-    def ownerOfApps(self, currentuser, userwanted):
-        authorize(False, self, currentuser, userwanted)
-        #permit(currentuser==userwanted or self.isSystemUser(currentuser), "User %s not authorized or not systemuser" % currentuser.nick)
-        applications=userwanted.appsowned
+    def ownerOfApps(self, currentuser, useras):
+        authorize(False, self, currentuser, useras)
+        #permit(currentuser==useras or self.isSystemUser(currentuser), "User %s not authorized or not systemuser" % currentuser.nick)
+        applications=useras.appsowned
         return [e.info() for e in applications]
 
 
     def usersInGroup(self, currentuser, fullyQualifiedGroupName):
         grp=self.getGroup(currentuser, fullyQualifiedGroupName)
         #print currentuser, grp, 'KKKKKK'
-        authorize_context_owner(False, self, currentuser, None, grp)
+        #all members have access to member list as smaller context
+        authorize_context_member(False, self, currentuser, None, grp)
         # permit(self.isMemberOfGroup(currentuser, grp) or self.isSystemUser(currentuser), 
         #     "Only member of group %s or systemuser can get users" % grp.fqin)
         users=grp.groupusers
         return [e.info() for e in users]
 
-    def groupsForUser(self, currentuser, userwanted):
-        authorize(False, self, currentuser, userwanted)
-        #permit(currentuser==userwanted or self.isSystemUser(currentuser), "User %s not authorized or not systemuser" % currentuser.nick)
-        groups=userwanted.groupsin
+    def groupsForUser(self, currentuser, useras):
+        authorize(False, self, currentuser, useras)
+        #permit(currentuser==useras or self.isSystemUser(currentuser), "User %s not authorized or not systemuser" % currentuser.nick)
+        groups=useras.groupsin
         return [e.info() for e in groups]
 
-    def groupInvitationsForUser(self, currentuser, userwanted):
-        authorize(False, self, currentuser, userwanted)
-        #permit(currentuser==userwanted or self.isSystemUser(currentuser), "User %s not authorized or not systemuser" % currentuser.nick)
-        groups=userwanted.groupsinvitedto
+    def groupInvitationsForUser(self, currentuser, useras):
+        authorize(False, self, currentuser, useras)
+        #permit(currentuser==useras or self.isSystemUser(currentuser), "User %s not authorized or not systemuser" % currentuser.nick)
+        groups=useras.groupsinvitedto
         return [e.info() for e in groups]
 
     def usersInApp(self, currentuser, fullyQualifiedAppName):
         app=self.getApp(currentuser, fullyQualifiedAppName)
+        #owner gets users here as its a bigger context
         authorize_context_owner(False, self, currentuser, None, app)
         # permit(self.isMemberOfApp(currentuser, app) or self.isSystemUser(currentuser),
         #         "Only member of app %s or systemuser can get users" % app.fqin)
@@ -437,16 +458,16 @@ class Whosdb(dbase.Database):
         groups=app.applicationgroups
         return [e.info() for e in groups]
 
-    def appsForUser(self, currentuser, userwanted):
-        authorize(False, self, currentuser, userwanted)
-        #permit(currentuser==userwanted or self.isSystemUser(currentuser), "User %s not authorized or not systemuser" % currentuser.nick)
-        applications=userwanted.applicationsin
+    def appsForUser(self, currentuser, useras):
+        authorize(False, self, currentuser, useras)
+        #permit(currentuser==useras or self.isSystemUser(currentuser), "User %s not authorized or not systemuser" % currentuser.nick)
+        applications=useras.applicationsin
         return [e.info() for e in applications]
 
-    def appInvitationsForUser(self, currentuser, userwanted):
-        authorize(False, self, currentuser, userwanted)
-        #permit(currentuser==userwanted or self.isSystemUser(currentuser), "User %s not authorized or not systemuser" % currentuser.nick)
-        apps=userwanted.applicationsinvitedto
+    def appInvitationsForUser(self, currentuser, useras):
+        authorize(False, self, currentuser, useras)
+        #permit(currentuser==useras or self.isSystemUser(currentuser), "User %s not authorized or not systemuser" % currentuser.nick)
+        apps=useras.applicationsinvitedto
         return [e.info() for e in apps]
 #why cant arguments be specified via destructuring as in coffeescript
     
