@@ -120,7 +120,10 @@ class Whosdb(dbase.Database):
     def addUser(self, currentuser, userspec):
         #permit(self.isSystemUser(currentuser), "Only System User can add users")
         #hiding as not sure how to bootstrap TODO
-        #authorize(False, self, currentuser, currentuser)
+        authorize(False, self, currentuser, None)
+        #addUserToApp will fail if we are not systemuser.
+        #for some such functions we could swap out to apps owner
+        #but decide on app invitation model for this
         vspec=validatespec(userspec, "user")
         #print vspec
         try:
@@ -142,6 +145,8 @@ class Whosdb(dbase.Database):
         print "CURRENT", currentuser
         self.addGroup(currentuser, dict(name='default', creator=newuser, personalgroup=True))
         self.addUserToGroup(currentuser, 'adsgut/group:public', newuser, None)
+        #Faking this for now
+        self.addUserToApp(currentuser, 'ads/app:publications', newuser, None)
         return newuser
 
     #BUG: we want to blacklist users and relist them

@@ -312,7 +312,7 @@ class Postdb(dbase.Database):
 
     def addItemType(self, currentuser, typespec):
         typespec=validatetypespec(typespec)
-        authorize(False, self, currentuser, currentuser)#any logged in user
+        authorize(False, self.whosdb, currentuser, currentuser)#any logged in user
         try:
             itemtype=ItemType(**typespec)
         except:
@@ -324,14 +324,14 @@ class Postdb(dbase.Database):
 
     def removeItemType(self, currentuser, fullyQualifiedItemType):
         itemtype=self.getItemType(currentuser, fullyQualifiedItemType)
-        authorize(False, self, currentuser, currentuser)#any logged in user
+        authorize(False, self.whosdb, currentuser, currentuser)#any logged in user
         permit(currentuser==itemtype.creator, "User %s not authorized." % currentuser.nick)
         self.session.delete(itemtype)
         return OK
 
     def addTagType(self, currentuser, typespec):
         typespec=validatetypespec(typespec, spectype="tagtype")
-        authorize(False, self, currentuser, currentuser)#any logged in user
+        authorize(False, self.whosdb, currentuser, currentuser)#any logged in user
         try:
             tagtype=TagType(**typespec)
         except:
@@ -341,7 +341,7 @@ class Postdb(dbase.Database):
 
     def removeTagType(self, currentuser, fullyQualifiedTagType):
         tagtype=self.getTagType(currentuser, fullyQualifiedTagType)
-        authorize(False, self, currentuser, currentuser)#any logged in user
+        authorize(False, self.whosdb, currentuser, currentuser)#any logged in user
         permit(currentuser==tagtype.creator, "User %s not authorized" % currentuser.nick)
         self.session.delete(tagtype)
         return OK
@@ -355,7 +355,7 @@ class Postdb(dbase.Database):
         #permit(currentuser==useras or self.whosdb.isSystemUser(currentuser), "User %s not authorized or not systemuser" % currentuser.nick)
         item=_item(self, itemorfullyQualifiedItemName)
         grp=_group(self.whosdb,  grouporfullyQualifiedGroupName)
-        authorize_context_owner(False, self, currentuser, useras, grp)
+        authorize_context_owner(False, self.whosdb, currentuser, useras, grp)
         permit(self.whosdb.isMemberOfGroup(useras, grp),
             "Only member of group %s can post into it" % grp.fqin)
         # permit(currentuser==useras or self.whosdb.isOwnerOfGroup(currentuser, grp) or self.whosdb.isSystemUser(currentuser),
@@ -405,7 +405,7 @@ class Postdb(dbase.Database):
         item=_item(self,  itemorfullyQualifiedItemName)
         grp=_group(self.whosdb,  grouporfullyQualifiedGroupName)
         postingtoremove=self.getPostingInGroup(currentuser, grp, itemtoberemoved)
-        authorize_context_owner(False, self, currentuser, useras, grp)
+        authorize_context_owner(False, self.whosdb, currentuser, useras, grp)
         permit(useras==postingtoremove.user and self.whosdb.isMemberOfGroup(useras, grp),
             "Only member of group %s who posted this item can remove it from the group" % grp.fqin)
         # permit(currentuser==useras or self.whosdb.isOwnerOfGroup(currentuser, grp) or self.whosdb.isSystemUser(currentuser),
@@ -417,7 +417,7 @@ class Postdb(dbase.Database):
         #permit(currentuser==useras or self.whosdb.isSystemUser(currentuser), "User %s not authorized or not systemuser" % currentuser.nick)
         item=_item(self,  itemorfullyQualifiedItemName)
         app=_app(self.whosdb, apporfullyQualifiedAppName)
-        authorize_context_owner(False, self, currentuser, useras, app)
+        authorize_context_owner(False, self.whosdb, currentuser, useras, app)
         permit(self.whosdb.isMemberOfApp(useras, app),
             "Only member of app %s can post into it" % app.fqin)
         # permit(currentuser==useras or self.whosdb.isOwnerOfApp(currentuser, app) or self.whosdb.isSystemUser(currentuser),
@@ -448,7 +448,7 @@ class Postdb(dbase.Database):
         item=_item(self,  itemorfullyQualifiedItemName)
         app=_app(self.whosdb, apporfullyQualifiedAppName)
         postingtoremove=self.getPostingInApp(currentuser, app, itemtoberemoved)
-        authorize_context_owner(False, self, currentuser, useras, app)
+        authorize_context_owner(False, self.whosdb, currentuser, useras, app)
         permit(useras==postingtoremove.user and self.whosdb.isMemberOfApp(useras, app),
             "Only member of app %s who posted this item can remove it from the app" % app.fqin)
         # permit(currentuser==useras or self.whosdb.isOwnerOfApp(currentuser, app) or self.whosdb.isSystemUser(currentuser),
@@ -464,7 +464,7 @@ class Postdb(dbase.Database):
 
     def saveItem(self, currentuser, useras, itemspec):
         #permit(currentuser==useras or self.whosdb.isSystemUser(currentuser), "User %s not authorized or not systemuser" % currentuser.nick)
-        authorize(False, self, currentuser, useras)#sysadmin or any logged in user where but cu and ua must be same
+        authorize(False, self.whosdb, currentuser, useras)#sysadmin or any logged in user where but cu and ua must be same
         fqgn=useras.nick+"/group:default"
         personalgrp=self.whosdb.getGroup(currentuser, fqgn)
         itemspec['itemtype']=self.getItemType(currentuser, itemspec['itemtype'])
@@ -501,7 +501,7 @@ class Postdb(dbase.Database):
 
     #deletion semantics with group user not clear at all! TODO: personal group removal only, item remains, are permits ok?
     def deleteItem(self, currentuser, useras, fullyQualifiedItemName):
-        authorize(False, self, currentuser, useras)#sysadmin or any logged in user where but cu and ua must be same
+        authorize(False, self.whosdb, currentuser, useras)#sysadmin or any logged in user where but cu and ua must be same
         fqgn=useras.nick+"/group:default"
         fqgn=useras.nick+"/group:default" #ALSO TRIGGER others (bug)
         personalgrp=self.whosdb.getGroup(currentuser, fqgn)
@@ -524,7 +524,7 @@ class Postdb(dbase.Database):
     def tagItem(self, currentuser, useras, fullyQualifiedItemName, tagspec, tagmode=False):
         tagspec['tagtype']=self.getTagType(currentuser, tagspec['tagtype'])
         tagspec=validatespec(tagspec, spectype='tag')
-        authorize(False, self, currentuser, useras)
+        authorize(False, self.whosdb, currentuser, useras)
         itemtobetagged=self.getItem(currentuser, fullyQualifiedItemName)
         try:
             print "was tha tag found"
@@ -567,7 +567,7 @@ class Postdb(dbase.Database):
     def untagItem(self, currentuser, useras, fullyQualifiedTagName, fullyQualifiedItemName):
         #Do not remove item, do not remove tag, do not remove tagging
         #just remove the tag from the personal group
-        authorize(False, self, currentuser, useras)
+        authorize(False, self.whosdb, currentuser, useras)
         tag=self.getTag(currentuser, fullyQualifiedTagName)
         itemtobeuntagged=self.getItem(currentuser, fullyQualifiedItemName)
         #Does not remove the tag or the item. Just the tagging. WE WILL NOT REFCOUNT TAGS
@@ -588,7 +588,7 @@ class Postdb(dbase.Database):
         item=_item(self,  itemorfullyQualifiedItemName)
         grp=_group(self.whosdb,  grouporfullyQualifiedGroupName)
         tag=_tag(self,  tagorfullyQualifiedTagName)
-        authorize_context_owner(False, self, currentuser, useras, grp)
+        authorize_context_owner(False, self.whosdb, currentuser, useras, grp)
         #The itemtag must exist at first
         #NOT ALLOWING USER TO POST SOMEONE ELSES TAGGING INTO GROUP. (What about someone else's tag? We could use this for tag subtypig)
         #YES.
@@ -633,7 +633,7 @@ class Postdb(dbase.Database):
     def postTaggingIntoGroupFromItemtag(self, currentuser, useras, grouporfullyQualifiedGroupName, itemtag):
         #permit(currentuser==useras or self.whosdb.isSystemUser(currentuser), "User %s not authorized or not systemuser" % currentuser.nick)
         grp=_group(self.whosdb,  grouporfullyQualifiedGroupName)
-        authorize_context_owner(False, self, currentuser, useras, grp)
+        authorize_context_owner(False, self.whosdb, currentuser, useras, grp)
 
         #Information about user useras goes as namespace into newitem, but should somehow also be in main lookup table
         permit(self.whosdb.isMemberOfGroup(useras, grp),
@@ -675,7 +675,7 @@ class Postdb(dbase.Database):
         item=_item(self,  itemorfullyQualifiedItemName)
         grp=_group(self.whosdb,  grouporfullyQualifiedGroupName)
         tag=_tag(self,  tagorfullyQualifiedTagName)
-        authorize_context_owner(False, self, currentuser, useras, grp)
+        authorize_context_owner(False, self.whosdb, currentuser, useras, grp)
         #BUG: no other auths. But the model for this must be figured out.
         #The itemtag must exist at first
         itemtag=self.getTagging(currentuser, tag, item)
@@ -706,7 +706,7 @@ class Postdb(dbase.Database):
     def postTaggingIntoAppFromItemtag(self, currentuser, useras, apporfullyQualifiedAppName, itemtag):
         #permit(currentuser==useras or self.whosdb.isSystemUser(currentuser), "User %s not authorized or not systemuser" % currentuser.nick)
         app=_app(self.whosdb, apporfullyQualifiedAppName)
-        authorize_context_owner(False, self, currentuser, useras, app)
+        authorize_context_owner(False, self.whosdb, currentuser, useras, app)
 
         #Note tagger need not be creator of item.
 
@@ -736,7 +736,7 @@ class Postdb(dbase.Database):
         item=_item(self,  itemorfullyQualifiedItemName)
         app=_app(self.whosdb, apporfullyQualifiedAppName)
         tag=_tag(self,  tagorfullyQualifiedTagName)
-        authorize_context_owner(False, self, currentuser, useras, app)
+        authorize_context_owner(False, self.whosdb, currentuser, useras, app)
 
         #Note tagger need not be creator of item.
         itemtag=self.getTagging(currentuser, tag, item)
@@ -768,7 +768,7 @@ class Postdb(dbase.Database):
         item=_item(self,  itemorfullyQualifiedItemName)
         app=_app(self.whosdb, apporfullyQualifiedAppName)
         tag=_tag(self,  tagorfullyQualifiedTagName)
-        authorize_context_owner(False, self, currentuser, useras, app)
+        authorize_context_owner(False, self.whosdb, currentuser, useras, app)
         #BUG proper permitting to be worked out
         #The itemtag must exist at first
         itemtag=self.getTagging(currentuser, tag, item)
@@ -871,21 +871,26 @@ class Postdb(dbase.Database):
             userthere=criteria.pop('userthere')
         if context == None:
             if userthere:
-                permit(currentuser==useras, "Current user is not useras")
+                #permit(currentuser==useras, "Current user is not useras")
+                authorize(False, self, currentuser, useras)
                 fqin=useras.nick+"/group:default"
                 grp=self.whosdb.getGroup(currentuser, fqin)
                 items,whenposteds=self._doItemFilter(context, useras, grp, ItemGroup, criteria, fvlist, orderer)
             else:
-                permit(self.whosdb.isSystemUser(currentuser), "Only System User allowed")
+                #permit(self.whosdb.isSystemUser(currentuser), "Only System User allowed")
+                authorize(False, self, currentuser, None)
                 items, whenposteds = self._doItemFilter(context, None, None, None, criteria, fvlist, orderer)
             #permit(self.whosdb.isSystemUser(currentuser), "Only System User allowed")
             #items, whenposteds = self._doItemFilter(context, None, None, None, criteria, fvlist, orderer)
         elif context == 'group':
             grp=self.whosdb.getGroup(currentuser, fqin)
-            permit(self.whosdb.isMemberOfGroup(useras, grp) or self.whosdb.isSystemUser(currentuser),
-                "Only member of group %s allowed" % grp.fqin)
-            permit(currentuser==useras or self.whosdb.isOwnerOfGroup(currentuser, grp) or self.whosdb.isSystemUser(currentuser),
-                "Current user must be useras or only owner of group %s or systemuser can masquerade as user" % grp.fqin)
+            permit(self.whosdb.isMemberOfGroup(useras, grp), "Only member of group %s allowed" % grp.fqin)
+            authorize_context_member(False, self, currentuser, None, grp)
+            # permit(currentuser==useras or self.whosdb.isOwnerOfGroup(currentuser, grp) or self.whosdb.isSystemUser(currentuser),
+            #     "Current user must be useras or only owner of group %s or systemuser can masquerade as user" % grp.fqin)
+            #auth set up as member for currentuser or sysadmin as that includes owner and lets members
+            #access each others stuff in a group context. useas is not needed as only currentuses who are members
+            #alllowed in (besides sys) and once in, can filter at length.
             additional=['groupwhenposted']
             if userthere:
                 items,whenposteds=self._doItemFilter(context, useras, grp, ItemGroup, criteria, fvlist, orderer, additional)
@@ -893,10 +898,10 @@ class Postdb(dbase.Database):
                 items, whenposteds = self._doItemFilter(context, None, grp, ItemGroup, criteria, fvlist, orderer, additional)
         elif context == 'app':
             app=self.whosdb.getApp(currentuser, fqin)
-            permit(self.whosdb.isMemberOfApp(useras, app) or self.whosdb.isSystemUser(currentuser),
-                "Only member of app %s allowed" % app.fqin)
-            permit(currentuser==useras or self.whosdb.isOwnerOfApp(currentuser, app) or self.whosdb.isSystemUser(currentuser),
-                "Current user must be useras or only owner of app %s or systemuser can masquerade as user" % app.fqin)
+            permit(self.whosdb.isMemberOfApp(useras, app), "Only member of app %s allowed" % app.fqin)
+            authorize_context_member(False, self, currentuser, None, app)
+            # permit(currentuser==useras or self.whosdb.isOwnerOfApp(currentuser, app) or self.whosdb.isSystemUser(currentuser),
+            #     "Current user must be useras or only owner of app %s or systemuser can masquerade as user" % app.fqin)
             additional=['appwhenposted']
             if userthere:
                 items,whenposteds=self._doItemFilter(context, useras, app, ItemApplication, criteria, fvlist, orderer, additional)
@@ -930,18 +935,20 @@ class Postdb(dbase.Database):
             thechoice=ItemTag
             taggings=self.session.query(ItemTag).select_from(join(ItemTag, Item))
             if userthere:
-                permit(currentuser==useras, "Current user is not useras")
+                #permit(currentuser==useras, "Current user is not useras")
+                authorize(False, self, currentuser, useras)
                 taggings=taggings.filter(ItemTag.user==useras)
             else:
-                permit(self.whosdb.isSystemUser(currentuser), "Only System User allowed")
+                authorize(False, self, currentuser, None)
+                #permit(self.whosdb.isSystemUser(currentuser), "Only System User allowed")
             additional=[]
         elif context=='group':
             thechoice=TagitemGroup         
             grp=self.whosdb.getGroup(currentuser, fqin)
-            permit(self.whosdb.isMemberOfGroup(useras, grp) or self.whosdb.isSystemUser(currentuser),
-                "Only member of group %s allowed" % grp.fqin)
-            permit(currentuser==useras or self.whosdb.isOwnerOfGroup(currentuser, grp) or self.whosdb.isSystemUser(currentuser),
-                "Current user must be useras or only owner of group %s or systemuser can masquerade as user" % grp.fqin)
+            permit(self.whosdb.isMemberOfGroup(useras, grp), "Only member of group %s allowed" % grp.fqin)
+            authorize_context_member(False, self, currentuser, None, grp)
+            # permit(currentuser==useras or self.whosdb.isOwnerOfGroup(currentuser, grp) or self.whosdb.isSystemUser(currentuser),
+            #     "Current user must be useras or only owner of group %s or systemuser can masquerade as user" % grp.fqin)
             taggingothers=self.session.query(TagitemGroup).filter_by(group=grp)
             taggings=taggingothers.join(Item, TagitemGroup.item_id==Item.id)
             if userthere:
@@ -950,10 +957,10 @@ class Postdb(dbase.Database):
         elif context=='app':
             thechoice=TagitemApplication
             app=self.whosdb.getApp(currentuser, fqin)
-            permit(self.whosdb.isMemberOfApp(useras, app) or self.whosdb.isSystemUser(currentuser),
-                "Only member of app %s allowed" % app.fqin)
-            permit(currentuser==useras or self.whosdb.isOwnerOfApp(currentuser, app) or self.whosdb.isSystemUser(currentuser),
-                "Current user must be useras or only owner of app %s or systemuser can masquerade as user" % app.fqin)
+            permit(self.whosdb.isMemberOfApp(useras, app), "Only member of app %s allowed" % app.fqin)
+            authorize_context_member(False, self, currentuser, None, app)
+            # permit(currentuser==useras or self.whosdb.isOwnerOfApp(currentuser, app) or self.whosdb.isSystemUser(currentuser),
+            #     "Current user must be useras or only owner of app %s or systemuser can masquerade as user" % app.fqin)
             taggingothers=self.session.query(TagitemApplication).filter_by(application=app)
             rhash['app']=app.fqin
             taggings=taggingothers.join(Item, TagitemApplication.item_id==Item.id)

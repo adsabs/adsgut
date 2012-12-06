@@ -232,8 +232,7 @@ def addUsertoGroup_or_groupUsers(groupowner, groupname):
     fqgn=groupowner+"/group:"+groupname
     gowner=g.db.getUserForNick(g.currentuser, groupowner)
     if request.method == 'POST':
-        permit(gowner==g.currentuser or g.db.isSystemUser(g.currentuser), "Only Group owner System User allowed")
-        nick=request.form.get('user', None)
+        nick=request.form.get('userthere', None)
         if not nick:
             doabort("BAD_REQ", "No User Specified")
         user=g.db.getUserForNick(g.currentuser, nick)
@@ -311,8 +310,7 @@ def addUserToApp_or_appUsers(appowner, appname):
     fqan=appowner+"/app:"+appname
     aowner=g.db.getUserForNick(g.currentuser, appowner)
     if request.method == 'POST':
-        permit(aowner==g.currentuser or g.db.isSystemUser(g.currentuser), "Only App owner System User allowed")
-        nick=request.form.get('user', None)
+        nick=request.form.get('userthere', None)
         if not nick:
             doabort("BAD_REQ", "No User Specified")
         user=g.db.getUserForNick(g.currentuser, nick)
