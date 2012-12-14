@@ -106,6 +106,7 @@ def validatespec(specdict, spectype="item"):
         specdict['uri']=specdict['name']
     if spectype=="tag":
         specdict['fqin']=specdict['creator'].nick+"/"+specdict['tagtype'].fqin+":"+specdict['uri']
+        specdict['itemtype_id']=specdict['tagtype'].itemtype_id
     else:
         #specdict['fqin']=specdict['creator'].nick+"/"+specdict['name']
         specdict['fqin']=specdict['itemtype'].creator.nick+"/"+specdict['uri']
