@@ -44,27 +44,26 @@ created using:
 ###======cut below this line =====================
 
 
+
 @adsgut.route'/'
 @adsgut.route'/all'
 @adsgut.route'/app', methods=['POST']  |   name/description
-@adsgut.route'/app/<appowner>/app:<appname>/acceptinvitation', methods=['POST']  |   accept
+@adsgut.route'/app/<appowner>/app:<appname>'
+@adsgut.route'/app/<appowner>/app:<appname>/doinvitation', methods=['POST']  |   user/op
 @adsgut.route'/app/<appowner>/app:<appname>/groups', methods=['GET', 'POST']  |   group
-@adsgut.route'/app/<appowner>/app:<appname>/invitation', methods=['POST']  |   user
-@adsgut.route'/app/<appowner>/app:<appname>/items', methods=['POST']  |   userthere/[fqin] fieldlist=['uri','', 'name','', 'itemtype','', 'context', None, 'fqin', None]
+@adsgut.route'/app/<appowner>/app:<appname>/items', methods=['GET', 'POST']  |   userthere/[fqin] fieldlist=['uri','', 'name','', 'itemtype','', 'context', None, 'fqin', None]
+@adsgut.route'/app/<appowner>/app:<appname>/profile/html'
 @adsgut.route'/app/<appowner>/app:<appname>/users', methods=['GET', 'POST']  |   user
-@adsgut.route'/app/<username>/app:<appname>'
-@adsgut.route'/app/<username>/app:<appname>/profile/html'
 @adsgut.route'/app/html'
 @adsgut.route'/group', methods=['POST']  |   groupname/description
-@adsgut.route'/group/<groupowner>/group:<groupname>/acceptinvitation', methods=['POST']  |   accepr
-@adsgut.route'/group/<groupowner>/group:<groupname>/invitation', methods=['POST']  |   user
-@adsgut.route'/group/<groupowner>/group:<groupname>/items', methods=['POST', 'GET']  |   userthere/[fqins] fieldlist=['uri','', 'name','', 'itemtype','', 'context', None, 'fqin', None, 'userthere', 'False']
-@adsgut.route'/group/<groupowner>/group:<groupname>/tags', methods=['POST']  |   userthere/fqin/fqtn
+@adsgut.route'/group/<groupowner>/group:<groupname>'
+@adsgut.route'/group/<groupowner>/group:<groupname>/doinvitation', methods=['POST']  |   user/op
+@adsgut.route'/group/<groupowner>/group:<groupname>/items', methods=['GET', 'POST']  |   userthere/[fqins] fieldlist=['uri','', 'name','', 'itemtype','', 'context', None, 'fqin', None, 'userthere', 'False']
+@adsgut.route'/group/<groupowner>/group:<groupname>/profile/html'
+@adsgut.route'/group/<groupowner>/group:<groupname>/tags', methods=['GET', 'POST']  |   userthere/fqin/fqtn
 @adsgut.route'/group/<groupowner>/group:<groupname>/users', methods=['GET', 'POST']  |   user
-@adsgut.route'/group/<username>/group:<groupname>'
-@adsgut.route'/group/<username>/group:<groupname>/profile/html'
 @adsgut.route'/group/html'
-@adsgut.route'/group/public/items', methods=['POST', 'GET']  |   user/fqin fieldlist=['uri','', 'name','', 'itemtype','', 'context', None, 'fqin', None]
+@adsgut.route'/group/public/items', methods=['GET', 'POST']  |   user/fqin fieldlist=['uri','', 'name','', 'itemtype','', 'context', None, 'fqin', None]
 @adsgut.route'/item/<nick>/<ns>/<itemname>'
 @adsgut.route'/item/<nick>/byuri/<itemuri>'
 @adsgut.route'/item/<ns>/<itemname>/groups', methods=['POST']  |   fqins=[fqin]

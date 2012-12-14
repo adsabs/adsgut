@@ -144,3 +144,27 @@ perhaps this can be run off the spec funcs? i think so. do this as we make the u
 ===============
 addUserToGroup dosent get permission from user to add. same as addUserToApp.
 Whats the use case for this?Bulk adds? and whats the permitting issues?
+
+
+immeds:
+(a) appsin gives wring thing for item.info() (also groupsin)[DONE, helps tagmode too]
+(b) support get for invitations. merge
+(c) use or notuse for tagmode: dont use tagmode for notes?
+(d) should uerthere be needed if u ask for tag for item is you have the tag ns
+eg http://127.0.0.1:5000/items/rahuldave/ads/tag:stupid?userthere=rahuldave
+keep it for now, think about it deeply
+
+more immeds:
+counts and pagination: do not error if page*pagination > count. return empty array
+counts done pagination scaffolding done, querying waits
+group by or etc to make results in apps or groups dups or not decision:
+	reason is igu uniqueness, not ig uniqueness, and we'd like the ui for items in a group
+	to not be repeating items when multiple people posted them
+	we could currently leave this to js but then pagination will confuse
+	best dont in getItems and criterion, also maybe for groupsin and such
+	think i will punt on this for later.
+need to support tagmode in query and pass down. Also add page. perhaps add pagesize? how
+	we do rate limiting?
+validation: page etc shouldnt be stupid stuff
+
+tagmode in POSTS, not in GET. need it to prevent group propagation for notes.

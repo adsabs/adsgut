@@ -128,6 +128,7 @@ class User(DaBase):
     nick = Column(String, unique=True, nullable=False)#expect unique
     email = Column(String, unique=True, nullable=False)#expect unique
     systemuser = Column(Boolean, default=False)
+    
     groupsin = relationship('Group', secondary=UserGroup,
                             backref=backref('groupusers', lazy='dynamic'))
     groupsinvitedto = relationship('Group', secondary=InvitationGroup,
@@ -180,6 +181,7 @@ class Item(DaBase):
     #itemtype_string = Column(String, ForeignKey('itemtypes.name'))
     type=Column(String)
     creator_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    #what about the filtering issue with this? BUG?
     creator = relationship('User', backref=backref('itemscreated', lazy='dynamic'))
     name = Column(String, nullable=False)#this is the main text, eg for article, it could be title.
     #make it useful, make it searchable.
@@ -200,15 +202,18 @@ class Item(DaBase):
 #BUG: these filters select items..not groups!!!!
     def get_groupsin(self, user=None):
         if user:
-            groupsin=self.query.filter(Item.items_groups.any(user=user))
+            #groupsin=Group.query.filter(Group.groups_items.any(user=user))
+            groupsin=Group.query.filter(Group.groups_items.any(user=user, item=self))
+            #print "GGGGGGGGG", groupsin
+            print [ele.fqin for ele in groupsin]
         else:
             groupsin=self.groupsin
-        print "GROUPSIN::::::", groupsin
+        #print "GROUPSIN::::::", groupsin
         return groupsin
 
     def get_applicationsin(self, user=None):
         if user:
-            applicationsin=self.query.filter(Item.items_groups.any(user=user))
+            applicationsin=Application.query.filter(Application.applications_items.any(user=user, item=self))
         else:
             applicationsin=self.applicationsin
         return applicationsin
@@ -324,6 +329,9 @@ class Application(Group):
 
 Item.groupsin = association_proxy('items_groups', 'group')
 
+
+
+
 class ItemGroup(DaBase):
     __tablename__='item_group'
     item_id=Column(Integer, ForeignKey('items.id'), primary_key=True)
@@ -338,10 +346,10 @@ class ItemGroup(DaBase):
                 backref=backref("items_groups")
             )
 
-ItemGroup.group = relationship(Group, primaryjoin=ItemGroup.group_id==Group.group_id)
+#ItemGroup.group = relationship(Group, primaryjoin=ItemGroup.group_id==Group.group_id)
+ItemGroup.group = relationship(Group, primaryjoin=ItemGroup.group_id==Group.group_id, backref=backref("groups_items"))
 
 Group.itemsposted=relationship("Item", secondary=ItemGroup.__table__)
-
 # Item.applicationsin = relationship('Application', secondary=ItemApplication, 
 #                             secondaryjoin=ItemApplication.c.application_id==Application.application_id,
 #                             primaryjoin=ItemApplication.c.item_id==Item.id, 
@@ -364,7 +372,8 @@ class ItemApplication(DaBase):
                 backref=backref("items_applications")
             )
 
-ItemApplication.application = relationship(Application, primaryjoin=ItemApplication.application_id==Application.application_id)
+ItemApplication.application = relationship(Application, 
+        primaryjoin=ItemApplication.application_id==Application.application_id, backref=backref("applications_items"))
 
 Application.itemsposted=relationship("Item", secondary=ItemApplication.__table__)
 

@@ -29,14 +29,14 @@ MUSTHAVEKEYS={
     'app':['creator', 'name']
 }
 
-def _group(db, grouporfullyQualifiedGroupName):
+def _group(currentuser, db, grouporfullyQualifiedGroupName):
     if is_stringtype(grouporfullyQualifiedGroupName):
         grp=db.getGroup(currentuser, grouporfullyQualifiedGroupName)
     else:
         grp=grouporfullyQualifiedGroupName
     return grp
 
-def _app(db, apporfullyQualifiedAppName):
+def _app(currentuser, db, apporfullyQualifiedAppName):
     if is_stringtype(apporfullyQualifiedAppName):
         app=db.getApp(currentuser, apporfullyQualifiedAppName)
     else:
@@ -77,7 +77,7 @@ class Whosdb(dbase.Database):
     #either the system user or the user herself can get this. No one else.
     def getUserInfo(self, currentuser, useras):     
         authorize(False, self, currentuser, useras)
-        return user.info()
+        return useras.info()
 
     #Get group object given fqgn, unprotected
     #Bug remove currentuser from here and the cascades. also change signature
@@ -120,7 +120,7 @@ class Whosdb(dbase.Database):
     def addUser(self, currentuser, userspec):
         #permit(self.isSystemUser(currentuser), "Only System User can add users")
         #hiding as not sure how to bootstrap TODO
-        authorize(False, self, currentuser, None)
+        #authorize(False, self, currentuser, None)
         #addUserToApp will fail if we are not systemuser.
         #for some such functions we could swap out to apps owner
         #but decide on app invitation model for this
@@ -146,7 +146,7 @@ class Whosdb(dbase.Database):
         self.addGroup(currentuser, dict(name='default', creator=newuser, personalgroup=True))
         self.addUserToGroup(currentuser, 'adsgut/group:public', newuser, None)
         #Faking this for now
-        self.addUserToApp(currentuser, 'ads/app:publications', newuser, None)
+        #self.addUserToApp(currentuser, 'ads/app:publications', newuser, None)
         return newuser
 
     #BUG: we want to blacklist users and relist them
@@ -256,7 +256,7 @@ class Whosdb(dbase.Database):
 
     #Also on group subscriptions, wouldnt we do this without invites? BUG
     def addUserToGroup(self, currentuser, grouporfullyQualifiedGroupName, usertobeadded, authspec):
-        grp=_group(self, grouporfullyQualifiedGroupName)
+        grp=_group(currentuser, self, grouporfullyQualifiedGroupName)
         if grp.fqin!='adsgut/group:public':
             #special case so any user can add themselves to public group
             #permit(self.isOwnerOfGroup(currentuser, grp) or self.isSystemUser(currentuser), "User %s must be owner of group %s or systemuser" % (currentuser.nick, grp.fqin))
@@ -318,7 +318,7 @@ class Whosdb(dbase.Database):
     #BUG: complication is with itemtypes app. Currently i have no invite, and the adsuser
     #never runs anything to invite users to the app. How do i manage this?
     def addUserToApp(self, currentuser, apporfullyQualifiedAppName, usertobeadded, authspec):
-        app=_app(self, apporfullyQualifiedAppName)
+        app=_app(currentuser, self, apporfullyQualifiedAppName)
         #permit(self.isOwnerOfApp(currentuser, app) or self.isSystemUser(currentuser), "User %s must be owner of app %s or systemuser" % (currentuser.nick, app.fqin))
         authorize_context_owner(False, self, currentuser, None, app)
         try:

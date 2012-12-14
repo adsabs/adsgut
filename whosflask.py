@@ -112,13 +112,13 @@ def logout():
 #like group and app owners?
 @adsgut.route('/user/<nick>')
 def userInfo(nick):
-    useras=self.getUserForNick(currentuser, nick)
+    useras=g.db.getUserForNick(g.currentuser, nick)
     userinfo=g.db.getUserInfo(g.currentuser, useras)
     return jsonify(userinfo)
 
 @adsgut.route('/user/<nick>/profile/html')
 def userProfileHtml(nick):
-    useras=self.getUserForNick(currentuser, nick)
+    useras=g.db.getUserForNick(g.currentuser, nick)
     userinfo=g.db.getUserInfo(g.currentuser, useras)
     return render_template('userprofile.html', theuser=userinfo)
 
@@ -188,38 +188,67 @@ def createGroup():
     else:
         doabort("BAD_REQ", "GET not supported")
 
-#Currently wont allow you to create app, or accept invites to apps
-#TODO: perhaps combine these two into one invitation as a restian endpoint with action=invite or accept. 
-#This way both currentuser and useras can be supported in here.
-@adsgut.route('/group/<groupowner>/group:<groupname>/invitation', methods=['POST'])#user
-def makeInviteToGroup(groupowner, groupname):
+# #Currently wont allow you to create app, or accept invites to apps
+# #TODO: perhaps combine these two into one invitation as a restian endpoint with action=invite or accept. 
+# #This way both currentuser and useras can be supported in here.
+# @adsgut.route('/group/<groupowner>/group:<groupname>/invitation', methods=['POST'])#user
+# def makeInviteToGroup(groupowner, groupname):
+#     #add permit to match user with groupowner
+#     fqgn=groupowner+"/group:"+groupname
+#     if request.method == 'POST':
+#         nick=request.form.get('userthere', None)
+#         if not nick:
+#             doabort("BAD_REQ", "No User Specified")
+#         usertobeadded=g.db.getUserForNick(g.currentuser, nick)
+#         g.db.inviteUserToGroup(g.currentuser, fqgn, usertobeadded, None)
+#         g.db.commit()
+#         return jsonify({'status':'OK', 'info': {'invited':nick, 'to':fqgn}})
+#     else:
+#         doabort("BAD_REQ", "GET not supported")
+
+# @adsgut.route('/group/<groupowner>/group:<groupname>/acceptinvitation', methods=['POST'])#accepr
+# def acceptInviteToGroup(nick, groupowner, groupname):  
+#     userinvited=g.currentuser
+#     fqgn=groupowner+"/group:"+groupname
+#     if request.method == 'POST':
+#         accept=request.form.get('accept', 'NA')
+#         if accept==True:
+#             g.db.acceptInviteToGroup(g.currentuser, fqgn, userinvited, None)
+#             g.db.commit()
+#             return jsonify({'status':'OK', 'info': {'invited':nick, 'to': fqgn, 'accepted':True}})
+#         elif accept==False:
+#             return jsonify({'status': 'OK', 'info': {'invited':nick, 'to': fqgn, 'accepted':False}})
+#         else:
+#             doabort("BAD_REQ", "accept not provided")
+#     else:
+#         doabort("BAD_REQ", "GET not supported")
+
+@adsgut.route('/group/<groupowner>/group:<groupname>/doinvitation', methods=['POST'])#user/op
+def doInviteToGroup(groupowner, groupname):
     #add permit to match user with groupowner
     fqgn=groupowner+"/group:"+groupname
     if request.method == 'POST':
-        nick=request.form.get('user', None)
+        #specify your own nick for accept or decline
+        nick=request.form.get('userthere', None)
         if not nick:
             doabort("BAD_REQ", "No User Specified")
-        usertobeadded=g.db.getUserForNick(g.currentuser, nick)
-        g.db.inviteUserToGroup(g.currentuser, fqgn, usertobeadded, None)
-        g.db.commit()
-        return jsonify({'status':'OK', 'info': {'invited':nick, 'to':fqgn}})
-    else:
-        doabort("BAD_REQ", "GET not supported")
-
-@adsgut.route('/group/<groupowner>/group:<groupname>/acceptinvitation', methods=['POST'])#accepr
-def acceptInviteToGroup(nick, groupowner, groupname):  
-    userinvited=g.currentuser
-    fqgn=groupowner+"/group:"+groupname
-    if request.method == 'POST':
-        accept=request.form.get('accept', 'NA')
-        if accept==True:
+        op=request.form.get('op', None)
+        if not op:
+            doabort("BAD_REQ", "No Op Specified")
+        if op=="invite":
+            usertobeadded=g.db.getUserForNick(g.currentuser, nick)
+            g.db.inviteUserToGroup(g.currentuser, fqgn, usertobeadded, None)
+            g.db.commit()
+            return jsonify({'status':'OK', 'info': {'invited':nick, 'to':fqgn}})
+        elif op=='accept':
             g.db.acceptInviteToGroup(g.currentuser, fqgn, userinvited, None)
             g.db.commit()
             return jsonify({'status':'OK', 'info': {'invited':nick, 'to': fqgn, 'accepted':True}})
-        elif accept==False:
+        elif op=='decline':
+            #BUG add something to invitations to mark declines.
             return jsonify({'status': 'OK', 'info': {'invited':nick, 'to': fqgn, 'accepted':False}})
         else:
-            doabort("BAD_REQ", "accept not provided")
+            doabort("BAD_REQ", "No Op Specified")
     else:
         doabort("BAD_REQ", "GET not supported")
 
@@ -270,35 +299,66 @@ def createApp():
 
 #Currently wont allow you to create app, or accept invites to apps
 #TODO: combine below two?, add choices for currentuser, useras.
-@adsgut.route('/app/<appowner>/app:<appname>/invitation', methods=['POST'])#user
-def makeInviteToApp(appowner, appname):
-    #add permit to match user with groupowner
+# @adsgut.route('/app/<appowner>/app:<appname>/invitation', methods=['POST'])#user
+# def makeInviteToApp(appowner, appname):
+#     #add permit to match user with groupowner
+#     fqan=appowner+"/app:"+appname
+#     if request.method == 'POST':
+#         nick=request.form.get('userthere', None)
+#         if not nick:
+#             doabort("BAD_REQ", "No User Specified")
+#         usertobeadded=g.db.getUserForNick(g.currentuser, nick)
+#         g.db.inviteUserToApp(g.currentuser, fqan, usertobeadded, None)
+#         g.db.commit()
+#         return jsonify({'status':'OK',  'info': {'invited':nick, 'to': fqan}})
+#     else:
+#         doabort("BAD_REQ", "GET not supported")
+
+# @adsgut.route('/app/<appowner>/app:<appname>/acceptinvitation', methods=['POST'])#accept
+# def acceptInviteToApp(nick, appowner, appname):  
+#     userinvited=g.currentuser
+#     fqan=appowner+"/app:"+appname
+#     if request.method == 'POST':
+#         accept=request.form.get('accept', 'NA')
+#         if accept==True:
+#             g.db.acceptInviteToApp(g.currentuser, fqan, userinvited, None)
+#             g.db.commit()
+#             return jsonify({'status':'OK','info': {'invited':nick, 'to': fqan, 'accepted':True}})
+#         elif accept==False:
+#             return jsonify({'status': 'OK', 'info': {'invited':nick, 'to': fqan, 'accepted':False}})
+#         else:
+#             doabort("BAD_REQ", "accept not provided")
+#     else:
+#         doabort("BAD_REQ", "GET not supported")
+
+
+@adsgut.route('/app/<appowner>/app:<appname>/doinvitation', methods=['POST'])#user/op
+def doInviteToApp(appowner, appname):
+    #add permit to match user with appowner. BUG: what is already invited person invited (or declined person invited
+    #need to add code to deal with this and understand the app invite model)
     fqan=appowner+"/app:"+appname
     if request.method == 'POST':
-        nick=request.form.get('user', None)
+        #specify your own nick for accept or decline
+        nick=request.form.get('userthere', None)
         if not nick:
             doabort("BAD_REQ", "No User Specified")
-        usertobeadded=g.db.getUserForNick(g.currentuser, nick)
-        g.db.inviteUserToApp(g.currentuser, fqan, usertobeadded, None)
-        g.db.commit()
-        return jsonify({'status':'OK',  'info': {'invited':nick, 'to': fqan}})
-    else:
-        doabort("BAD_REQ", "GET not supported")
-
-@adsgut.route('/app/<appowner>/app:<appname>/acceptinvitation', methods=['POST'])#accept
-def acceptInviteToApp(nick, appowner, appname):  
-    userinvited=g.currentuser
-    fqan=appowner+"/app:"+appname
-    if request.method == 'POST':
-        accept=request.form.get('accept', 'NA')
-        if accept==True:
+        op=request.form.get('op', None)
+        if not op:
+            doabort("BAD_REQ", "No Op Specified")
+        if op=="invite":
+            usertobeadded=g.db.getUserForNick(g.currentuser, nick)
+            g.db.inviteUserToApp(g.currentuser, fqan, usertobeadded, None)
+            g.db.commit()
+            return jsonify({'status':'OK', 'info': {'invited':nick, 'to':fqan}})
+        elif op=='accept':
             g.db.acceptInviteToApp(g.currentuser, fqan, userinvited, None)
             g.db.commit()
-            return jsonify({'status':'OK','info': {'invited':nick, 'to': fqan, 'accepted':True}})
-        elif accept==False:
+            return jsonify({'status':'OK', 'info': {'invited':nick, 'to': fqan, 'accepted':True}})
+        elif op=='decline':
+            #BUG add something to invitations to mark declines.
             return jsonify({'status': 'OK', 'info': {'invited':nick, 'to': fqan, 'accepted':False}})
         else:
-            doabort("BAD_REQ", "accept not provided")
+            doabort("BAD_REQ", "No Op Specified")
     else:
         doabort("BAD_REQ", "GET not supported")
 
@@ -351,15 +411,15 @@ def creategrouphtml():
     pass
 
 #get group info
-@adsgut.route('/group/<username>/group:<groupname>')
-def groupInfo(username, groupname):
-    fqgn = username+'/group:'+groupname
+@adsgut.route('/group/<groupowner>/group:<groupname>')
+def groupInfo(groupowner, groupname):
+    fqgn = groupowner+'/group:'+groupname
     groupinfo=g.db.getGroupInfo(g.currentuser, fqgn)
     return jsonify(groupinfo)
 
-@adsgut.route('/group/<username>/group:<groupname>/profile/html')
-def groupProfileHtml(username, groupname):
-    fqgn = username+'/group:'+groupname
+@adsgut.route('/group/<groupowner>/group:<groupname>/profile/html')
+def groupProfileHtml(groupowner, groupname):
+    fqgn = groupowner+'/group:'+groupname
     groupinfo=g.db.getGroupInfo(g.currentuser, fqgn)
     return render_template('groupprofile.html', thegroup=groupinfo)
 
@@ -380,15 +440,15 @@ def groupProfileHtml(username, groupname):
 def createapphtml():
     pass
 
-@adsgut.route('/app/<username>/app:<appname>')
-def appInfo(username, appname):
-    fqan = username+'/app:'+appname
+@adsgut.route('/app/<appowner>/app:<appname>')
+def appInfo(appowner, appname):
+    fqan = appowner+'/app:'+appname
     appinfo=g.db.getAppInfo(g.currentuser, fqan)
     return jsonify(appinfo)
 
-@adsgut.route('/app/<username>/app:<appname>/profile/html')
-def appProfileHtml(username, appname):
-    fqan = username+'/app:'+appname
+@adsgut.route('/app/<appowner>/app:<appname>/profile/html')
+def appProfileHtml(appowner, appname):
+    fqan = appowner+'/app:'+appname
     appinfo=g.db.getAppInfo(g.currentuser, fqan)
     return render_template('appprofile.html', theapp=appinfo)
 
@@ -474,7 +534,7 @@ def tagsForItem(ns, itemname):
 #TODOAPI: do easy way of getting items in group BUG: how about particular user via userthere?
 #BUG: rahuldave masquerading as jayluker gives 0 items instead of throwing error
 #BUG: userthere only does masquerading. it dosent seem to filter by user. how do we do this without a nick extension? really? i thought getItems would handle this
-@adsgut.route('/group/<groupowner>/group:<groupname>/items', methods=['POST', 'GET'])#userthere/[fqins] fieldlist=[('uri',''), ('name',''), ('itemtype',''), ('context', None), ('fqin', None), ('userthere', 'False')]
+@adsgut.route('/group/<groupowner>/group:<groupname>/items', methods=['GET', 'POST'])#userthere/[fqins] fieldlist=[('uri',''), ('name',''), ('itemtype',''), ('context', None), ('fqin', None), ('userthere', 'False')]
 def itemsForGroup(groupowner, groupname):
     #user=g.currentuser#The current user is doing the posting
     #print "hello", user.nick
@@ -511,14 +571,14 @@ def itemsForGroup(groupowner, groupname):
         context="group"
         fqgn=groupowner+"/group:"+groupname
         #This should be cleaned for values. BUG nor done yet.   
-        items=g.dbp.getItems(g.currentuser, useras, context, fqgn, criteria, fvlist, orderer)
-        grouppostings={'status':'OK', 'group':fqgn, 'items':items}
+        items, count=g.dbp.getItems(g.currentuser, useras, context, fqgn, criteria, fvlist, orderer)
+        grouppostings={'status':'OK', 'group':fqgn, 'items':items, 'count':count}
         return jsonify(grouppostings)
 
 #TODOAPI: do easy way of getting items in group
 #BUG: add userthere support (do we want to add it via GET or url?)
 #this ought to allow alternate public publishing
-@adsgut.route('/group/public/items', methods=['POST', 'GET'])#user/fqin fieldlist=[('uri',''), ('name',''), ('itemtype',''), ('context', None), ('fqin', None)]
+@adsgut.route('/group/public/items', methods=['GET', 'POST'])#user/fqin fieldlist=[('uri',''), ('name',''), ('itemtype',''), ('context', None), ('fqin', None)]
 def useritempublicpost():
     groupowner="adsgut"
     groupname="public"
@@ -553,8 +613,8 @@ def useritemmultigrouppost(groupowner, groupname):
 #@adsgut.route('/item/<ns>/<itemname>/apppost', methods=['POST'])#user/fqin
 #TODOAPI: do easy way of getting items in group
 #BUG add userthere support
-@adsgut.route('/app/<appowner>/app:<appname>/items', methods=['POST'])#userthere/[fqin] fieldlist=[('uri',''), ('name',''), ('itemtype',''), ('context', None), ('fqin', None)]
-def useritemapppost(appowner, appname):
+@adsgut.route('/app/<appowner>/app:<appname>/items', methods=['GET', 'POST'])#userthere/[fqin] fieldlist=[('uri',''), ('name',''), ('itemtype',''), ('context', None), ('fqin', None)]
+def itemsForApp(appowner, appname):
     #user=g.currentuser#The current user is doing the posting
     #print "hello", user.nick
     if request.method == 'POST':
@@ -589,8 +649,8 @@ def useritemapppost(appowner, appname):
         throwawayfqin=criteria.pop('fqin')
         context="app"
         fqin=appowner+"/app:"+appname
-        items=g.dbp.getItems(g.currentuser, useras, context, fqin, criteria, fvlist, orderer)
-        apppostings={'items':items}
+        items, count=g.dbp.getItems(g.currentuser, useras, context, fqin, criteria, fvlist, orderer)
+        apppostings={'status':'OK', 'group':fqan, 'items':items, 'count':count}
         return jsonify(apppostings)
 
 
@@ -604,7 +664,7 @@ def useritemapppost(appowner, appname):
 #NEEDS OMNIPOTENCY OR CHECKS
 
 
-@adsgut.route('/group/<groupowner>/group:<groupname>/tags', methods=['POST'])#userthere/fqin/fqtn
+@adsgut.route('/group/<groupowner>/group:<groupname>/tags', methods=['GET', 'POST'])#userthere/fqin/fqtn
 def usertaggrouppost(groupowner, groupname):
     #user=g.currentuser#The current user is doing the posting
     #print "hello", user.nick
@@ -841,9 +901,10 @@ def _getQuery(querydict, fieldlist):
     criteria={}
     #only the stuff that comes in via fieldlist is allowed. This then acts as a sort of validation, or atleast, junk prevention.
     #this does not handle order_by, or such
+    #BUG: flase, empty values and all that over here needs to be properyly done not the hack it is now
     for ele, elev in fieldlist:
         qele=querydict.get(ele, elev)
-        if ele in ['context', 'fqin']:
+        if ele in ['context', 'fqin', 'paginate', 'page']:
             criteria[ele]=qele
         elif ele=='userthere':
             if qele!=False:
@@ -864,7 +925,9 @@ def _getQuery(querydict, fieldlist):
 
 
 def _getItemQuery(querydict):
-    fieldlist=[('uri',''), ('name',''), ('itemtype',''), ('context', None), ('fqin', None), ('userthere', False)]
+    fieldlist=[('uri',''), ('name',''), ('itemtype',''), ('context', None), 
+        ('fqin', None), ('userthere', False),
+        ('paginate', 20), ('page', 0)]
     fieldvallist=['uri', 'name', 'whencreated', 'itemtype']
     orderer=querydict.getlist('order_by')
     return _getQuery(querydict, fieldlist), fieldvallist, orderer
@@ -872,7 +935,9 @@ def _getItemQuery(querydict):
 
 def _getTagQuery(querydict):
     #one can combine name and tagtype to get, for example, tag:lensing
-    fieldlist=[('tagname',''), ('tagtype',''), ('context', None), ('fqin', None), ('userthere', False)]
+    fieldlist=[('tagname',''), ('tagtype',''), ('context', None), 
+        ('fqin', None), ('userthere', False),
+        ('paginate', 20), ('page', 0)]
     fieldvallist=['tagname', 'tagtype', 'whentagged']
     orderer=querydict.getlist('order_by')
     return _getQuery(querydict, fieldlist), fieldvallist, orderer
@@ -880,7 +945,9 @@ def _getTagQuery(querydict):
 
 def _getTagsForItemQuery(querydict):
     #one can combine name and tagtype to get, for example, tag:lensing
-    fieldlist=[('tagname',''), ('tagtype',''), ('context', None), ('fqin', None), ('uri', ''), ('name', ''), ('itemtype', ''), ('userthere', False)]
+    fieldlist=[('tagname',''), ('tagtype',''), ('context', None), 
+        ('fqin', None), ('uri', ''), ('name', ''), ('itemtype', ''), ('userthere', False),
+        ('paginate', 20), ('page', 0)]
     fieldvallist=['tagname', 'tagtype', 'whentagged', 'uri', 'whencreated', 'name', 'itemtype']
     orderer=querydict.getlist('order_by')
     return _getQuery(querydict, fieldlist), fieldvallist, orderer
@@ -992,6 +1059,7 @@ def itemsbyany():
         return jsonify({'status':'OK', 'info':newitem.info()})
     else:
         criteria, fvlist, orderer=_getItemQuery(request.args)
+        #criteria, fvlist, orderer=_getTagsForItemQuery(request.args)
         if criteria.get('userthere')==True:
             nick=criteria.pop('nick')
             useras=g.db.getUserForNick(g.currentuser, nick)
@@ -1001,8 +1069,8 @@ def itemsbyany():
         #criteria['userthere']=True
         context=criteria.pop('context')
         fqin=criteria.pop('fqin')
-        items=g.dbp.getItems(g.currentuser, useras, context, fqin, criteria, fvlist, orderer)
-        return jsonify({'items':items})
+        items, count=g.dbp.getItems(g.currentuser, useras, context, fqin, criteria, fvlist, orderer)
+        return jsonify({'items':items, 'count':count})
 
 # #add tagtype/tagname to query. Must this also be querying item attributes?
 # @adsgut.route('/tags')#q=fieldlist=[('tagname',''), ('tagtype',''), ('context', None), ('fqin', None)]
@@ -1047,7 +1115,7 @@ def itemsfortag(ns, tagspace, tagtypename, tagname):
     context=criteria.pop('context')
     fqin=criteria.pop('fqin')
     items=g.dbp.getItemsForTag(g.currentuser, useras, tag, context, fqin, criteria)
-    return jsonify({'items':items})
+    return jsonify(items)
 
 
 #for groups/apps, as long as users are in them, one user can get the otherusers items and tags. Cool!
@@ -1080,6 +1148,19 @@ def itemsfortagspec():
     items=g.dbp.getItemsForTagspec(g.currentuser, useras, context, fqin, criteria, fvlist, orderer)
     return jsonify(items)
 
+
+#BUG: add the ability to put a max on this.
+@adsgut.route('/user/<nick>/things')
+def appsUserIsIn(nick):
+    useras=g.db.getUserForNick(g.currentuser, nick)
+    datype=request.args.get('thingtype', None)
+    things, count, thetype=g.dbp.getItemsorTagsCreatedByUser(g.currentuser, useras, datype)
+    if thetype==None:
+        tfqin=''
+    else:
+        tfqin=thetype.fqin
+    thingdict={'things':things, 'fqin': tfqin, 'count': count}
+    return jsonify(thingdict)
 #######################################################################################################################
 #These too are redundant but we might want to support them as a different uri scheme
 #######################################################################################################################
