@@ -5,8 +5,9 @@
   $ = jQuery;
 
   AjaxSolr.theme.prototype.result = function(doc, snippet) {
-    var bdict, formtext, output;
+    var bdict, output, user;
     output = '<div><h5>' + doc.title + '</h5>';
+    user = $('#user').attr('user');
     bdict = {
       itemtype: 'ads/pub',
       uri: doc.bibcode,
@@ -16,10 +17,61 @@
     if ($('#user').attr('user') === 'none') {
       output += '<p id="links_' + doc.id + '" class="links">' + doc.bibcode + '</p>';
     } else {
-      formtext = "<form class=\"form-inline saveform\">\n  <button class=\"btn btn-mini saver\" name=\"" + bdict.name + "\" itemtype=\"" + bdict.itemtype + "\" uri=\"" + bdict.uri + "\">Save</button>\n  <input type=\"text\" class=\"input-small tagtext\" placeholder=\"tag\"/>\n  <button class=\"btn btn-mini tagadder\" class=\"btn\"><i class=\"icon-plus-sign\"></i> Add Tag</button>\n  \n  <label class=\"pull-right tags\">tags</label>\n</form>\n<form class=\"form-inline groupform\">\n  <label class=\"select\">Group:\n    <select multiple=\"multiple\" class=\"groupselect\">\n    </select>\n  </label>\n  <button class=\"btn btn-mini tagadder\" class=\"btn\"><i class=\"icon-retweet\"></i> Send</button>\n  <label class=\"checkbox\">\n    <input type=\"checkbox\" name=\"publicitem\"> Make Public </input>\n  </label>\n  <label class=\"pull-right groups\">groups</label>\n</form>\n<form class=\"form-inline noteform\">\n  <textarea class=\"notetext\" placeholder=\"note\"/>\n  <button class=\"btn btn-mini noteadder\" class=\"btn\"><i class=\"icon-plus-sign\"></i> Add Note</button>\n  <label class=\"checkbox notelabel\">\n    <input type=\"checkbox\" name=\"noteprivate\"> Keep Note Private </input>\n  </label>\n  <label class=\"pull-right groups\">notes</label>\n</form>";
-      output += '<p id="links_' + doc.id + '" class="links">' + doc.bibcode + '</p>' + formtext;
+      output += '<p id="links_' + doc.id + '" class="links">' + doc.bibcode + '</p>' + AjaxSolr.theme.prototype.saveform(doc, user) + AjaxSolr.theme.prototype.tagform(doc, user) + AjaxSolr.theme.prototype.groupform(doc, user) + AjaxSolr.theme.prototype.noteform(doc, user);
     }
     output += '<p>' + snippet + '</p></div>';
+    return output;
+  };
+
+  AjaxSolr.theme.prototype.saveform = function(doc, user) {
+    var formtext, output, savedict;
+    output = '';
+    savedict = {
+      itemtype: 'ads/pub',
+      uri: doc.bibcode,
+      name: doc.bibcode
+    };
+    formtext = "<div class=\"savediv>\n  <form class=\"form-inline saveform\">\n      <button class=\"btn btn-mini saver\" name=\"" + savedict.name + "\" itemtype=\"" + savedict.itemtype + "\" uri=\"" + savedict.uri + "\">Save</button>\n  </form>\n</div>";
+    output = output + formtext;
+    return output;
+  };
+
+  AjaxSolr.theme.prototype.tagform = function(doc, user) {
+    var formtext, output, tagdict;
+    output = '';
+    tagdict = {
+      itemtype: 'ads/pub',
+      uri: doc.bibcode,
+      name: doc.bibcode
+    };
+    formtext = "<div class=\"tagdiv\">\n  <form class=\"form-inline tagform\" style=\"display:none\">\n      <input type=\"text\" class=\"input-small tagtext\" placeholder=\"tag\"/>\n      <button class=\"btn btn-mini tagadder\" class=\"btn\"><i class=\"icon-plus-sign\"></i> Add Tag</button>\n  </form>\n  <span class=\"tagslist\">no tags yet</span>\n</div>";
+    output = output + formtext;
+    return output;
+  };
+
+  AjaxSolr.theme.prototype.groupform = function(doc, user) {
+    var formtext, groupdict, output;
+    output = '';
+    groupdict = {
+      itemtype: 'ads/pub',
+      uri: doc.bibcode,
+      name: doc.bibcode
+    };
+    formtext = "<div class=\"groupdiv\">\n  <form class=\"form-inline groupform\" style=\"display:none\">\n      <label class=\"select\">Group:\n        <select multiple=\"multiple\" class=\"groupselect\">\n        </select>\n      </label>\n      <label class=\"checkbox\">\n        <input type=\"checkbox\" name=\"publicitem\"> Make Public </input>\n      </label>\n      <button class=\"btn btn-mini tagadder\" class=\"btn\"><i class=\"icon-retweet\"></i> Post</button>\n  </form>\n  <span class=\"groupslist\">no groups yet</span>\n<div>";
+    output = output + formtext;
+    return output;
+  };
+
+  AjaxSolr.theme.prototype.noteform = function(doc, user) {
+    var formtext, notedict, output;
+    output = '';
+    notedict = {
+      itemtype: 'ads/pub',
+      uri: doc.bibcode,
+      name: doc.bibcode
+    };
+    formtext = "<div class=\"notediv\">\n  <form class=\"form-inline noteform\"  style=\"display:none\">\n      <textarea class=\"notetext\" placeholder=\"note\"/>\n      <label class=\"checkbox notelabel\">\n        <input type=\"checkbox\" name=\"noteprivate\"> Keep Note Private </input>\n      </label>\n      <button class=\"btn btn-mini noteadder\" class=\"btn\"><i class=\"icon-plus-sign\"></i> Add Note</button>\n  </form>\n  <span class=\"noteslist\">no notes yet</span>\n</div>";
+    output = output + formtext;
     return output;
   };
 
