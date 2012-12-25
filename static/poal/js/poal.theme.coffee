@@ -33,7 +33,7 @@ AjaxSolr.theme.prototype.saveform = (doc, user) ->
     uri: doc.bibcode
     name: doc.bibcode
   formtext="""
-  <div class="savediv>
+  <div class="savediv">
     <form class="form-inline saveform">
         <button class="btn btn-mini saver" name="#{savedict.name}" itemtype="#{savedict.itemtype}" uri="#{savedict.uri}">Save</button>
     </form>
@@ -51,6 +51,7 @@ AjaxSolr.theme.prototype.tagform = (doc, user) ->
     name: doc.bibcode
   formtext="""
   <div class="tagdiv">
+    <i class="icon-play"></i>
     <form class="form-inline tagform" style="display:none">
         <input type="text" class="input-small tagtext" placeholder="tag"/>
         <button class="btn btn-mini tagadder" class="btn"><i class="icon-plus-sign"></i> Add Tag</button>
@@ -70,6 +71,7 @@ AjaxSolr.theme.prototype.groupform = (doc, user) ->
     name: doc.bibcode
   formtext="""
   <div class="groupdiv">
+    <i class="icon-play"></i>
     <form class="form-inline groupform" style="display:none">
         <label class="select">Group:
           <select multiple="multiple" class="groupselect">
@@ -95,6 +97,7 @@ AjaxSolr.theme.prototype.noteform = (doc, user) ->
     name: doc.bibcode
   formtext="""
   <div class="notediv">
+    <i class="icon-chevron-right" state="right"></i>
     <form class="form-inline noteform"  style="display:none">
         <textarea class="notetext" placeholder="note"/>
         <label class="checkbox notelabel">

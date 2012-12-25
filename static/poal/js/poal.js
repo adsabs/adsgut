@@ -66,7 +66,7 @@
     }
     console.log("Setting up Event handlers");
     dauser = $('#user').attr('user');
-    $('#docs').delegate("button.saver", "click", function() {
+    $('#docs').delegate(".savediv button", "click", function() {
       var bdict,
         _this = this;
       bdict = {
@@ -75,7 +75,7 @@
         'name': $(this).attr('name')
       };
       console.log(dauser, bdict);
-      $.post("/items/" + dauser, bdict, function(data) {
+      $.post("/items", bdict, function(data) {
         console.log('data is', data);
         if (data['status'] === 'OK') {
           return $(_this).hide();
@@ -83,7 +83,20 @@
       });
       return false;
     });
-    $('#docs').delegate("button.noteadder", "click", function() {
+    $('#docs').delegate(".notediv button", "click", function() {
+      return false;
+    });
+    $('#docs').delegate(".notediv i", "click", function() {
+      var togglevar;
+      $(this).next("form").toggle();
+      if ($(this).attr('state') === 'right') {
+        $(this).attr("class", "icon-chevron-down");
+        $(this).attr("state", "down");
+        togglevar = true;
+      } else {
+        $(this).attr("class", "icon-chevron-right");
+        $(this).attr("state", "right");
+      }
       return false;
     });
     return Manager.doRequest();

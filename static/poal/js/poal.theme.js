@@ -31,7 +31,7 @@
       uri: doc.bibcode,
       name: doc.bibcode
     };
-    formtext = "<div class=\"savediv>\n  <form class=\"form-inline saveform\">\n      <button class=\"btn btn-mini saver\" name=\"" + savedict.name + "\" itemtype=\"" + savedict.itemtype + "\" uri=\"" + savedict.uri + "\">Save</button>\n  </form>\n</div>";
+    formtext = "<div class=\"savediv\">\n  <form class=\"form-inline saveform\">\n      <button class=\"btn btn-mini saver\" name=\"" + savedict.name + "\" itemtype=\"" + savedict.itemtype + "\" uri=\"" + savedict.uri + "\">Save</button>\n  </form>\n</div>";
     output = output + formtext;
     return output;
   };
@@ -44,7 +44,7 @@
       uri: doc.bibcode,
       name: doc.bibcode
     };
-    formtext = "<div class=\"tagdiv\">\n  <form class=\"form-inline tagform\" style=\"display:none\">\n      <input type=\"text\" class=\"input-small tagtext\" placeholder=\"tag\"/>\n      <button class=\"btn btn-mini tagadder\" class=\"btn\"><i class=\"icon-plus-sign\"></i> Add Tag</button>\n  </form>\n  <span class=\"tagslist\">no tags yet</span>\n</div>";
+    formtext = "<div class=\"tagdiv\">\n  <i class=\"icon-play\"></i>\n  <form class=\"form-inline tagform\" style=\"display:none\">\n      <input type=\"text\" class=\"input-small tagtext\" placeholder=\"tag\"/>\n      <button class=\"btn btn-mini tagadder\" class=\"btn\"><i class=\"icon-plus-sign\"></i> Add Tag</button>\n  </form>\n  <span class=\"tagslist\">no tags yet</span>\n</div>";
     output = output + formtext;
     return output;
   };
@@ -57,7 +57,7 @@
       uri: doc.bibcode,
       name: doc.bibcode
     };
-    formtext = "<div class=\"groupdiv\">\n  <form class=\"form-inline groupform\" style=\"display:none\">\n      <label class=\"select\">Group:\n        <select multiple=\"multiple\" class=\"groupselect\">\n        </select>\n      </label>\n      <label class=\"checkbox\">\n        <input type=\"checkbox\" name=\"publicitem\"> Make Public </input>\n      </label>\n      <button class=\"btn btn-mini tagadder\" class=\"btn\"><i class=\"icon-retweet\"></i> Post</button>\n  </form>\n  <span class=\"groupslist\">no groups yet</span>\n<div>";
+    formtext = "<div class=\"groupdiv\">\n  <i class=\"icon-play\"></i>\n  <form class=\"form-inline groupform\" style=\"display:none\">\n      <label class=\"select\">Group:\n        <select multiple=\"multiple\" class=\"groupselect\">\n        </select>\n      </label>\n      <label class=\"checkbox\">\n        <input type=\"checkbox\" name=\"publicitem\"> Make Public </input>\n      </label>\n      <button class=\"btn btn-mini tagadder\" class=\"btn\"><i class=\"icon-retweet\"></i> Post</button>\n  </form>\n  <span class=\"groupslist\">no groups yet</span>\n<div>";
     output = output + formtext;
     return output;
   };
@@ -70,7 +70,7 @@
       uri: doc.bibcode,
       name: doc.bibcode
     };
-    formtext = "<div class=\"notediv\">\n  <form class=\"form-inline noteform\"  style=\"display:none\">\n      <textarea class=\"notetext\" placeholder=\"note\"/>\n      <label class=\"checkbox notelabel\">\n        <input type=\"checkbox\" name=\"noteprivate\"> Keep Note Private </input>\n      </label>\n      <button class=\"btn btn-mini noteadder\" class=\"btn\"><i class=\"icon-plus-sign\"></i> Add Note</button>\n  </form>\n  <span class=\"noteslist\">no notes yet</span>\n</div>";
+    formtext = "<div class=\"notediv\">\n  <i class=\"icon-chevron-right\" state=\"right\"></i>\n  <form class=\"form-inline noteform\"  style=\"display:none\">\n      <textarea class=\"notetext\" placeholder=\"note\"/>\n      <label class=\"checkbox notelabel\">\n        <input type=\"checkbox\" name=\"noteprivate\"> Keep Note Private </input>\n      </label>\n      <button class=\"btn btn-mini noteadder\" class=\"btn\"><i class=\"icon-plus-sign\"></i> Add Note</button>\n  </form>\n  <span class=\"noteslist\">no notes yet</span>\n</div>";
     output = output + formtext;
     return output;
   };

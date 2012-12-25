@@ -194,17 +194,19 @@ class Postdb(dbase.Database):
             doabort('NOT_FND', "TagType %s not found" % fullyQualifiedTagType)
         return tagtype
 
-    def getPostingInGroup(self, currentuser, grp, item):
+    def getPostingInGroup(self, currentuser, useras, grp, item):
         try:
-            itempost=self.session.query(ItemGroup).filter_by(group=grp, item=item).one()
+            itempost=self.session.query(ItemGroup).filter_by(group=grp, item=item, user=useras).one()
         except:
             doabort('NOT_FND', "Posting in grp %s for item %s not found" % (grp.fqin, item.fqin))
+        return itempost
 
-    def getPostingInApp(self, currentuser, app, item):
+    def getPostingInApp(self, currentuser, useras, app, item):
         try:
-            itempost=self.session.query(ItemApplication).filter_by(application=app, item=item).one()
+            itempost=self.session.query(ItemApplication).filter_by(application=app, item=item, user=useras).one()
         except:
             doabort('NOT_FND', "Posting in app %s for item %s not found" % (app.fqin, item.fqin))
+        return itempost
 
     def getItem(self, currentuser, fullyQualifiedItemName):
         try:
@@ -365,11 +367,15 @@ class Postdb(dbase.Database):
         #     "Current user must be useras or only owner of group %s or systemuser can masquerade as user" % grp.fqin)
 
         try:
-            print "ITEMGROUP", grp.fqin, item.name
-            newposting=ItemGroup(item=item, group=grp, user=useras, itemuri=item.uri, itemtype=item.itemtype)
+            newposting=self.getPostingInGroup(currentuser, useras, grp, item)
         except:
-            doabort('BAD_REQ', "Failed adding newposting of item %s into group %s." % (item.fqin, grp.fqin))
-        self.session.add(newposting)
+            try:
+                print "CREATING NEW ITEMGROUP", grp.fqin, item.name
+                newposting=ItemGroup(item=item, group=grp, user=useras, itemuri=item.uri, itemtype=item.itemtype)
+                self.session.add(newposting)
+
+            except:
+                doabort('BAD_REQ', "Failed adding newposting of item %s into group %s." % (item.fqin, grp.fqin))
         personalfqgn=useras.nick+"/group:default"
 
         if grp.fqin!=personalfqgn:
@@ -391,6 +397,7 @@ class Postdb(dbase.Database):
             #assure idempotency for each group the user added the item to
             self.postItemIntoApp(currentuser, useras, itemtypesapp, item, tagmode)
         #is taggings, ensure they are posted into group too, personal or otherwise
+        #BUG: need idempotenvy in taggings
         if tagmode:
             taggings=self.getTaggingsByItemAndUser(currentuser, useras, item)
             if grp.fqin!=personalfqgn: #trying to post to personal group, prevent!
@@ -407,7 +414,7 @@ class Postdb(dbase.Database):
     def removeItemFromGroup(self, currentuser, useras, grouporfullyQualifiedGroupName, itemorfullyQualifiedItemName):
         item=_item(currentuser, self,  itemorfullyQualifiedItemName)
         grp=_group(currentuser, self.whosdb,  grouporfullyQualifiedGroupName)
-        postingtoremove=self.getPostingInGroup(currentuser, grp, itemtoberemoved)
+        postingtoremove=self.getPostingInGroup(currentuser, useras, grp, itemtoberemoved)
         authorize_context_owner(False, self.whosdb, currentuser, useras, grp)
         permit(useras==postingtoremove.user and self.whosdb.isMemberOfGroup(useras, grp),
             "Only member of group %s who posted this item can remove it from the group" % grp.fqin)
@@ -427,10 +434,13 @@ class Postdb(dbase.Database):
         #     "Current user must be useras or only owner of app %s or systemuser can masquerade as user" % app.fqin)
 
         try:         
-            print "ITEMAPP", app.fqin, item.name
-            newposting=ItemApplication(item=item, application=app, user=useras, itemuri=item.uri, itemtype=item.itemtype)
+            newposting=self.getPostingInApp(currentuser, useras, app, item)
         except:
-            doabort('BAD_REQ', "Failed adding newposting of item %s into app %s." % (item.fqin, app.fqin))
+            try:
+                print "CREATING ITEMAPP", app.fqin, item.name
+                newposting=ItemApplication(item=item, application=app, user=useras, itemuri=item.uri, itemtype=item.itemtype)
+            except:
+                doabort('BAD_REQ', "Failed adding newposting of item %s into app %s." % (item.fqin, app.fqin))
         self.session.add(newposting)
         #COMMENTING OUT as cant think of situation where a post into app ought to trigger personal group saving
         # fqgn=useras.nick+"/group:default"
@@ -450,7 +460,7 @@ class Postdb(dbase.Database):
     def removeItemFromApp(self, currentuser, useras, apporfullyQualifiedAppName, itemorfullyQualifiedItemName):
         item=_item(currentuser, self,  itemorfullyQualifiedItemName)
         app=_app(currentuser, self.whosdb, apporfullyQualifiedAppName)
-        postingtoremove=self.getPostingInApp(currentuser, app, itemtoberemoved)
+        postingtoremove=self.getPostingInApp(currentuser, useras, app, itemtoberemoved)
         authorize_context_owner(False, self.whosdb, currentuser, useras, app)
         permit(useras==postingtoremove.user and self.whosdb.isMemberOfApp(useras, app),
             "Only member of app %s who posted this item can remove it from the app" % app.fqin)
@@ -475,18 +485,19 @@ class Postdb(dbase.Database):
         #Information about user useras goes as namespace into newitem, but should somehow also be in main lookup table
         try:
             print "was the item found?"
-            newitem=self.getItemByFqin(currentuser, itemspec['fqin'])
+            newitem=self.getItem(currentuser, itemspec['fqin'])
         except:
             #the item was not found. Create it
             try:
                 print "ITSPEC", itemspec
                 newitem=Item(**itemspec)
+                self.session.add(newitem)
                 # print "Newitem is", newitem.info()
             except:
                 # import sys
                 # print sys.exc_info()
                 doabort('BAD_REQ', "Failed adding item %s" % itemspec['fqin'])
-        self.session.add(newitem)
+        #self.session.add(newitem)
         #appstring=newitem.itemtype.app
 
         #print "APPSTRING\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\", appstring
@@ -523,7 +534,7 @@ class Postdb(dbase.Database):
     #thus multiple names are avoided as each tag is new. But when tagging an item, make sure you are appropriately
     #creating a new tag or reusing an existing one. And that tag is uniqie to the user, so indeeed pavlos/tag:statistics
     #is different
- 
+    #what prevents me from using someone elses tag? validatespec DOES
     def tagItem(self, currentuser, useras, fullyQualifiedItemName, tagspec, tagmode=False):
         tagspec['tagtype']=self.getTagType(currentuser, tagspec['tagtype'])
         tagspec=validatespec(tagspec, spectype='tag')
@@ -538,16 +549,19 @@ class Postdb(dbase.Database):
             try:
                 print "try creating tag"
                 newtag=Tag(**tagspec)
+                self.session.add(newtag)
             except:
                 doabort('BAD_REQ', "Failed adding tag %s" % tagspec['fqin'])
-        self.session.add(newtag)
+        
         print "newtagging"
         try:
-            #BUG: Will fail if you tag item twice. Should we be idempotent to it? Currently No.
-            newtagging=ItemTag(item=itemtobetagged, tag=newtag, user=useras, 
-                itemuri=itemtobetagged.uri, tagname=newtag.name, tagtype=newtag.tagtype, itemtype=itemtobetagged.itemtype)
+            print "was the itemtag found"
+            itemtag=self.getTagging(currentuser, newtag, itemtobetagged)
         except:
-            doabort('BAD_REQ', "Failed adding newtagging on item %s with tag %s" % (itemtobetagged.fqin, newtag.fqin))
+            try:
+                newtagging=ItemTag(itemtobetagged, newtag, useras)
+            except:
+                doabort('BAD_REQ', "Failed adding newtagging on item %s with tag %s" % (itemtobetagged.fqin, newtag.fqin))
         self.session.add(newtagging)
         personalfqgn=useras.nick+"/group:default"
         personalgrp=self.whosdb.getGroup(currentuser, personalfqgn)
@@ -607,12 +621,17 @@ class Postdb(dbase.Database):
         print "ITEMTAG", itemtag, item, grp, tag
         #Information about user useras goes as namespace into newitem, but should somehow also be in main lookup table
         try:
-            newitg=TagitemGroup(itemtag=itemtag, group=grp, tagname=tag.name, tagtype=tag.tagtype, user=useras)
+            print "was the group ragging found"
+            newitg=self.getGroupTagging(currentuser, itemtag=itemtag, group=grp)
         except:
-            doabort('BAD_REQ', "Failed adding newtagging on item %s with tag %s in group %s" % (item.fqin, tag.fqin, grp.fqin))
+            try:
+                newitg=TagitemGroup(itemtag, grp, useras)
+                self.session.add(newitg)
+            except:
+                doabort('BAD_REQ', "Failed adding newtagging on item %s with tag %s in group %s" % (item.fqin, tag.fqin, grp.fqin))
 
 
-        self.session.add(newitg)
+        
 
         personalfqgn=useras.nick+"/group:default"
         #post item tagging to app only when we post tag to personal group. 
@@ -652,12 +671,15 @@ class Postdb(dbase.Database):
         # permit(currentuser==useras or self.whosdb.isOwnerOfGroup(currentuser, grp) or self.whosdb.isSystemUser(currentuser),
         #      "Current user must be useras or only owner of group %s or systemuser can masquerade as user" % grp.fqin)
         try:
-            tag=itemtag.tag
-            newitg=TagitemGroup(itemtag=itemtag, group=grp, tagname=tag.name, tagtype=tag.tagtype, user=useras)
+            newitg=self.getGroupTagging(currentuser, itemtag=itemtag, group=grp)
         except:
-            doabort('BAD_REQ', "Failed adding newtagging on item %s with tag %s in group %s" % (itemtag.item.fqin, tag.fqin, grp.fqin))
+            try:
+                newitg=TagitemGroup(itemtag, grp, useras)
+                self.session.add(newitg)
+            except:
+                doabort('BAD_REQ', "Failed adding newtagging on item %s with tag %s in group %s" % (itemtag.item.fqin, tag.fqin, grp.fqin))
 
-        self.session.add(newitg)
+        
 
         personalfqgn=useras.nick+"/group:default"
         #only when we do post tagging to personal group do we post tagging to app. this ensures app dosent have multiples.
@@ -724,10 +746,14 @@ class Postdb(dbase.Database):
         #The itemtag must exist at first
         #Information about user useras goes as namespace into newitem, but should somehow also be in main lookup table
         try:
-            newita=TagitemApplication(itemtag=itemtag, application=app, tagname=itemtag.tag.name, tagtype=itemtag.tag.tagtype, user=useras)
+            newita=self.getAppTagging(currentuser, itemtag=itemtag, application=app)
         except:
-            doabort('BAD_REQ', "Failed adding newtagging on item %s with tag %s in app %s" % (itemtag.item.fqin, tag.fqin, app.fqin))    
-        self.session.add(newita)
+            try:
+                newita=TagitemApplication(itemtag, app, useras)
+                self.session.add(newita)
+            except:
+                doabort('BAD_REQ', "Failed adding newtagging on item %s with tag %s in app %s" % (itemtag.item.fqin, tag.fqin, app.fqin))    
+        
         #grp.groupitems.append(newitem)
         # self.commit()
         # print itemtag.groupsin, 'jee', grp.itemtags
@@ -755,10 +781,14 @@ class Postdb(dbase.Database):
         #The itemtag must exist at first
         #Information about user useras goes as namespace into newitem, but should somehow also be in main lookup table
         try:
-            newita=TagitemApplication(itemtag=itemtag, application=app, tagname=tag.name, tagtype=tag.tagtype, user=useras)
+            newita=self.getAppTagging(currentuser, itemtag=itemtag, application=app)
         except:
-            doabort('BAD_REQ', "Failed adding newtagging on item %s with tag %s in app %s" % (item.fqin, tag.fqin, app.fqin))    
-        self.session.add(newita)
+            try:
+                newita=TagitemApplication(itemtag, app, useras)
+                self.session.add(newita)
+            except:
+                doabort('BAD_REQ', "Failed adding newtagging on item %s with tag %s in app %s" % (item.fqin, tag.fqin, app.fqin))    
+        
         #grp.groupitems.append(newitem)
         # self.commit()
         # print itemtag.groupsin, 'jee', grp.itemtags

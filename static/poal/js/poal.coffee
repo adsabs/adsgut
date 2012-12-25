@@ -71,19 +71,31 @@ $ ->
   #Set up event handlers
   console.log "Setting up Event handlers"
   dauser=$('#user').attr('user')
-  $('#docs').delegate "button.saver", "click", () ->
+  $('#docs').delegate ".savediv button", "click", () ->
     bdict = 
       'itemtype': $(this).attr('itemtype')
       'uri': $(this).attr('uri')
       'name': $(this).attr('name')
     console.log dauser, bdict
-    $.post "/items/"+dauser, bdict, (data) =>
-      console.log('data is', data);
+    $.post "/items", bdict, (data) =>
+      console.log('data is', data)
       if (data['status'] is 'OK')
           $(this).hide()           
     return false
-  $('#docs').delegate "button.noteadder", "click", () ->          
+  $('#docs').delegate ".notediv button", "click", () ->          
     return false
+  $('#docs').delegate ".notediv i", "click", () -> 
+    $(this).next("form").toggle()
+    if $(this).attr('state') is 'right'
+      $(this).attr("class", "icon-chevron-down")
+      $(this).attr("state", "down")
+      togglevar=true
+    else
+      $(this).attr("class", "icon-chevron-right")
+      $(this).attr("state", "right")   
+    return false
+
+
   Manager.doRequest()
 
 

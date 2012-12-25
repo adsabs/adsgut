@@ -403,6 +403,17 @@ class ItemTag(DaBase):
                 backref=backref("items_tags")
             )
 
+    def __init__(self, itemtobetagged, newtag, useras):
+        #newtagging=ItemTag(item=itemtobetagged, tag=newtag, user=useras, 
+        #itemuri=itemtobetagged.uri, tagname=newtag.name, tagtype=newtag.tagtype, itemtype=itemtobetagged.itemtype)
+        self.item=itemtobetagged
+        self.tag=newtag
+        self.user=useras
+        self.itemuri=itemtobetagged.uri
+        self.tagname=newtag.name
+        self.tagtype=newtag.tagtype
+        self.itemtype=itemtobetagged.itemtype
+
     def info(self):
         return {'item':self.item.fqin, 'itemtype': self.itemtype.fqin, 'iteminfo': self.item.info(self.user), 
                     'tag':[self.tag.fqin, self.tag.description], 'whentagged': self.whentagged.isoformat(),
@@ -429,14 +440,15 @@ class TagitemGroup(DaBase):
     whentagposted = Column(DateTime, server_default=text(THENOW))
     user=relationship('User')
     
-    def __init__(self, **indict):
-        self.tagname=indict['tagname']
-        self.tagtype=indict['tagtype']
-        self.itemtag=indict['itemtag']
-        self.group=indict['group']
+    def __init__(self, itemtag, grp, useras):
+        self.itemtag=itemtag
+        self.group=grp
         self.item_id=self.itemtag.item.id
         self.tag_id=self.itemtag.tag.tag_id
-        self.user=indict['user']#bug allows seperate postage of tag from creation
+        self.tagtype=self.itemtag.tag.tagtype
+        self.tagname=self.itemtag.tag.name
+        #self.user=indict['user']#bug allows seperate postage of tag from creation
+        self.user=useras
         print "AT END OF CONSTRUCTOR"
 
     def info(self):
@@ -479,15 +491,17 @@ class TagitemApplication(DaBase):
     whentagposted = Column(DateTime, server_default=text(THENOW))
     user=relationship('User')
     
-    def __init__(self, **indict):
-        print "INDICT", indict
-        self.tagname=indict['tagname']
-        self.tagtype=indict['tagtype']
-        self.itemtag=indict['itemtag']
-        self.application=indict['application']
+
+    def __init__(self, itemtag, app, useras):
+        self.itemtag=itemtag
+        self.application=app
         self.item_id=self.itemtag.item.id
         self.tag_id=self.itemtag.tag.tag_id
-        self.user=indict['user']
+        self.tagtype=self.itemtag.tag.tagtype
+        self.tagname=self.itemtag.tag.name
+        #self.user=indict['user']#bug allows seperate postage of tag from creation
+        self.user=useras
+        print "AT END OF CONSTRUCTOR"
 
     def info(self):
         itemtag=self.itemtag
