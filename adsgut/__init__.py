@@ -1,0 +1,1 @@
+from adsgut.app import create_app

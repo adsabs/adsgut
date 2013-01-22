@@ -527,7 +527,7 @@ class Postdb(dbase.Database):
         return OK
         #NEW: We did not nececerraily create this, so we cant remove!!! Even so implemen ref count as we can then do popularity
         #self.session.remove(itemtoremove)
-
+    
     #######################################################################################################################
     # If tag exists we must use it instead of creating new tag: this is useful for rahuldave/tag:statistics
     #or rahuldave/tag:machinelearning. For notes, we expect an autogened name and we wont reuse that note

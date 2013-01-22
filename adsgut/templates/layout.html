@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>ADS 2.0 - {% block titlehead %}{% endblock %}</title>
+	
+	<script type="text/javascript" src="{{ url_for('static', filename='js/jquery.js') }}?app_version={{ g.conf_params['APP_VERSION'] }}"></script>
+	
+	<!-- bootstrap stuff -->
+	<link href="{{ url_for('static', filename='bootstrap/css/bootstrap.min.css') }}?app_version={{ g.conf_params['APP_VERSION'] }}" rel="stylesheet">
+	<!-- link href="{{ url_for('static', filename='bootstrap/css/bootstrap-responsive.min.css') }}?app_version={{ g.conf_params['APP_VERSION'] }}" rel="stylesheet"-->
+
+	<!-- IE6-8 support of HTML5 elements -->
+    <!--[if lt IE 9]>
+      <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+
+	<script type="text/javascript" src="{{ url_for('static', filename='bootstrap/js/bootstrap.js') }}?app_version={{ g.conf_params['APP_VERSION'] }}"></script>
+	
+	<link href="{{ url_for('static', filename='css/bootstrap_custom.css') }}?app_version={{ g.conf_params['APP_VERSION'] }}" rel="stylesheet">
+	<link href="{{ url_for('static', filename='css/styles.css') }}?app_version={{ g.conf_params['APP_VERSION'] }}" rel="stylesheet">
+	
+	<script type="text/javascript" src="{{ url_for('static', filename='js/misc_functions.js') }}?app_version={{ g.conf_params['APP_VERSION'] }}"></script>
+	
+	{% block head%}{% endblock %}
+</head>
+<body>
+
+<div id="wrap">
+	<div class="navbar navbar-inverse navbar-static-top navbar-small">
+		<div class="navbar-inner">
+			<div class="container">
+				<ul class="nav">
+					<li class="active"><a href="{{ url_for('index.index') }}">ADS 2</a></li>
+              		<li><a href="http://adsabs.harvard.edu">ADS Classic</a></li>
+              		<li><a href="#mirrors">Mirrors</a></li>
+              		<li><a href="#help">Help</a></li>
+              	</ul>
+			</div>
+		</div>
+	</div> <!-- Small navbar -->
+	<div class="navbar navbar-static-top">
+		<div class="navbar-inner">
+			<div class="container">
+				<a class="btn btn-navbar" data-toggle="collapse" data-target=".nav-collapse">
+					<span class="icon-bar"></span>
+					<span class="icon-bar"></span>
+					<span class="icon-bar"></span>
+				</a>
+				<a class="brand" href="{{ url_for('index.index') }}"></a>
+				<div class="nav-collapse collapse">
+					<ul class="nav">
+						<li class="divider-vertical"></li>
+						<li><a href="{{ url_for('index.index') }}">Home</a></li>
+						<li><a href="{{ url_for('search.search') }}">Search</a></li>
+						<li><a href="#about">About</a></li>
+						<li><a href="#contact">Contact</a></li>
+					</ul>
+					<ul class="nav pull-right">
+						<li class="dropdown">
+							{% if current_user.is_authenticated() %}
+							<a href="#" class="dropdown-toggle" data-toggle="dropdown">Logged in as {{ current_user.name }} <b class="caret"></b></a>
+							<ul class="dropdown-menu">
+					    		<li class="nav-header">Options</li>
+					            <li><a href="{{ url_for('user.index') }}">Settings</a></li>
+					            <li class="divider"></li>
+					            <li><a href="{{ url_for('user.logout') }}?next={{ url_for('index.index') }}">Sign off</a></li>
+				            </ul>
+				            {% else %}
+							<li><a href="{{ url_for('user.login') }}?next={{ url_for('index.index') }}">Log in</a></li>
+							{% endif %}
+						</li>
+					</ul>
+				</div><!--/.nav-collapse -->
+			</div>
+		</div>
+	</div> <!-- Navbar --> 
+	<div id="global_body_container" class="container">
+		
+		<div id="flashmsg">
+		{% from 'macros/misc.html' import render_flash_message %}
+		{{ render_flash_message() }}
+		</div>
+		
+		<div id="pagebody">
+		{% block body %}{% endblock %}
+		</div>
+	
+	</div> <!-- Container -->
+	<div id="push"></div>
+</div><!-- Wrap -->
+
+<div id="footer">
+	<div class="container">
+		<footer>
+			<hr>
+			{% block footer %}
+			{% include 'footer.html' %}
+			{% endblock %}
+		</footer>
+	</div>
+</div><!-- Footer -->
+
+{% if g.conf_params['PRINT_DEBUG_TEMPLATE'] %}
+	<div id="debugSection">
+		DEBUG ON <br/>
+		{% block debugSection %}{% endblock %}
+	</div>
+{% endif %}
+
+{% if config.ANALYTICS_ENABLED %}
+{% block analytics %}
+{% include 'analytics.html' %}
+{% endblock %}
+{% endif %}
+
+</body>
+</html>
