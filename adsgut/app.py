@@ -5,7 +5,6 @@ import logging.config
 from flask import Flask, render_template, send_from_directory, g, Markup
 from config import config, APP_NAME
 from wsgi_middleware import DeploymentPathMiddleware
-from adsabs.core.template_filters import *
 import dict2xml
 
 # For import *
@@ -76,7 +75,7 @@ def _configure_blueprints(app):
     """
     Function that registers the blueprints
     """
-    from adsabs.blueprint_conf import BLUEPRINTS
+    from adsgut.blueprint_conf import BLUEPRINTS
 
     for blueprint in BLUEPRINTS:
         logger.debug("registering blueprint: %s" % blueprint['blueprint'])
@@ -91,8 +90,8 @@ def _configure_extensions(app):
     Function to configure the extensions that need to be wrapped inside the application.
     NOTE: connection to the database MUST be created in this way otherwise they will leak
     """
-    from adsabs.extensions import login_manager, mongodb, solr, pushrod
-    from adsabs.modules.user import AdsUser
+    from adsgut.extensions import login_manager, mongodb
+    from adsgut.modules.user import AdsUser
 
     # login.
     login_manager.login_view = 'user.login'
