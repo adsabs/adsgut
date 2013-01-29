@@ -29,4 +29,4 @@ def index():
             static_content = f.read()
     except:
         static_content = ''
-    return render_template('index/main_page.html', form=search_form, static_content=static_content)
+    return render_template('index/main_page.html',  static_content=static_content)

@@ -10,6 +10,7 @@ engine, db_session=setup_db("/tmp/adsgut.db")
 
 
 from functools import wraps
+from errors import doabort
 def makejson():
     def decorator(f):
         @wraps(f)
@@ -22,10 +23,7 @@ def makejson():
 #sys.path.append('..')
 BLUEPRINT_MODE=os.environ.get('BLUEPRINT_MODE', False)
 BLUEPRINT_MODE=bool(BLUEPRINT_MODE)
-if BLUEPRINT_MODE==True:
-    print "IN BLUEPRINT MODE"
-    adsgut = Blueprint('adsgut', __name__)
-else:
+if not BLUEPRINT_MODE:
     adsgut=Flask(__name__)
     adsgut.secret_key = 'A0Zr98j/3yX R~XHH!jmN]LWX/,?RT'
 
@@ -62,7 +60,7 @@ def shutdown_session(exception=None):
     g.db.remove()
     g.dbp.remove()
 
-#EXPLICITLY COMMIT ON POSTS. THOUGH TO DO MULTIPLE THINGS, WE MAY WANT TO 
+#EXPLICITLY COMMIT ON POSTS. THOUGH TO DO MULTIPLE THINGS, WE MAY WANT TO
 #SCHEDULE COMMITS SEPARATELY..really commits not a property of whosdb
 #currently explicit for simplicity
 
@@ -71,7 +69,7 @@ def shutdown_session(exception=None):
 
 @adsgut.route('/all')
 def indexall():
-    return render_template('allindex.html', users=g.db.allUsers(g.currentuser), 
+    return render_template('allindex.html', users=g.db.allUsers(g.currentuser),
         groups=g.db.allGroups(g.currentuser), apps=g.db.allApps(g.currentuser))
 
 @adsgut.route('/')
@@ -189,7 +187,7 @@ def createGroup():
         doabort("BAD_REQ", "GET not supported")
 
 # #Currently wont allow you to create app, or accept invites to apps
-# #TODO: perhaps combine these two into one invitation as a restian endpoint with action=invite or accept. 
+# #TODO: perhaps combine these two into one invitation as a restian endpoint with action=invite or accept.
 # #This way both currentuser and useras can be supported in here.
 # @adsgut.route('/group/<groupowner>/group:<groupname>/invitation', methods=['POST'])#user
 # def makeInviteToGroup(groupowner, groupname):
@@ -207,7 +205,7 @@ def createGroup():
 #         doabort("BAD_REQ", "GET not supported")
 
 # @adsgut.route('/group/<groupowner>/group:<groupname>/acceptinvitation', methods=['POST'])#accepr
-# def acceptInviteToGroup(nick, groupowner, groupname):  
+# def acceptInviteToGroup(nick, groupowner, groupname):
 #     userinvited=g.currentuser
 #     fqgn=groupowner+"/group:"+groupname
 #     if request.method == 'POST':
@@ -315,7 +313,7 @@ def createApp():
 #         doabort("BAD_REQ", "GET not supported")
 
 # @adsgut.route('/app/<appowner>/app:<appname>/acceptinvitation', methods=['POST'])#accept
-# def acceptInviteToApp(nick, appowner, appname):  
+# def acceptInviteToApp(nick, appowner, appname):
 #     userinvited=g.currentuser
 #     fqan=appowner+"/app:"+appname
 #     if request.method == 'POST':
@@ -380,7 +378,7 @@ def addUserToApp_or_appUsers(appowner, appname):
     else:
         users=g.db.usersInApp(g.currentuser,fqan)
         userdict={'users':users}
-        return jsonify(userdict) 
+        return jsonify(userdict)
 
 
 #BUG: UNCHECKED AS WE are not systemuser or adsuser.
@@ -402,7 +400,7 @@ def addGroupToApp_or_appGroups(appowner, appname):
     else:
         groups=g.db.groupsInApp(g.currentuser,fqan)
         groupdict={'groups':groups}
-        return jsonify(groupdict)  
+        return jsonify(groupdict)
 #######################################################################################################################
 
 #POST/GET
@@ -500,8 +498,8 @@ def tagsForItem(ns, itemname):
                 doabort('BAD_REQ', "No tagtypes specified for tag")
             tagspec={}
             tagspec['creator']=useras
-            tagspec['name'] = ti['tagname']           
-            tagspec['tagtype'] = ti['tagtype']       
+            tagspec['name'] = ti['tagname']
+            tagspec['tagtype'] = ti['tagtype']
             if ti.has_key('description'):
                 tagspec['description']=ti['description']
             newtag, newtagging=g.dbp.tagItem(g.currentuser, useras, iteminfo['fqin'], tagspec, tagmode)
@@ -570,7 +568,7 @@ def itemsForGroup(groupowner, groupname):
         throwawayfqin=criteria.pop('fqin')
         context="group"
         fqgn=groupowner+"/group:"+groupname
-        #This should be cleaned for values. BUG nor done yet.   
+        #This should be cleaned for values. BUG nor done yet.
         items, count=g.dbp.getItems(g.currentuser, useras, context, fqgn, criteria, fvlist, orderer)
         grouppostings={'status':'OK', 'group':fqgn, 'items':items, 'count':count}
         return jsonify(grouppostings)
@@ -811,7 +809,7 @@ def useritemtaggrouppost():
 #         throwawayfqin=criteria.pop('fqin')
 #         context="app"
 #         taggings=g.dbp.getTaggingForItemspec(g.currentuser, useras, context, fqqn, criteria, fvlist, orderer)
-#         return jsonify(taggings)#should this be just tags and not tags indexed by items? 
+#         return jsonify(taggings)#should this be just tags and not tags indexed by items?
 
 # #TODOAPI: do easy way of getting tags in grp: use spec methods
 # #this could be way on onfly getting things into app. on other hand the deep routing should be doing all of this so we shouldnt have to call it.
@@ -925,7 +923,7 @@ def _getQuery(querydict, fieldlist):
 
 
 def _getItemQuery(querydict):
-    fieldlist=[('uri',''), ('name',''), ('itemtype',''), ('context', None), 
+    fieldlist=[('uri',''), ('name',''), ('itemtype',''), ('context', None),
         ('fqin', None), ('userthere', False),
         ('paginate', 20), ('page', 0)]
     fieldvallist=['uri', 'name', 'whencreated', 'itemtype']
@@ -935,7 +933,7 @@ def _getItemQuery(querydict):
 
 def _getTagQuery(querydict):
     #one can combine name and tagtype to get, for example, tag:lensing
-    fieldlist=[('tagname',''), ('tagtype',''), ('context', None), 
+    fieldlist=[('tagname',''), ('tagtype',''), ('context', None),
         ('fqin', None), ('userthere', False),
         ('paginate', 20), ('page', 0)]
     fieldvallist=['tagname', 'tagtype', 'whentagged']
@@ -945,7 +943,7 @@ def _getTagQuery(querydict):
 
 def _getTagsForItemQuery(querydict):
     #one can combine name and tagtype to get, for example, tag:lensing
-    fieldlist=[('tagname',''), ('tagtype',''), ('context', None), 
+    fieldlist=[('tagname',''), ('tagtype',''), ('context', None),
         ('fqin', None), ('uri', ''), ('name', ''), ('itemtype', ''), ('userthere', False),
         ('paginate', 20), ('page', 0)]
     fieldvallist=['tagname', 'tagtype', 'whentagged', 'uri', 'whencreated', 'name', 'itemtype']
@@ -1082,7 +1080,7 @@ def itemsbyany():
 #     fqin=criteria.pop('fqin')
 #     #This should be cleaned for values. BUG nor done yet. What i mean is wherever we get this we must make sure we get
 #     #sensible values, consistent values
-#     print 'CRITTER', criteria  
+#     print 'CRITTER', criteria
 #     taggings=g.dbp.getTaggingForItemspec(g.currentuser, useras, context, fqin, criteria)
 #     return jsonify(taggings)
 #######################################################################################################################
@@ -1144,7 +1142,7 @@ def itemsfortagspec():
         useras=g.currentuser
     context=criteria.pop('context')
     fqin=criteria.pop('fqin')
-    print "userAS", useras.nick, g.currentuser.nick 
+    print "userAS", useras.nick, g.currentuser.nick
     items=g.dbp.getItemsForTagspec(g.currentuser, useras, context, fqin, criteria, fvlist, orderer)
     return jsonify(items)
 

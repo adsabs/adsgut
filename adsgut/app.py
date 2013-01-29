@@ -22,6 +22,7 @@ def create_app(config=config, app_name=None):
         app_name = APP_NAME
 
     app = Flask(app_name)
+    app.root_path=app.root_path+"/adsgut"
     _configure_app(app, config)
     _configure_logging(app)
     if not config.TESTING:
@@ -29,7 +30,7 @@ def create_app(config=config, app_name=None):
 #    configure_hook(app)
     _configure_blueprints(app)
     _configure_extensions(app)
-    #_configure_template_filters(app)
+    _configure_template_filters(app)
     #_configure_error_handlers(app)
     _configure_misc_handlers(app)
     _configure_global_variables(app)
@@ -37,6 +38,9 @@ def create_app(config=config, app_name=None):
     if config.DEBUG:
         from flask_debugtoolbar import DebugToolbarExtension
         toolbar = DebugToolbarExtension(app)
+    @app.route('/foobar')
+    def foobar():
+        return render_template('index/main_page.html')
 
     return app
 
@@ -57,16 +61,16 @@ def _configure_logging(app):
     global logger
     logger = getLogger()
 
-    if config.LOGGING_MONGO_ENABLED:
-        from mongolog.handlers import MongoHandler
-        handler = MongoHandler(
-            db=config.MONGOALCHEMY_DATABASE,
-            collection=config.LOGGING_MONGO_COLLECTION,
-            host=config.MONGOALCHEMY_SERVER,
-            port=config.MONGOALCHEMY_PORT,
-            level=getattr(logging, config.LOGGING_MONGO_LEVEL)
-        )
-        logger.addHandler(handler)
+    # if config.LOGGING_MONGO_ENABLED:
+    #     from mongolog.handlers import MongoHandler
+    #     handler = MongoHandler(
+    #         db=config.MONGOALCHEMY_DATABASE,
+    #         collection=config.LOGGING_MONGO_COLLECTION,
+    #         host=config.MONGOALCHEMY_SERVER,
+    #         port=config.MONGOALCHEMY_PORT,
+    #         level=getattr(logging, config.LOGGING_MONGO_LEVEL)
+    #     )
+    #     logger.addHandler(handler)
 
 def _configure_wsgi_middleware(app):
     app.wsgi_app = DeploymentPathMiddleware(app.wsgi_app)
@@ -123,34 +127,34 @@ def _configure_extensions(app):
     app.jinja_env.add_extension('jinja2.ext.do')
     app.jinja_env.add_extension('jinja2.ext.loopcontrols')
 
-# def _configure_template_filters(app):
-#     """
-#     Configuration of additional filters needed in the templates
-#     """
-#     @app.template_filter('urlencode')
-#     def urlencode_filter(value):
-#         return quote_url(value)
+def _configure_template_filters(app):
+    """
+    Configuration of additional filters needed in the templates
+    """
+    @app.template_filter('urlencode')
+    def urlencode_filter(value):
+        return quote_url(value)
 
-#     @app.template_filter('format_ads_date')
-#     def f_a_d(date_string):
-#         return format_ads_date(date_string)
+    @app.template_filter('format_ads_date')
+    def f_a_d(date_string):
+        return format_ads_date(date_string)
 
-#     @app.template_filter('format_ads_facet_str')
-#     def f_a_f_s(facet_string):
-#         return format_ads_facet_str(facet_string)
+    @app.template_filter('format_ads_facet_str')
+    def f_a_f_s(facet_string):
+        return format_ads_facet_str(facet_string)
 
-#     @app.template_filter('safe_html_unescape')
-#     def s_h_f(html_string):
-#         return safe_html_unescape(html_string)
+    @app.template_filter('safe_html_unescape')
+    def s_h_f(html_string):
+        return safe_html_unescape(html_string)
 
-#     @app.template_filter('ads_url_redirect')
-#     def a_u_r(adsid, id_type):
-#         return ads_url_redirect(adsid, id_type)
+    @app.template_filter('ads_url_redirect')
+    def a_u_r(adsid, id_type):
+        return ads_url_redirect(adsid, id_type)
 
-#     @app.template_filter('dict2xml')
-#     def d_2_x(d):
-#         xml = dict2xml.dict2xml(d, root=False)
-#         return Markup(xml)
+    @app.template_filter('dict2xml')
+    def d_2_x(d):
+        xml = dict2xml.dict2xml(d, root=False)
+        return Markup(xml)
 
 # def _configure_error_handlers(app):
 #     """
