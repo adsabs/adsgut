@@ -1,0 +1,260 @@
+/*CSS for global Layout*/
+html,
+body {
+    height: 100%;
+}
+ 
+#wrap {
+    min-height: 100%;
+    height: auto !important;
+    height: 100%;
+    margin: 0 auto -200px;
+}
+#push,
+#footer {
+    height: 200px;
+    
+    font-size:12px;
+	line-height:13px;
+}
+#global_body_container {
+	margin-top:10px;	
+}
+
+div.centered {
+	text-align:center;	
+}
+
+#advanced_options {
+	display: none;
+	margin-top:2px;
+}
+
+#advanced_options .well {
+	margin-bottom:0px	
+}
+
+/*********************/
+/*Debug section*/
+#debugSection {
+	clear:both;
+	background-color: #CFF;
+	color: #000;
+	min-height: 100px;	
+	padding: 20px;
+}
+
+/*********************/
+/*css for query forms*/
+.link_only_js {
+	cursor: pointer;
+}
+
+.adv_opt_box {
+	margin-bottom: 5px;
+	padding: 5px;
+}
+.adv_opt_box,  .label_adv_opt_box {
+	font-size: .9em;
+}
+
+.adv_opt_box_foll {
+	margin-left:10px;
+}
+
+/*********************/
+/*Search result page */
+
+div.searchResults {
+	margin-top:0px;	
+}
+
+span.results_count {
+}
+
+div.searchresult {
+	margin-bottom: 10px;
+}
+
+div.searchresult div.bibcode, div.searchresult div.citation_count, div.searchresult div.letterlink_box, 
+div.searchresult div.title, div.searchresult div.author, div.searchresult div.snippets,  div.searchresult div.pubdate{
+	float:left;
+	min-height:0;
+}
+
+div.searchresult div.citation_count, div.searchresult div.letterlink_box {
+	
+}
+
+div.searchresult div.title, div.searchresult div.author, div.searchresult div.snippets,  
+div.searchresult div.pubdate {
+	clear:both;
+	margin-left:0;
+}
+
+div.searchresult div.title {
+	clear:both;
+	font-weight: bold;
+	font-size:1.1em;
+}
+
+div.searchresult div.title a {
+	color: #333;	
+}
+
+div.snippets {
+	padding: 0 20px;
+	font-size:.9em;
+	color:#555;
+}
+
+span.highlight {
+	display:block;
+	clear:both;
+}
+
+span.highlight em {
+	font-weight:bold;
+}
+
+div.letterlink_box {
+	font-family: Courier,monospace;
+}
+
+div.letterlink_box .letterLink {
+	display: inline-block;
+    margin-left: 2px;
+    margin-right: 2px;	
+}
+div.letterlink_box .letterLinkAround {
+	margin:0;
+}
+
+div.letterlink_box span.letterLink a.letterOpenaccess {
+	color:#4AA02C;	
+}
+
+/*********************/
+/*Facets on top*/
+span.appliedFilter {
+    background: none repeat scroll 0 0 #E2EDFE;
+    border: 1px solid #C4DAFE;
+    border-radius: 15px 15px 15px 15px;
+    display: inline-block;
+    margin-right: 0.33em;
+    margin-bottom:3px;
+    padding: 3px 10px; 
+    position: relative;
+    font-size: .9em;
+}
+span.appliedFilter a {
+	margin-left:10px;
+}
+
+a.clearAll {
+	font-size:.9em;	
+}
+
+/*********************/
+/*Facets on left*/
+ul.subFacet {
+	margin-left:10px;
+}
+
+span.expCollSubFacet {
+	cursor:pointer;
+}
+
+#facets {
+	font-size:.9em;	
+}
+
+.facetsMoreLess {
+	cursor:pointer;
+	display:none;
+}
+
+/*********************/
+/* Abstract*/
+div.bibcodeHeader {
+	font-size:.9em;
+	font-weight: bold;
+}
+
+div.linkRightMenu {
+	border: 1px solid #E5E5E5;
+    border-radius: 4px 4px 4px 4px;
+    margin-bottom: 2px;
+    padding:3px;
+}
+
+div.linkRightMenu dl {
+	margin: 0 0 10px 0;	
+}
+
+div.abstractTitle {
+	font-size: 1.3em;
+	font-weight: bold;	
+}
+div.abstractAuthors, div.abstractJournal, div.abstractDOI, div.abstractKeyword, div.abstractCopyright, div.abstractArXiv, div.abstractPubdate {
+	padding-left: 20px;	
+}
+div.abstractAuthors {
+	margin-bottom: 10px;	
+}
+div.abstractAbstract {
+	padding: 15px 40px 15px 40px;
+}
+div.abstractAbstract span.abstract {
+	line-height: 120%;
+	font-size: 1.1em;
+}
+
+span.author, .coauthorsToggle, .affiliationToggle{
+	font-size: 1.1em;
+}
+a.coauthorsToggle, a.affiliationToggle {
+	cursor:pointer;	
+}
+.blockToggle {
+	display: block;
+}
+span.authorAffiliation {
+	color: #4A4344;
+    font-style: italic;
+    font-size: .9em;
+}
+div.abstractJournal, div.abstractPubdate {
+	font-size: .9em;
+	font-style: italic;
+}
+div.abstractDOI {
+	font-size: .9em;
+	font-weight: bold;	
+}
+div.keywordGroup{
+	margin-left:20px;
+}
+span.keywordTitle, span.arXivLink .title {
+	font-weight: bold;
+}
+
+.strHidden {
+	display:none;	
+}
+
+/*********************/
+/* Abstract search_compare*/
+div.absview {
+	margin-top: 15px;
+}
+
+div.absview div.row-fluid {
+	margin-bottom: 5px;
+}
+
+div.absview div.row-fluid label {
+	font-weight: bold;
+}
+
+

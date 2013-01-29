@@ -16,7 +16,6 @@
 	</ul>
 	<div class="tab-content">
 		<div class="tab-pane active" id="tab1">
-    		{% include 'search/search_form.html' %}
 		</div>
     	<div class="tab-pane" id="tab2">
       		<p>All the personalized info</p>
@@ -26,7 +25,7 @@
 
 <div id="text_welcome">
 	{% if static_content %}
-		{{ static_content|safe_html_unescape|safe }}
+		{{ static_content }}
 	{% endif %}
 </div>
 

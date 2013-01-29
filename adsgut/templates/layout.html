@@ -3,9 +3,9 @@
 <head>
 	<meta charset="UTF-8">
 	<title>ADS 2.0 - {% block titlehead %}{% endblock %}</title>
-	
+
 	<script type="text/javascript" src="{{ url_for('static', filename='js/jquery.js') }}?app_version={{ g.conf_params['APP_VERSION'] }}"></script>
-	
+
 	<!-- bootstrap stuff -->
 	<link href="{{ url_for('static', filename='bootstrap/css/bootstrap.min.css') }}?app_version={{ g.conf_params['APP_VERSION'] }}" rel="stylesheet">
 	<!-- link href="{{ url_for('static', filename='bootstrap/css/bootstrap-responsive.min.css') }}?app_version={{ g.conf_params['APP_VERSION'] }}" rel="stylesheet"-->
@@ -16,12 +16,12 @@
     <![endif]-->
 
 	<script type="text/javascript" src="{{ url_for('static', filename='bootstrap/js/bootstrap.js') }}?app_version={{ g.conf_params['APP_VERSION'] }}"></script>
-	
+
 	<link href="{{ url_for('static', filename='css/bootstrap_custom.css') }}?app_version={{ g.conf_params['APP_VERSION'] }}" rel="stylesheet">
 	<link href="{{ url_for('static', filename='css/styles.css') }}?app_version={{ g.conf_params['APP_VERSION'] }}" rel="stylesheet">
-	
+
 	<script type="text/javascript" src="{{ url_for('static', filename='js/misc_functions.js') }}?app_version={{ g.conf_params['APP_VERSION'] }}"></script>
-	
+
 	{% block head%}{% endblock %}
 </head>
 <body>
@@ -52,7 +52,6 @@
 					<ul class="nav">
 						<li class="divider-vertical"></li>
 						<li><a href="{{ url_for('index.index') }}">Home</a></li>
-						<li><a href="{{ url_for('search.search') }}">Search</a></li>
 						<li><a href="#about">About</a></li>
 						<li><a href="#contact">Contact</a></li>
 					</ul>
@@ -74,18 +73,18 @@
 				</div><!--/.nav-collapse -->
 			</div>
 		</div>
-	</div> <!-- Navbar --> 
+	</div> <!-- Navbar -->
 	<div id="global_body_container" class="container">
-		
+
 		<div id="flashmsg">
 		{% from 'macros/misc.html' import render_flash_message %}
 		{{ render_flash_message() }}
 		</div>
-		
+
 		<div id="pagebody">
 		{% block body %}{% endblock %}
 		</div>
-	
+
 	</div> <!-- Container -->
 	<div id="push"></div>
 </div><!-- Wrap -->
@@ -108,11 +107,7 @@
 	</div>
 {% endif %}
 
-{% if config.ANALYTICS_ENABLED %}
-{% block analytics %}
-{% include 'analytics.html' %}
-{% endblock %}
-{% endif %}
+
 
 </body>
 </html>
