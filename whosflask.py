@@ -7,6 +7,7 @@ import hashlib
 from permissions import permit
 from errors import abort
 engine, db_session=setup_db("/tmp/adsgut.db")
+from flask.ext.login import current_user
 
 
 from functools import wraps
@@ -23,9 +24,14 @@ def makejson():
 #sys.path.append('..')
 BLUEPRINT_MODE=os.environ.get('BLUEPRINT_MODE', False)
 BLUEPRINT_MODE=bool(BLUEPRINT_MODE)
+print "BLUEPRINT MODE", BLUEPRINT_MODE
 if not BLUEPRINT_MODE:
     adsgut=Flask(__name__)
     adsgut.secret_key = 'A0Zr98j/3yX R~XHH!jmN]LWX/,?RT'
+else:
+    from config import adsgut_blueprint
+
+    adsgut=adsgut_blueprint
 
 
 def formwithdefaults(specdict, spec, request):
@@ -39,14 +45,20 @@ def formwithdefaults(specdict, spec, request):
 
 @adsgut.before_request
 def before_request():
-        #print "BEFORE REQUEST", session
+        if BLUEPRINT_MODE:
+            username = current_user.user_rec.username
+        else:
+            username=session.get('username', None)
+        print "USER", username
         #g.db=whos.Whosdb(db_session)
         g.dbp=posts.Postdb(db_session)
         g.db=g.dbp.whosdb
-        if session.has_key('username'):
-            g.currentuser=g.db.getUserForNick(None, session['username'])
+        if username:
+            #BUG: Currently we dont add any users, so the usernames, ie the emails must match
+            g.currentuser=g.db.getUserForNick(None, username)
         else:
             g.currentuser=None
+        print "CUSER", g.currentuser
         if session.has_key('authtoken'):
             g.authtoken=session['authtoken']
         else:

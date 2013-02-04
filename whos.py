@@ -60,13 +60,14 @@ class Whosdb(dbase.Database):
 
     #Get user object for nickname nick
     def isSystemUser(self, currentuser):
-        if currentuser.nick=='adsgut':
+        if currentuser.nick=='adsgut@adslabs.org':
             return True
         else:
             return False
 
     #this one is completely UNPROTECTED
     def getUserForNick(self, currentuser, nick):
+        print "nick is", nick
         try:
             user=self.session.query(User).filter_by(nick=nick).one()
         except:
@@ -75,7 +76,7 @@ class Whosdb(dbase.Database):
 
     #Get user info for nickname nick
     #either the system user or the user herself can get this. No one else.
-    def getUserInfo(self, currentuser, useras):     
+    def getUserInfo(self, currentuser, useras):
         authorize(False, self, currentuser, useras)
         return useras.info()
 
@@ -134,19 +135,19 @@ class Whosdb(dbase.Database):
             print sys.exc_info()
             doabort('BAD_REQ', "Failed adding user %s" % userspec['nick'])
         #Also add user to private default group and public group
-        
-        if newuser.nick == 'adsgut':
+
+        if newuser.nick == 'adsgut@adslabs.org':
             #Shouldnt this be part of system configuration
             newuser.systemuser=True
-            currentuser=newuser         
+            currentuser=newuser
             self.addGroup(currentuser, dict(name='public', description="Public Items", creator=newuser))
             self.commit()
-            
+
         print "CURRENT", currentuser
         self.addGroup(currentuser, dict(name='default', creator=newuser, personalgroup=True))
-        self.addUserToGroup(currentuser, 'adsgut/group:public', newuser, None)
+        self.addUserToGroup(currentuser, 'adsgut@adslabs.org/group:public', newuser, None)
         #Faking this for now
-        #self.addUserToApp(currentuser, 'ads/app:publications', newuser, None)
+        #self.addUserToApp(currentuser, 'ads@adslabs.org/app:publications', newuser, None)
         return newuser
 
     #BUG: we want to blacklist users and relist them
@@ -208,12 +209,12 @@ class Whosdb(dbase.Database):
             return True
         else:
             return False
-    
+
     #The only person who can remove a group is the system user or the owner
     def removeGroup(self,currentuser, fullyQualifiedGroupName):
         remgrp=self.getGroup(currentuser, fullyQualifiedGroupName)
         authorize_context_owner(False, self, currentuser, None, remgrp)
-        
+
         # permit(self.isOwnerOfGroup(currentuser, remgrp) or self.isSystemUser(currentuser),
         #         "Only owner of group %s or systemuser can remove group" % remgrp.fqin)
         #How will the cascades work? removing users? should we not archive?
@@ -229,7 +230,7 @@ class Whosdb(dbase.Database):
         try:
             newapp=Application(**appspec)
         except:
-            doabort('BAD_REQ', "Failed adding app %s" % appspec['name'])  
+            doabort('BAD_REQ', "Failed adding app %s" % appspec['name'])
         self.session.add(newapp)
         #self.commit()#needed due to full lookup in addUserToApp. fixthis
         self.addUserToApp(currentuser, newapp, newapp.creator, None)
@@ -238,7 +239,7 @@ class Whosdb(dbase.Database):
     def removeApp(self,currentuser, fullyQualifiedAppName):
         remapp=self.getApp(currentuser, fullyQualifiedAppName)
         authorize_context_owner(False, self, currentuser, None, remapp)
-        
+
         # permit(self.isOwnerOfApp(currentuser, remapp) or self.isSystemUser(currentuser),
         #         "Only owner of app %s or systemuser can remove app" % remapp.fqin)
         #How will the cascades work? removing users? should we not archive?
@@ -257,7 +258,7 @@ class Whosdb(dbase.Database):
     #Also on group subscriptions, wouldnt we do this without invites? BUG
     def addUserToGroup(self, currentuser, grouporfullyQualifiedGroupName, usertobeadded, authspec):
         grp=_group(currentuser, self, grouporfullyQualifiedGroupName)
-        if grp.fqin!='adsgut/group:public':
+        if grp.fqin!='adsgut@adslabs.org/group:public':
             #special case so any user can add themselves to public group
             #permit(self.isOwnerOfGroup(currentuser, grp) or self.isSystemUser(currentuser), "User %s must be owner of group %s or systemuser" % (currentuser.nick, grp.fqin))
             authorize_context_owner(False, self, currentuser, None, grp)
@@ -298,7 +299,7 @@ class Whosdb(dbase.Database):
         except:
             doabort('BAD_REQ', "Failed removing user %s from group %s" % (usertoberemoved.nick, grp.fqin))
         return OK
-        
+
     #BUG: shouldnt new owner have to accept this. Currently, no. We foist it. We'll perhaps never expose this.
     def changeOwnershipOfGroup(self, currentuser, fullyQualifiedGroupName, usertobenewowner):
         grp=self.getGroup(currentuser, fullyQualifiedGroupName)
@@ -309,7 +310,7 @@ class Whosdb(dbase.Database):
             oldownernick=grp.owner.nick
             grp.owner = usertobenewowner
         except:
-            doabort('BAD_REQ', "Failed changing owner from %s to %s for group %s" % (oldownernick, usertobenewowner.nick, grp.fqin))    
+            doabort('BAD_REQ', "Failed changing owner from %s to %s for group %s" % (oldownernick, usertobenewowner.nick, grp.fqin))
         return usertobenewowner
 
 
@@ -429,7 +430,7 @@ class Whosdb(dbase.Database):
         #print currentuser, grp, 'KKKKKK'
         #all members have access to member list as smaller context
         authorize_context_member(False, self, currentuser, None, grp)
-        # permit(self.isMemberOfGroup(currentuser, grp) or self.isSystemUser(currentuser), 
+        # permit(self.isMemberOfGroup(currentuser, grp) or self.isSystemUser(currentuser),
         #     "Only member of group %s or systemuser can get users" % grp.fqin)
         users=grp.groupusers
         return [e.info() for e in users]
@@ -475,40 +476,40 @@ class Whosdb(dbase.Database):
         apps=useras.applicationsinvitedto
         return [e.info() for e in apps]
 #why cant arguments be specified via destructuring as in coffeescript
-    
+
 def initialize_application(db_session):
     currentuser=None
     whosdb=Whosdb(db_session)
-    adsgutuser=whosdb.addUser(currentuser, dict(nick='adsgut', name="ADS GUT", email='adsgut@adslabs.org'))
+    adsgutuser=whosdb.addUser(currentuser, dict(nick='adsgut@adslabs.org', name="ADS GUT", email='adsgut@adslabs.org'))
     currentuser=adsgutuser
     whosdb.commit()
     #adsgutuser=User(name='adsgut', email='adsgut@adslabs.org')
-    adsuser=whosdb.addUser(currentuser, dict(nick='ads', email='ads@adslabs.org'))
+    adsuser=whosdb.addUser(currentuser, dict(nick='ads@adslabs.org', email='ads@adslabs.org'))
     #adsuser=User(name='ads', email='ads@adslabs.org')
     whosdb.commit()
-    
+
     adspubsapp=whosdb.addApp(currentuser, dict(name='publications', description="ADS's flagship publication app", creator=adsuser))
     whosdb.commit()
 
-    
+
 def initialize_testing(db_session):
     whosdb=Whosdb(db_session)
     currentuser=None
-    currentuser=whosdb.getUserForNick(currentuser, "adsgut")
-    rahuldave=whosdb.addUser(currentuser, dict(nick='rahuldave', email="rahuldave@gmail.com"))
-    whosdb.addUserToApp(currentuser, 'ads/app:publications', rahuldave, None)
+    currentuser=whosdb.getUserForNick(currentuser, "adsgut@adslabs.org")
+    rahuldave=whosdb.addUser(currentuser, dict(nick='rahuldave@gmail.com', email="rahuldave@gmail.com"))
+    whosdb.addUserToApp(currentuser, 'ads@adslabs.org/app:publications', rahuldave, None)
     #rahuldave.applicationsin.append(adspubsapp)
 
     mlg=whosdb.addGroup(currentuser, dict(name='ml', description="Machine Learning Group", creator=rahuldave))
     whosdb.commit()
-    jayluker=whosdb.addUser(currentuser, dict(nick='jayluker', email="jluker@gmail.com"))
-    whosdb.addUserToApp(currentuser, 'ads/app:publications', jayluker, None)
+    jayluker=whosdb.addUser(currentuser, dict(nick='jayluker@gmail.com', email="jluker@gmail.com"))
+    whosdb.addUserToApp(currentuser, 'ads@adslabs.org/app:publications', jayluker, None)
     #jayluker.applicationsin.append(adspubsapp)
     whosdb.commit()
-    whosdb.inviteUserToGroup(currentuser, 'rahuldave/group:ml', jayluker, None)
+    whosdb.inviteUserToGroup(currentuser, 'rahuldave@gmail.com/group:ml', jayluker, None)
     whosdb.commit()
-    whosdb.acceptInviteToGroup(currentuser, 'rahuldave/group:ml', jayluker, None)
-    whosdb.addGroupToApp(currentuser, 'ads/app:publications', 'adsgut/group:public', None )
+    whosdb.acceptInviteToGroup(currentuser, 'rahuldave@gmail.com/group:ml', jayluker, None)
+    whosdb.addGroupToApp(currentuser, 'ads@adslabs.org/app:publications', 'adsgut@adslabs.org/group:public', None )
     #public.applicationsin.append(adspubsapp)
     #rahuldavedefault.applicationsin.append(adspubsapp)
     whosdb.commit()

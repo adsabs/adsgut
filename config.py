@@ -2,7 +2,7 @@ DBASE_FILE="/tmp/adsgut.db"
 
 
 APP_NAME="adsgutapp"
-
+adsgut_blueprint=None
 class AppConfig(object):
     #flask Setting for debug view in case of errors
     DEPLOYMENT_PATH = None
