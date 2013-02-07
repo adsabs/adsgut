@@ -103,7 +103,7 @@ GroupApplication = Table('group_application', DaBase.metadata,
 #Now the access pubsubs will be triggered. We will (c) need to make sure we are not double posting using (user, item, group) tuple
 
 #We will also need to create intype id's representing things like ads:all or all:all .
-#Or should that column not be in intype id. I think intypes\#should be used. 
+#Or should that column not be in intype id. I think intypes\#should be used.
 #Only apps need to define appnick:all
 
 REASONINGS=[]
@@ -128,7 +128,7 @@ class User(DaBase):
     nick = Column(String, unique=True, nullable=False)#expect unique
     email = Column(String, unique=True, nullable=False)#expect unique
     systemuser = Column(Boolean, default=False)
-    
+
     groupsin = relationship('Group', secondary=UserGroup,
                             backref=backref('groupusers', lazy='dynamic'))
     groupsinvitedto = relationship('Group', secondary=InvitationGroup,
@@ -142,7 +142,7 @@ class User(DaBase):
 
     #BUG: should the groupsin not reflect private group and public group?
     def info(self):
-        return {'name': self.name, 'nick': self.nick, 
+        return {'name': self.name, 'nick': self.nick,
             'groupsin':[ele.fqin for ele in self.groupsin],
             'groupsinvitedto':[ele.fqin for ele in self.groupsinvitedto],
             'applicationsin':[ele.fqin for ele in self.applicationsin],
@@ -192,8 +192,8 @@ class Item(DaBase):
     whencreated = Column(DateTime, server_default=text(THENOW))
     #BUG: shouldnt this just be year
     __mapper_args__ = {'polymorphic_on': 'type', 'polymorphic_identity': 'item'}
-    
-    
+
+
 
     def __repr__(self):
         return "<Item:%s,%s>" % (self.itemtype.name, self.name)
@@ -238,7 +238,7 @@ class Tag(Item):
     #Description is the tagtext. along with the name, the description (arguments etc)
     #form the complete tag: tagtype:name, description
     description = Column(Text)
-    
+
     # groupsin = relationship('Group', secondary=TagGroup,
     #                         backref=backref('grouptags', lazy='dynamic'))
     # applicationsin = relationship('Application', secondary=TagApplication,
@@ -261,7 +261,7 @@ class Tag(Item):
     #truth is I do not know
 
 
-    
+
 #bug: cant figure how to inherit this from itemtype
 # class TagType(DaBase):
 #     __tablename__='tagtypes'
@@ -293,7 +293,7 @@ class Group(Tag):
 
     def info(self):
         #should return fully qualified name instead
-        infodict = {'name': self.name, 'description': self.description, 'owner': self.owner.nick, 
+        infodict = {'name': self.name, 'description': self.description, 'owner': self.owner.nick,
             'fqgn': self.fqin, 'creator': self.creator.nick, 'whencreated': self.whencreated,
             'whencreated': self.whencreated.isoformat(),
             'groupusers': [ele.nick for ele in self.groupusers],
@@ -315,7 +315,7 @@ class Application(Group):
         return "<App:%s,%s>" % (self.owner.nick, self.fqin)
 
     def info(self):
-        return {'name': self.name, 'description': self.description, 'owner': self.owner.nick, 
+        return {'name': self.name, 'description': self.description, 'owner': self.owner.nick,
             'fqan': self.fqin, 'creator': self.creator.nick, 'whencreated': self.whencreated,
             'whencreated': self.whencreated.isoformat(),
             'applicationusers': [ele.nick for ele in self.applicationusers],
@@ -323,8 +323,8 @@ class Application(Group):
 
 
 # Item.groupsin = relationship('Group', secondary=ItemGroup,
-#                             secondaryjoin=ItemGroup.c.group_id==Group.group_id, 
-#                             primaryjoin=ItemGroup.c.item_id==Item.id, 
+#                             secondaryjoin=ItemGroup.c.group_id==Group.group_id,
+#                             primaryjoin=ItemGroup.c.item_id==Item.id,
 #                             backref=backref('groupitems', lazy='dynamic'))
 
 Item.groupsin = association_proxy('items_groups', 'group')
@@ -350,9 +350,9 @@ class ItemGroup(DaBase):
 ItemGroup.group = relationship(Group, primaryjoin=ItemGroup.group_id==Group.group_id, backref=backref("groups_items"))
 
 Group.itemsposted=relationship("Item", secondary=ItemGroup.__table__)
-# Item.applicationsin = relationship('Application', secondary=ItemApplication, 
+# Item.applicationsin = relationship('Application', secondary=ItemApplication,
 #                             secondaryjoin=ItemApplication.c.application_id==Application.application_id,
-#                             primaryjoin=ItemApplication.c.item_id==Item.id, 
+#                             primaryjoin=ItemApplication.c.item_id==Item.id,
 #                              backref=backref('applicationitems', lazy='dynamic'))
 
 
@@ -372,7 +372,7 @@ class ItemApplication(DaBase):
                 backref=backref("items_applications")
             )
 
-ItemApplication.application = relationship(Application, 
+ItemApplication.application = relationship(Application,
         primaryjoin=ItemApplication.application_id==Application.application_id, backref=backref("applications_items"))
 
 Application.itemsposted=relationship("Item", secondary=ItemApplication.__table__)
@@ -380,7 +380,7 @@ Application.itemsposted=relationship("Item", secondary=ItemApplication.__table__
 
 
 
-# Tag.taggeditems=relationship("Item", secondary=ItemTag, 
+# Tag.taggeditems=relationship("Item", secondary=ItemTag,
 #                             secondaryjoin=ItemTag.c.item_id==Item.id,
 #                             primaryjoin=ItemTag.c.tag_id==Tag.tag_id,
 #                             backref=backref('itemtags', lazy='dynamic'))
@@ -397,6 +397,7 @@ class ItemTag(DaBase):
     whentagged = Column(DateTime, server_default=text(THENOW))
     itemuri=Column(String)
     tagname=Column(String)
+    tagfqin = Column(String)
     user=relationship('User')
     itemtype=relationship('ItemType')
     item = relationship(Item,
@@ -404,7 +405,7 @@ class ItemTag(DaBase):
             )
 
     def __init__(self, itemtobetagged, newtag, useras):
-        #newtagging=ItemTag(item=itemtobetagged, tag=newtag, user=useras, 
+        #newtagging=ItemTag(item=itemtobetagged, tag=newtag, user=useras,
         #itemuri=itemtobetagged.uri, tagname=newtag.name, tagtype=newtag.tagtype, itemtype=itemtobetagged.itemtype)
         self.item=itemtobetagged
         self.tag=newtag
@@ -412,10 +413,11 @@ class ItemTag(DaBase):
         self.itemuri=itemtobetagged.uri
         self.tagname=newtag.name
         self.tagtype=newtag.tagtype
+        self.tagfqin=newtag.fqin
         self.itemtype=itemtobetagged.itemtype
 
     def info(self):
-        return {'item':self.item.fqin, 'itemtype': self.itemtype.fqin, 'iteminfo': self.item.info(self.user), 
+        return {'item':self.item.fqin, 'itemtype': self.itemtype.fqin, 'iteminfo': self.item.info(self.user),
                     'tag':[self.tag.fqin, self.tag.description], 'whentagged': self.whentagged.isoformat(),
                     'tagtype':self.tag.tagtype.fqin, 'tagname': self.tagname, 'taginfo':self.tag.info(), 'whentagposted': None}
     def __repr__(self):
@@ -423,6 +425,7 @@ class ItemTag(DaBase):
 
 ItemTag.tagtype=relationship('TagType', primaryjoin=ItemTag.tagtype_id==TagType.tagtype_id)
 ItemTag.tag = relationship(Tag, primaryjoin=ItemTag.tag_id==Tag.tag_id)
+
 
 Tag.taggeditems=relationship("Item", lazy="dynamic", secondary=ItemTag.__table__)
 
@@ -437,9 +440,10 @@ class TagitemGroup(DaBase):
     user_id=Column('user_id', Integer, ForeignKey('users.id'))
     tagtype_id=Column(Integer, ForeignKey('tagtypes.tagtype_id'))
     tagname=Column(String)
+    tagfqin = Column(String)
     whentagposted = Column(DateTime, server_default=text(THENOW))
     user=relationship('User')
-    
+
     def __init__(self, itemtag, grp, useras):
         self.itemtag=itemtag
         self.group=grp
@@ -447,6 +451,7 @@ class TagitemGroup(DaBase):
         self.tag_id=self.itemtag.tag.tag_id
         self.tagtype=self.itemtag.tag.tagtype
         self.tagname=self.itemtag.tag.name
+        self.tagfqin=self.itemtag.tag.fqin
         #self.user=indict['user']#bug allows seperate postage of tag from creation
         self.user=useras
         print "AT END OF CONSTRUCTOR"
@@ -455,7 +460,7 @@ class TagitemGroup(DaBase):
         itemtag=self.itemtag
         item=itemtag.item
         tag=itemtag.tag
-        return {'item':item.fqin, 'itemtype': item.itemtype.fqin, 'iteminfo': item.info(self.user), 
+        return {'item':item.fqin, 'itemtype': item.itemtype.fqin, 'iteminfo': item.info(self.user),
                     'tag':[tag.fqin, tag.description], 'whentagged': itemtag.whentagged.isoformat(), 'whentagposted': self.whentagposted.isoformat(),
                     'tagtype':self.tagtype.fqin, 'tagname': self.tagname, 'taginfo':tag.info()}
 
@@ -464,16 +469,16 @@ class TagitemGroup(DaBase):
 
 
 TagitemGroup.tagtype=relationship('TagType', primaryjoin=TagitemGroup.tagtype_id==TagType.tagtype_id)
-TagitemGroup.itemtag = relationship(ItemTag, 
+TagitemGroup.itemtag = relationship(ItemTag,
                 primaryjoin="and_(TagitemGroup.item_id==ItemTag.item_id,TagitemGroup.tag_id==ItemTag.tag_id)",
                 backref=backref("tagitems_groups")
             )
 #TagitemGroup.itemtag = relationship(ItemTag, primaryjoin=TagitemGroup.itemtag_id==ItemTag.id, backref=backref("tagitems_groups"))
 TagitemGroup.group = relationship(Group, primaryjoin=TagitemGroup.group_id==Group.group_id)
 #
-# Group.itemtags=relationship(ItemTag, secondary=TagitemGroup.__table__, 
+# Group.itemtags=relationship(ItemTag, secondary=TagitemGroup.__table__,
 #         secondaryjoin=TagitemGroup.itemtag_id==ItemTag.id)
-Group.itemtags=relationship(ItemTag,  lazy="dynamic", secondary=TagitemGroup.__table__, 
+Group.itemtags=relationship(ItemTag,  lazy="dynamic", secondary=TagitemGroup.__table__,
         secondaryjoin="and_(TagitemGroup.item_id==ItemTag.item_id, TagitemGroup.tag_id==ItemTag.tag_id)")
 #------------------------------
 
@@ -488,9 +493,10 @@ class TagitemApplication(DaBase):
     user_id=Column('user_id', Integer, ForeignKey('users.id'))
     tagtype_id=Column(Integer, ForeignKey('tagtypes.tagtype_id'))
     tagname=Column(String)
+    tagfqin = Column(String)
     whentagposted = Column(DateTime, server_default=text(THENOW))
     user=relationship('User')
-    
+
 
     def __init__(self, itemtag, app, useras):
         self.itemtag=itemtag
@@ -499,6 +505,7 @@ class TagitemApplication(DaBase):
         self.tag_id=self.itemtag.tag.tag_id
         self.tagtype=self.itemtag.tag.tagtype
         self.tagname=self.itemtag.tag.name
+        self.tagfqin=self.itemtag.tag.fqin
         #self.user=indict['user']#bug allows seperate postage of tag from creation
         self.user=useras
         print "AT END OF CONSTRUCTOR"
@@ -507,7 +514,7 @@ class TagitemApplication(DaBase):
         itemtag=self.itemtag
         item=itemtag.item
         tag=itemtag.tag
-        return {'item':item.fqin, 'itemtype': item.itemtype.fqin, 'iteminfo': item.info(self.user), 
+        return {'item':item.fqin, 'itemtype': item.itemtype.fqin, 'iteminfo': item.info(self.user),
                     'tag':[tag.fqin, tag.description], 'whentagposted': self.whentagposted.isoformat(),
                     'tagtype':self.tagtype.fqin, 'tagname': self.tagname, 'taginfo':tag.info()}
 
@@ -515,26 +522,26 @@ class TagitemApplication(DaBase):
         return "["+self.application.name+self.itemtag.item.name+self.itemtag.tag.name+"]"
 
 TagitemApplication.tagtype=relationship('TagType', primaryjoin=TagitemApplication.tagtype_id==TagType.tagtype_id)
-# TagitemApplication.itemtag = relationship(ItemTag, 
+# TagitemApplication.itemtag = relationship(ItemTag,
 #                 primaryjoin=TagitemApplication.itemtag_id==ItemTag.id,
 #                 backref=backref("tagitems_applications")
 #             )
-TagitemApplication.itemtag = relationship(ItemTag, 
+TagitemApplication.itemtag = relationship(ItemTag,
                 primaryjoin="and_(TagitemApplication.item_id==ItemTag.item_id,TagitemApplication.tag_id==ItemTag.tag_id)",
                 backref=backref("tagitems_applications")
             )
 
 TagitemApplication.application = relationship(Application, primaryjoin=TagitemApplication.application_id==Application.application_id)
 #
-# Application.itemtags=relationship(ItemTag, secondary=TagitemApplication.__table__, 
+# Application.itemtags=relationship(ItemTag, secondary=TagitemApplication.__table__,
 #         secondaryjoin=TagitemApplication.itemtag_id==ItemTag.id)
-Application.itemtags=relationship(ItemTag, lazy="dynamic", secondary=TagitemApplication.__table__, 
+Application.itemtags=relationship(ItemTag, lazy="dynamic", secondary=TagitemApplication.__table__,
         secondaryjoin="and_(TagitemApplication.item_id==ItemTag.item_id , TagitemApplication.tag_id==ItemTag.tag_id)")
 #------------------------------
 
 
 ###################################################
-Group.applicationsin = relationship('Application', secondary=GroupApplication, 
+Group.applicationsin = relationship('Application', secondary=GroupApplication,
                             secondaryjoin=GroupApplication.c.application_id == Application.application_id,
                             primaryjoin=GroupApplication.c.group_id == Group.group_id,
                             backref=backref('applicationgroups', lazy='dynamic'))
@@ -544,7 +551,7 @@ if __name__=="__main__":
     engine = create_engine('sqlite:///:memory:', echo=False)
     Session = sessionmaker(bind=engine)
     session = Session()
-    print DaBase.metadata.create_all(engine) 
+    print DaBase.metadata.create_all(engine)
     # User.add(User("rahuldave@gmail.com"))
     # for x in User.__theset__:
     #   print x.email
@@ -580,7 +587,7 @@ if __name__=="__main__":
     # session.add(mlg)
     # thispub = Item(name="hello kitty", uri='xxxlm', itemtype=pubtype, creator=rahuldave, fqin="rahuldave/hello kitty")
     # thistag = Tag(taggeditem=thispub, itemtype=notetype, tagtype=notetype, creator=rahuldave, name="crazy note", fqin="rahuldave/crazy note")
-    
+
     # thispub.groupsin.append(mlg)
     # thistag.groupsin.append(mlg)
 

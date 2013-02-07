@@ -568,7 +568,8 @@ def itemsForGroup(groupowner, groupname):
     else:
         #later support via GET all items in group, perhaps based on spec
         #doabort("BAD_REQ", "GET not supported")
-        criteria, fvlist, orderer=_getItemQuery(request.args)
+        #criteria, fvlist, orderer=_getItemQuery(request.args)
+        criteria, fvlist, orderer=_getTagsForItemQuery(request.args)
         #criteria['userthere']=True
         if criteria.get('userthere')==True:
             nick=criteria.pop('nick')
@@ -647,7 +648,8 @@ def itemsForApp(appowner, appname):
     else:
         #later support via GET all items in app, perhaps based on spec
         #doabort("BAD_REQ", "GET not supported")
-        criteria, fvlist, orderer=_getItemQuery(request.args)
+        #criteria, fvlist, orderer=_getItemQuery(request.args)
+        criteria, fvlist, orderer=_getTagsForItemQuery(request.args)
         #criteria['userthere']=True
         if criteria.get('userthere')==True:
             nick=criteria.pop('nick')
@@ -913,18 +915,21 @@ def _getQuery(querydict, fieldlist):
     #this does not handle order_by, or such
     #BUG: flase, empty values and all that over here needs to be properyly done not the hack it is now
     for ele, elev in fieldlist:
-        qele=querydict.get(ele, elev)
         if ele in ['context', 'fqin', 'paginate', 'page']:
+            qele=querydict.get(ele, elev)
             criteria[ele]=qele
         elif ele=='userthere':
+            qele=querydict.get(ele, elev)
             if qele!=False:
                 criteria['userthere']=True
                 criteria['nick']=qele
             else:
                 criteria['userthere']=False
         else:
-            if qele:
-                criteria[ele]=qele
+            print "ELE s",ele
+            qelelist=querydict.getlist(ele)
+            if len(qelelist)>0:
+                criteria[ele]=qelelist
     return criteria
 
 
@@ -937,8 +942,8 @@ def _getQuery(querydict, fieldlist):
 def _getItemQuery(querydict):
     fieldlist=[('uri',''), ('name',''), ('itemtype',''), ('context', None),
         ('fqin', None), ('userthere', False),
-        ('paginate', 20), ('page', 0)]
-    fieldvallist=['uri', 'name', 'whencreated', 'itemtype']
+        ('paginate', 20), ('page', 0), ('itemfqin', '')]
+    fieldvallist=['uri', 'name', 'whencreated', 'itemtype', 'itemfqin']
     orderer=querydict.getlist('order_by')
     return _getQuery(querydict, fieldlist), fieldvallist, orderer
 
@@ -947,8 +952,8 @@ def _getTagQuery(querydict):
     #one can combine name and tagtype to get, for example, tag:lensing
     fieldlist=[('tagname',''), ('tagtype',''), ('context', None),
         ('fqin', None), ('userthere', False),
-        ('paginate', 20), ('page', 0)]
-    fieldvallist=['tagname', 'tagtype', 'whentagged']
+        ('paginate', 20), ('page', 0), ('tagfqin', '')]
+    fieldvallist=['tagname', 'tagtype', 'whentagged', 'tagfqin']
     orderer=querydict.getlist('order_by')
     return _getQuery(querydict, fieldlist), fieldvallist, orderer
 
@@ -957,8 +962,8 @@ def _getTagsForItemQuery(querydict):
     #one can combine name and tagtype to get, for example, tag:lensing
     fieldlist=[('tagname',''), ('tagtype',''), ('context', None),
         ('fqin', None), ('uri', ''), ('name', ''), ('itemtype', ''), ('userthere', False),
-        ('paginate', 20), ('page', 0)]
-    fieldvallist=['tagname', 'tagtype', 'whentagged', 'uri', 'whencreated', 'name', 'itemtype']
+        ('paginate', 20), ('page', 0), ('itemfqin', ''), ('tagfqin', '')]
+    fieldvallist=['tagname', 'tagtype', 'whentagged', 'uri', 'whencreated', 'name', 'itemtype', 'itemfqin', 'tagfqin']
     orderer=querydict.getlist('order_by')
     return _getQuery(querydict, fieldlist), fieldvallist, orderer
 
@@ -1068,8 +1073,8 @@ def itemsbyany():
         g.dbp.commit()#needed to get isoformats? YES
         return jsonify({'status':'OK', 'info':newitem.info()})
     else:
-        criteria, fvlist, orderer=_getItemQuery(request.args)
-        #criteria, fvlist, orderer=_getTagsForItemQuery(request.args)
+        #criteria, fvlist, orderer=_getItemQuery(request.args)
+        criteria, fvlist, orderer=_getTagsForItemQuery(request.args)
         if criteria.get('userthere')==True:
             nick=criteria.pop('nick')
             useras=g.db.getUserForNick(g.currentuser, nick)
@@ -1145,6 +1150,7 @@ def tagsforitemspec():
 
 @adsgut.route('/items/byspec')#q=fieldlist=[('tagname',''), ('tagtype',''), ('context', None), ('fqin', None), ('itemuri', ''), ('itemname', ''), ('itemtype', '')]
 def itemsfortagspec():
+    print "REQUEST", request.args
     criteria, fvlist, orderer=_getTagsForItemQuery(request.args)
     if criteria.get('userthere')==True:
         nick=criteria.pop('nick')
@@ -1154,7 +1160,7 @@ def itemsfortagspec():
         useras=g.currentuser
     context=criteria.pop('context')
     fqin=criteria.pop('fqin')
-    print "userAS", useras.nick, g.currentuser.nick
+    print "userAS", useras.nick, g.currentuser.nick, criteria
     items=g.dbp.getItemsForTagspec(g.currentuser, useras, context, fqin, criteria, fvlist, orderer)
     return jsonify(items)
 

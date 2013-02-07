@@ -55,9 +55,11 @@ def FILTERDICT(tagctxt):
         'whencreated':Item.whencreated,
         'tagname':tagctxt.tagname,
         'tagtype':tagctxt.tagtype,
+        'tagfqin':tagctxt.tagfqin,
         'whentagged':ItemTag.whentagged,
         'itemuri':Item.uri,
         'itemname':Item.name,
+        'itemfqin':Item.fqin,
         'itemwhencreated':Item.whencreated,
         'itemtype':Item.itemtype,
         'groupwhenposted':ItemGroup.whenposted,
@@ -66,6 +68,18 @@ def FILTERDICT(tagctxt):
         'appwhentagposted': TagitemApplication.whentagposted
     }
     return thedict
+
+def filtermaker(thingtofilter, tagctxt,criteria):
+    for ele in criteria.keys():
+        if type(criteria[ele])!=types.ListType:
+            thingtofilter=thingtofilter.filter(FILTERDICT(tagctxt)[ele] == criteria[ele])
+        elif type(criteria[ele])==types.ListType and len(criteria[ele])==1:
+            thingtofilter=thingtofilter.filter(FILTERDICT(tagctxt)[ele] == criteria[ele][0])
+        else:
+            for item in criteria[ele]:
+                print FILTERDICT(tagctxt)[ele]
+                thingtofilter=thingtofilter.filter(FILTERDICT(tagctxt)[ele] == item)
+    return thingtofilter
 
 #TODO: we now have whentagposted in classes.py ItemTagGroup and such. Spec out how to sort on it.
 def _getOrder(fieldvallist, orderer, extender=[]):
@@ -862,7 +876,6 @@ class Postdb(dbase.Database):
     #return null arrays atleast
 
 
-
     #Not needed any more due to above but kept around for quicker use:
     # def getItemsForApp(self, currentuser, useras, fullyQualifiedAppName):
     #     app=self.session.query(Application).filter_by(fqin=fullyQualifiedAppName).one()
@@ -873,10 +886,13 @@ class Postdb(dbase.Database):
     #     return [ele.info() for ele in grp.itemsposted]
     #No group by's so multiple objects for same item depending on the postings
     def _doItemFilter(self, context, userwanted, contextobject, contextitemobject, criteria={}, fvlist={}, orderer={}, additional=[]):
+        thechoice=ItemTag
         if context=='group':
             ciocoll=ItemGroup.group
+            thechoice=TagitemGroup
         elif context=='app':
             ciocoll=ItemApplication.application
+            thechoice=TagitemApplication
         else:
             ciocoll=ItemGroup.group
         if context==None:
@@ -885,15 +901,18 @@ class Postdb(dbase.Database):
             tuples=self.session.query(Item, contextitemobject.whenposted)
         if userwanted==None:
             if context==None:
-                tuples=tuples.filter_by(**criteria)
+                #tuples=tuples.filter_by(**criteria)
+                tuples=filtermaker(tuples, thechoice, criteria)
             else:
                 tuples=tuples.select_from(join(Item, contextitemobject))\
-                                            .filter(ciocoll==contextobject)\
-                                            .filter_by(**criteria)
+                                            .filter(ciocoll==contextobject)
+                tuples=filtermaker(tuples, thechoice, criteria)
+                                           # .filter_by(**criteria)
         else:
             tuples=tuples.select_from(join(Item, contextitemobject))\
-                                            .filter(contextitemobject.user==userwanted, ciocoll==contextobject)\
-                                            .filter_by(**criteria)
+                                            .filter(contextitemobject.user==userwanted, ciocoll==contextobject)
+            tuples=filtermaker(tuples, thechoice, criteria)
+                                            #.filter_by(**criteria)
         order_by=_getOrder(fvlist, orderer, additional)
         if len(order_by)>0:
             tuples=tuples.order_by(*order_by)
@@ -908,7 +927,7 @@ class Postdb(dbase.Database):
         page=0
         paginate=20
         if criteria.has_key('itemtype'):
-            criteria['itemtype']=self.getItemType(currentuser,criteria['itemtype'])
+            criteria['itemtype']=[self.getItemType(currentuser,e) for e in criteria['itemtype']]
         if criteria.has_key('userthere'):
             userthere=criteria.pop('userthere')
         if criteria.has_key('paginate'):
@@ -975,9 +994,9 @@ class Postdb(dbase.Database):
         page=0
         paginate=20
         if criteria.has_key('tagtype'):
-            criteria['tagtype']=self.getTagType(currentuser, criteria['tagtype'])
+            criteria['tagtype']=[self.getTagType(currentuser,e) for e in criteria['tagtype']]
         if criteria.has_key('itemtype'):
-            criteria['itemtype']=self.getItemType(currentuser, criteria['itemtype'])
+            criteria['itemtype']=[self.getItemType(currentuser,e) for e in criteria['itemtype']]
         if criteria.has_key('userthere'):
             userthere=criteria.pop('userthere')
         if criteria.has_key('paginate'):
@@ -1025,8 +1044,10 @@ class Postdb(dbase.Database):
             additional=['appwhentagposted']
         #this does not prevent something from apps being used in something from groups, but i think only the ordering is
         #not common so its ok.
+        print "DASCRITERIAON"
         for ele in criteria.keys():
-            taggings=taggings.filter(FILTERDICT(thechoice)[ele] == criteria[ele])
+            #taggings=taggings.filter(FILTERDICT(thechoice)[ele] == criteria[ele])
+            taggings=filtermaker(taggings, thechoice, criteria)
         if userthere:
             rhash['user']=useras.nick
         order_by=_getOrder(fvlist, orderer, additional)
@@ -1134,6 +1155,8 @@ def initialize_application(sess):
     currentuser=adsuser
     postdb.addItemType(currentuser, dict(name="pub", creator=adsuser, app="ads@adslabs.org/app:publications"))
     postdb.addItemType(currentuser, dict(name="pub2", creator=adsuser, app="ads@adslabs.org/app:publications"))
+    postdb.addItemType(currentuser, dict(name="library", creator=adsuser, app="ads@adslabs.org/app:publications"))
+    postdb.addItemType(currentuser, dict(name="search", creator=adsuser, app="ads@adslabs.org/app:publications"))
     postdb.addTagType(currentuser, dict(name="tag", creator=adsuser, app="ads@adslabs.org/app:publications"))
     postdb.addTagType(currentuser, dict(name="tag2", creator=adsuser, app="ads@adslabs.org/app:publications"))
     postdb.addTagType(currentuser, dict(name="note", creator=adsuser, app="ads@adslabs.org/app:publications"))
