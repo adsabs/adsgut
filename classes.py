@@ -4,6 +4,7 @@ from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import relationship, backref, sessionmaker, mapper
 from sqlalchemy.orm import join
 from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, Table, text
+from sqlalchemy import or_, and_
 from dbase import DaBase
 #DaBase = declarative_base()
 
@@ -396,6 +397,8 @@ class ItemTag(DaBase):
     tagtype_id=Column(Integer, ForeignKey('tagtypes.tagtype_id'))
     whentagged = Column(DateTime, server_default=text(THENOW))
     itemuri=Column(String)
+    itemfqin=Column(String)
+    itemname=Column(String)
     tagname=Column(String)
     tagfqin = Column(String)
     user=relationship('User')
@@ -408,9 +411,11 @@ class ItemTag(DaBase):
         #newtagging=ItemTag(item=itemtobetagged, tag=newtag, user=useras,
         #itemuri=itemtobetagged.uri, tagname=newtag.name, tagtype=newtag.tagtype, itemtype=itemtobetagged.itemtype)
         self.item=itemtobetagged
+        self.itemname=itemtobetagged.name
+        self.itemfqin=itemtobetagged.fqin
+        self.itemuri=itemtobetagged.uri
         self.tag=newtag
         self.user=useras
-        self.itemuri=itemtobetagged.uri
         self.tagname=newtag.name
         self.tagtype=newtag.tagtype
         self.tagfqin=newtag.fqin
@@ -425,6 +430,7 @@ class ItemTag(DaBase):
 
 ItemTag.tagtype=relationship('TagType', primaryjoin=ItemTag.tagtype_id==TagType.tagtype_id)
 ItemTag.tag = relationship(Tag, primaryjoin=ItemTag.tag_id==Tag.tag_id)
+ItemTag.item = relationship(Item, primaryjoin=ItemTag.item_id==Item.id)
 
 
 Tag.taggeditems=relationship("Item", lazy="dynamic", secondary=ItemTag.__table__)
@@ -434,45 +440,70 @@ ItemTag.groupsin = association_proxy('tagitems_groups', 'group')
 class TagitemGroup(DaBase):
     __tablename__ = 'tagitem_group'
     #itemtag_id=Column(Integer, ForeignKey('item_tag.id'), primary_key=True)
-    item_id=Column(Integer, ForeignKey('item_tag.item_id'), primary_key=True)
-    tag_id=Column(Integer, ForeignKey('item_tag.tag_id'), primary_key=True)
+    #item_id=Column(Integer, ForeignKey('item_tag.item_id'), primary_key=True)
+    #tag_id=Column(Integer, ForeignKey('item_tag.tag_id'), primary_key=True)
+    item_id=Column(Integer, ForeignKey('items.id'), primary_key=True)
+    tag_id=Column(Integer, ForeignKey('tags.tag_id'), primary_key=True)
     group_id=Column(Integer, ForeignKey('groups.group_id'), primary_key=True)
     user_id=Column('user_id', Integer, ForeignKey('users.id'))
+    itemtype_id=Column(Integer, ForeignKey('itemtypes.id'))
     tagtype_id=Column(Integer, ForeignKey('tagtypes.tagtype_id'))
     tagname=Column(String)
     tagfqin = Column(String)
+    itemuri=Column(String)
+    itemfqin=Column(String)
+    itemname=Column(String)
     whentagposted = Column(DateTime, server_default=text(THENOW))
     user=relationship('User')
+    item = relationship(Item,
+                backref=backref("items_tagitemgroups")
+            )
+    itemtype=relationship('ItemType')
 
     def __init__(self, itemtag, grp, useras):
-        self.itemtag=itemtag
+        #self.itemtag=itemtag
         self.group=grp
-        self.item_id=self.itemtag.item.id
-        self.tag_id=self.itemtag.tag.tag_id
-        self.tagtype=self.itemtag.tag.tagtype
-        self.tagname=self.itemtag.tag.name
-        self.tagfqin=self.itemtag.tag.fqin
+        #self.item_id=self.itemtag.item.id
+        theitem=itemtag.item
+        self.item=theitem
+        self.itemtype=theitem.itemtype
+        self.itemname=theitem.name
+        self.itemfqin=theitem.fqin
+        self.itemuri=theitem.uri
+        thetag=itemtag.tag
+        self.tag=thetag
+        # self.item=itemtag.item
+        # self.tag_id=self.itemtag.tag.tag_id
+        self.tagtype=thetag.tagtype
+        self.tagname=thetag.name
+        self.tagfqin=thetag.fqin
         #self.user=indict['user']#bug allows seperate postage of tag from creation
         self.user=useras
         print "AT END OF CONSTRUCTOR"
 
     def info(self):
-        itemtag=self.itemtag
-        item=itemtag.item
-        tag=itemtag.tag
+        # itemtag=self.itemtag
+        # item=itemtag.item
+        # tag=itemtag.tag
+        item=self.item
+        tag=self.tag
         return {'item':item.fqin, 'itemtype': item.itemtype.fqin, 'iteminfo': item.info(self.user),
                     'tag':[tag.fqin, tag.description], 'whentagged': itemtag.whentagged.isoformat(), 'whentagposted': self.whentagposted.isoformat(),
                     'tagtype':self.tagtype.fqin, 'tagname': self.tagname, 'taginfo':tag.info()}
 
+
     def __repr__(self):
-        return "["+self.group.name+'|'+self.itemtag.item.fqin+'|'+self.itemtag.tag.fqin+"]"
+        return "["+self.group.name+'|'+self.item.fqin+'|'+self.tag.fqin+"]"
 
 
 TagitemGroup.tagtype=relationship('TagType', primaryjoin=TagitemGroup.tagtype_id==TagType.tagtype_id)
-TagitemGroup.itemtag = relationship(ItemTag,
-                primaryjoin="and_(TagitemGroup.item_id==ItemTag.item_id,TagitemGroup.tag_id==ItemTag.tag_id)",
-                backref=backref("tagitems_groups")
-            )
+TagitemGroup.tag=relationship(Tag, primaryjoin=TagitemGroup.tag_id==Tag.tag_id)
+# TagitemGroup.itemtag = relationship(ItemTag,
+#                 primaryjoin="and_(TagitemGroup.item_id==ItemTag.item_id,TagitemGroup.tag_id==ItemTag.tag_id)",
+#                 backref=backref("tagitems_groups")
+#             )
+#TagitemGroup.item = relationship(Item, secondaryjoin=TagitemGroup.item_id==Item.id, secondary=TagitemGroup.__table__)
+
 #TagitemGroup.itemtag = relationship(ItemTag, primaryjoin=TagitemGroup.itemtag_id==ItemTag.id, backref=backref("tagitems_groups"))
 TagitemGroup.group = relationship(Group, primaryjoin=TagitemGroup.group_id==Group.group_id)
 #
@@ -487,50 +518,71 @@ ItemTag.applicationsin = association_proxy('tagitems_applications', 'application
 class TagitemApplication(DaBase):
     __tablename__ = 'tagitem_application'
     #itemtag_id=Column(Integer, ForeignKey('item_tag.id'), primary_key=True)
-    item_id=Column(Integer, ForeignKey('item_tag.item_id'), primary_key=True)
-    tag_id=Column(Integer, ForeignKey('item_tag.tag_id'), primary_key=True)
+    #item_id=Column(Integer, ForeignKey('item_tag.item_id'), primary_key=True)
+    #tag_id=Column(Integer, ForeignKey('item_tag.tag_id'), primary_key=True)
+    item_id=Column(Integer, ForeignKey('items.id'), primary_key=True)
+    tag_id=Column(Integer, ForeignKey('tags.tag_id'), primary_key=True)
     application_id=Column(Integer, ForeignKey('applications.application_id'), primary_key=True)
     user_id=Column('user_id', Integer, ForeignKey('users.id'))
+    itemtype_id=Column(Integer, ForeignKey('itemtypes.id'))
     tagtype_id=Column(Integer, ForeignKey('tagtypes.tagtype_id'))
     tagname=Column(String)
     tagfqin = Column(String)
+    itemuri=Column(String)
+    itemfqin=Column(String)
+    itemname=Column(String)
     whentagposted = Column(DateTime, server_default=text(THENOW))
     user=relationship('User')
+    item = relationship(Item,
+                backref=backref("items_tagitemapplications")
+            )
+    itemtype=relationship('ItemType')
 
 
     def __init__(self, itemtag, app, useras):
-        self.itemtag=itemtag
+        #self.itemtag=itemtag
         self.application=app
-        self.item_id=self.itemtag.item.id
-        self.tag_id=self.itemtag.tag.tag_id
-        self.tagtype=self.itemtag.tag.tagtype
-        self.tagname=self.itemtag.tag.name
-        self.tagfqin=self.itemtag.tag.fqin
+        #self.item_id=self.itemtag.item.id
+        theitem=itemtag.item
+        self.item=theitem
+        self.itemtype=theitem.itemtype
+        self.itemname=theitem.name
+        self.itemfqin=theitem.fqin
+        self.itemuri=theitem.uri
+        thetag=itemtag.tag
+        #self.tag_id=self.itemtag.tag.tag_id
+        self.tag=thetag
+        self.tagtype=thetag.tagtype
+        self.tagname=thetag.name
+        self.tagfqin=thetag.fqin
         #self.user=indict['user']#bug allows seperate postage of tag from creation
         self.user=useras
         print "AT END OF CONSTRUCTOR"
 
     def info(self):
-        itemtag=self.itemtag
-        item=itemtag.item
-        tag=itemtag.tag
+        # itemtag=self.itemtag
+        # item=itemtag.item
+        # tag=itemtag.tag
+        item=self.item
+        tag=self.tag
         return {'item':item.fqin, 'itemtype': item.itemtype.fqin, 'iteminfo': item.info(self.user),
                     'tag':[tag.fqin, tag.description], 'whentagposted': self.whentagposted.isoformat(),
                     'tagtype':self.tagtype.fqin, 'tagname': self.tagname, 'taginfo':tag.info()}
 
     def __repr__(self):
-        return "["+self.application.name+self.itemtag.item.name+self.itemtag.tag.name+"]"
+        return "["+self.application.name+self.item.fqin+self.tag.fqin+"]"
 
 TagitemApplication.tagtype=relationship('TagType', primaryjoin=TagitemApplication.tagtype_id==TagType.tagtype_id)
+TagitemApplication.tag=relationship(Tag, primaryjoin=TagitemApplication.tag_id==Tag.tag_id)
 # TagitemApplication.itemtag = relationship(ItemTag,
 #                 primaryjoin=TagitemApplication.itemtag_id==ItemTag.id,
 #                 backref=backref("tagitems_applications")
 #             )
-TagitemApplication.itemtag = relationship(ItemTag,
-                primaryjoin="and_(TagitemApplication.item_id==ItemTag.item_id,TagitemApplication.tag_id==ItemTag.tag_id)",
-                backref=backref("tagitems_applications")
-            )
-
+# TagitemApplication.itemtag = relationship(ItemTag,
+#                 primaryjoin="and_(TagitemApplication.item_id==ItemTag.item_id,TagitemApplication.tag_id==ItemTag.tag_id)",
+#                 backref=backref("tagitems_applications")
+#             )
+#TagitemApplication.item = relationship(Item, secondaryjoin=TagitemApplication.item_id==Item.id, secondary=TagitemApplication.__table__)
 TagitemApplication.application = relationship(Application, primaryjoin=TagitemApplication.application_id==Application.application_id)
 #
 # Application.itemtags=relationship(ItemTag, secondary=TagitemApplication.__table__,

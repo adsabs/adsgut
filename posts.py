@@ -48,7 +48,44 @@ ORDERDICT={
     'appwhentagposted': TagitemApplication.whentagposted
 }
 
-def FILTERDICT(tagctxt):
+def ITEMFILTERDICT():
+    thedict={
+        'uri':Item.uri,
+        'name':Item.name,
+        'whencreated':Item.whencreated,
+        'itemuri':Item.uri,
+        'itemname':Item.name,
+        'itemfqin':Item.fqin,
+        'itemwhencreated':Item.whencreated,
+        'itemtype':Item.itemtype,
+        'groupwhenposted':ItemGroup.whenposted,
+        'appwhenposted': ItemApplication.whenposted
+    }
+    return thedict
+#BUG: shouldnt anything with tags below use tagctxt?
+def TAGGINGFILTERDICT(tagctxt):
+    thedict={
+        'whencreated':Item.whencreated,
+        'tagname':tagctxt.tagname,
+        'tagtype':tagctxt.tagtype,
+        'tagfqin':tagctxt.tagfqin,
+        'whentagged':ItemTag.whentagged,
+        'itemuri':tagctxt.itemuri,
+        'itemname':tagctxt.itemname,
+        'itemfqin':tagctxt.itemfqin,
+        'uri':tagctxt.itemuri,
+        'name':tagctxt.itemname,
+        'fqin':tagctxt.itemfqin,
+        'itemwhencreated':Item.whencreated,
+        'itemtype':tagctxt.itemtype,
+        'groupwhenposted':ItemGroup.whenposted,
+        'appwhenposted': ItemApplication.whenposted,
+        'groupwhentagposted': TagitemGroup.whentagposted,
+        'appwhentagposted': TagitemApplication.whentagposted
+    }
+    return thedict
+
+def FILTER2DICT(tagctxt):
     thedict={
         'uri':Item.uri,
         'name':Item.name,
@@ -61,7 +98,7 @@ def FILTERDICT(tagctxt):
         'itemname':Item.name,
         'itemfqin':Item.fqin,
         'itemwhencreated':Item.whencreated,
-        'itemtype':Item.itemtype,
+        'itemtype':tagctxt.itemtype,
         'groupwhenposted':ItemGroup.whenposted,
         'appwhenposted': ItemApplication.whenposted,
         'groupwhentagposted': TagitemGroup.whentagposted,
@@ -69,17 +106,54 @@ def FILTERDICT(tagctxt):
     }
     return thedict
 
+from sqlalchemy.orm import aliased
 def filtermaker(thingtofilter, tagctxt,criteria):
     for ele in criteria.keys():
         if type(criteria[ele])!=types.ListType:
-            thingtofilter=thingtofilter.filter(FILTERDICT(tagctxt)[ele] == criteria[ele])
+            thingtofilter=thingtofilter.filter(TAGGINGFILTERDICT(tagctxt)[ele] == criteria[ele])
         elif type(criteria[ele])==types.ListType and len(criteria[ele])==1:
-            thingtofilter=thingtofilter.filter(FILTERDICT(tagctxt)[ele] == criteria[ele][0])
+            thingtofilter=thingtofilter.filter(TAGGINGFILTERDICT(tagctxt)[ele] == criteria[ele][0])
         else:
-            for item in criteria[ele]:
-                print FILTERDICT(tagctxt)[ele]
-                thingtofilter=thingtofilter.filter(FILTERDICT(tagctxt)[ele] == item)
+            for v in criteria[ele]:
+                print ">>>", TAGGINGFILTERDICT(tagctxt)[ele]
+                thingtofilter=thingtofilter.filter(TAGGINGFILTERDICT(tagctxt)[ele] == v)
+                #jt2f=aliased(thingtofilter)
+                #thingtofilter=thingtofilter.join(jt2f).filter(and_(thingtofilter.item==jt2f.item, FILTERDICT(tagctxt)[ele] != FILTERDICT(jt2f)[ele])).filter(FILTERDICT(tagctxt)[ele] == v)
     return thingtofilter
+
+def filtermaker2(q, tagctxt, criteria):
+    print "CRITERIOUS",criteria
+    def doMultiJoin(instuff, classtoalias, critname, critlist):
+        car=critlist[0]
+        cdr=critlist[1:]
+        print "INSTUFF", list(instuff)
+        print "CAR", car
+        print "CDR", cdr
+        n=len(cdr)
+        aliaslist=[aliased(classtoalias) for i in range(n)]
+
+        #for this to work everything just has to be in taggingfilterdict.
+        #Thus perhaps we need to figure the right joins from the beginning
+        #we wont do it for now.
+        query=instuff.filter(TAGGINGFILTERDICT(classtoalias)[critname]==car)
+
+        print "CARQUERY", list(query)
+        for i in range(n):
+            print aliaslist[i], cdr[i]
+            query=query.join(aliaslist[i], (classtoalias.item_id==aliaslist[i].item_id) &
+                    (TAGGINGFILTERDICT(classtoalias)[critname]!=TAGGINGFILTERDICT(aliaslist[i])[critname]))
+            print "1", list(query)
+            query=query.filter(TAGGINGFILTERDICT(aliaslist[i])[critname]==cdr[i])
+            print "2", list(query)
+        return query
+    for ele in criteria.keys():
+        print '=========================',ele, criteria[ele]
+        critlist=criteria[ele]
+        q=doMultiJoin(q, tagctxt, ele, critlist)
+        print list(q)
+    print 'LISTQ', list(q)
+    #This will give us things with multiple tags, but not a unique set of items
+    return q
 
 #TODO: we now have whentagposted in classes.py ItemTagGroup and such. Spec out how to sort on it.
 def _getOrder(fieldvallist, orderer, extender=[]):
@@ -339,6 +413,7 @@ class Postdb(dbase.Database):
             # print sys.exc_info()
             doabort('BAD_REQ', "Failed adding itemtype %s" % typespec['fqin'])
         self.session.add(itemtype)
+        self.commit()
         return itemtype
 
     def removeItemType(self, currentuser, fullyQualifiedItemType):
@@ -356,6 +431,7 @@ class Postdb(dbase.Database):
         except:
             doabort('BAD_REQ', "Failed adding tagtype %s" % typespec['fqin'])
         self.session.add(tagtype)
+        self.commit()
         return tagtype
 
     def removeTagType(self, currentuser, fullyQualifiedTagType):
@@ -387,7 +463,7 @@ class Postdb(dbase.Database):
                 print "CREATING NEW ITEMGROUP", grp.fqin, item.name
                 newposting=ItemGroup(item=item, group=grp, user=useras, itemuri=item.uri, itemtype=item.itemtype)
                 self.session.add(newposting)
-
+                self.commit()
             except:
                 doabort('BAD_REQ', "Failed adding newposting of item %s into group %s." % (item.fqin, grp.fqin))
         personalfqgn=useras.nick+"/group:default"
@@ -453,6 +529,7 @@ class Postdb(dbase.Database):
             try:
                 print "CREATING ITEMAPP", app.fqin, item.name
                 newposting=ItemApplication(item=item, application=app, user=useras, itemuri=item.uri, itemtype=item.itemtype)
+                self.commit()
             except:
                 doabort('BAD_REQ', "Failed adding newposting of item %s into app %s." % (item.fqin, app.fqin))
         self.session.add(newposting)
@@ -506,6 +583,7 @@ class Postdb(dbase.Database):
                 print "ITSPEC", itemspec
                 newitem=Item(**itemspec)
                 self.session.add(newitem)
+                self.commit()
                 # print "Newitem is", newitem.info()
             except:
                 # import sys
@@ -562,27 +640,29 @@ class Postdb(dbase.Database):
             #the tag was not found. Create it
             try:
                 print "try creating tag"
-                newtag=Tag(**tagspec)
-                self.session.add(newtag)
+                tag=Tag(**tagspec)
+                self.session.add(tag)
+                self.commit()
             except:
                 doabort('BAD_REQ', "Failed adding tag %s" % tagspec['fqin'])
 
         print "newtagging"
         try:
             print "was the itemtag found"
-            itemtag=self.getTagging(currentuser, newtag, itemtobetagged)
+            itemtag=self.getTagging(currentuser, tag, itemtobetagged)
         except:
             try:
-                newtagging=ItemTag(itemtobetagged, newtag, useras)
+                itemtag=ItemTag(itemtobetagged, tag, useras)
             except:
-                doabort('BAD_REQ', "Failed adding newtagging on item %s with tag %s" % (itemtobetagged.fqin, newtag.fqin))
-        self.session.add(newtagging)
+                doabort('BAD_REQ', "Failed adding newtagging on item %s with tag %s" % (itemtobetagged.fqin, tag.fqin))
+        self.session.add(itemtag)
+        self.commit()
         personalfqgn=useras.nick+"/group:default"
         personalgrp=self.whosdb.getGroup(currentuser, personalfqgn)
         #Add tag to default personal group
         print "adding to %s" % personalgrp.fqin
 
-        self.postTaggingIntoGroupFromItemtag(currentuser, useras, personalgrp, newtagging)
+        self.postTaggingIntoGroupFromItemtag(currentuser, useras, personalgrp, itemtag)
         #at this point it goes to the itemtypes app too.
         #This will get the personal, and since no commit, i think we will not hit personal.
         #nevertheless we protect against it below
@@ -592,9 +672,9 @@ class Postdb(dbase.Database):
             for grp in groupsitemisin:
                 if grp.fqin!=personalfqgn:
                     #wont be added to app for these
-                    self.postTaggingIntoGroupFromItemtag(currentuser, useras, grp, newtagging)
+                    self.postTaggingIntoGroupFromItemtag(currentuser, useras, grp, itemtag)
         #print itemtobetagged.itemtags, "WEE", newtag.taggeditems, newtagging.tagtype.name
-        return newtag, newtagging
+        return tag, itemtag
 
     def untagItem(self, currentuser, useras, fullyQualifiedTagName, fullyQualifiedItemName):
         #Do not remove item, do not remove tag, do not remove tagging
@@ -641,6 +721,7 @@ class Postdb(dbase.Database):
             try:
                 newitg=TagitemGroup(itemtag, grp, useras)
                 self.session.add(newitg)
+                self.commit()
             except:
                 doabort('BAD_REQ', "Failed adding newtagging on item %s with tag %s in group %s" % (item.fqin, tag.fqin, grp.fqin))
 
@@ -690,8 +771,9 @@ class Postdb(dbase.Database):
             try:
                 newitg=TagitemGroup(itemtag, grp, useras)
                 self.session.add(newitg)
+                self.commit()
             except:
-                doabort('BAD_REQ', "Failed adding newtagging on item %s with tag %s in group %s" % (itemtag.item.fqin, tag.fqin, grp.fqin))
+                doabort('BAD_REQ', "Failed adding newtagging on item %s with tag %s in group %s" % (itemtag.item.fqin, itemtag.tag.fqin, grp.fqin))
 
 
 
@@ -765,8 +847,9 @@ class Postdb(dbase.Database):
             try:
                 newita=TagitemApplication(itemtag, app, useras)
                 self.session.add(newita)
+                self.commit()
             except:
-                doabort('BAD_REQ', "Failed adding newtagging on item %s with tag %s in app %s" % (itemtag.item.fqin, tag.fqin, app.fqin))
+                doabort('BAD_REQ', "Failed adding newtagging on item %s with tag %s in app %s" % (itemtag.item.fqin, itemtag.tag.fqin, app.fqin))
 
         #grp.groupitems.append(newitem)
         # self.commit()
@@ -800,6 +883,7 @@ class Postdb(dbase.Database):
             try:
                 newita=TagitemApplication(itemtag, app, useras)
                 self.session.add(newita)
+                self.commit()
             except:
                 doabort('BAD_REQ', "Failed adding newtagging on item %s with tag %s in app %s" % (item.fqin, tag.fqin, app.fqin))
 
@@ -886,7 +970,7 @@ class Postdb(dbase.Database):
     #     return [ele.info() for ele in grp.itemsposted]
     #No group by's so multiple objects for same item depending on the postings
     def _doItemFilter(self, context, userwanted, contextobject, contextitemobject, criteria={}, fvlist={}, orderer={}, additional=[]):
-        thechoice=ItemTag
+
         if context=='group':
             ciocoll=ItemGroup.group
             thechoice=TagitemGroup
@@ -895,7 +979,8 @@ class Postdb(dbase.Database):
             thechoice=TagitemApplication
         else:
             ciocoll=ItemGroup.group
-        if context==None:
+            thechoice=ItemTag
+        if context==None and userwanted==None:
             tuples=self.session.query(Item, 'NULL')
         else:
             tuples=self.session.query(Item, contextitemobject.whenposted)
@@ -909,6 +994,7 @@ class Postdb(dbase.Database):
                 tuples=filtermaker(tuples, thechoice, criteria)
                                            # .filter_by(**criteria)
         else:
+            print "IN HEERE"
             tuples=tuples.select_from(join(Item, contextitemobject))\
                                             .filter(contextitemobject.user==userwanted, ciocoll==contextobject)
             tuples=filtermaker(tuples, thechoice, criteria)
@@ -920,6 +1006,69 @@ class Postdb(dbase.Database):
         whenposteds=[t[1] for t in tuples]
         return items, whenposteds
 
+    def _doItemFilter2(self, context, userwanted, contextobject, criteria={}, fvlist={}, orderer={}, additional=[]):
+        ITEMCTXT=0
+        CTXTINS=1
+        TAGCTXT=2
+        print "CRITERIAN", criteria
+        def dispatch(userwanted, context):
+
+            retlist=[None,None, None]
+            if context=='group':
+                retlist[ITEMCTXT]=ItemGroup
+                retlist[CTXTINS]=TagitemGroup.group
+                retlist[TAGCTXT]=TagitemGroup
+            elif context=="app":
+                retlist[ITEMCTXT]=ItemApplication
+                retlist[CTXTINS]=TagitemApplication.application
+                retlist[TAGCTXT]=TagitemApplication
+            else:
+                if userwanted:
+                    retlist[ITEMCTXT]=ItemGroup
+                    retlist[CTXTINS]=TagitemGroup.group
+                    retlist[TAGCTXT]=TagitemGroup
+                else:
+                    retlist[ITEMCTXT]=None
+                    retlist[CTXTINS]=None
+                    retlist[TAGCTXT]=ItemTag
+            return retlist
+
+        retlist=dispatch(userwanted, context)
+        q=self.session.query(retlist[TAGCTXT])
+        if retlist[ITEMCTXT]==None:
+            q=filtermaker2(q, retlist[TAGCTXT], criteria)
+        else:
+            q=q.filter(retlist[CTXTINS]==contextobject)
+            if userwanted:
+                q=q.filter(retlist[TAGCTXT].user==userwanted)
+            #If you dont have a user you want the latest whenposted! do something for it
+            q=filtermaker2(q, retlist[TAGCTXT], criteria)
+                                           # .filter_by(**criteria)
+        #Now since order-by is on Item, you will order on the wrong thing BUG
+        #At this point we will want to unique and then order on the items
+        #q=q.unique()BUG
+        #Joins will be needed lets just get to it
+        order_by=_getOrder(fvlist, orderer, additional)
+        #BUG: Lets assume order_by has implicit join IT DOSENT BLAAARG
+
+        if len(order_by)>0:
+            q=q.order_by(*order_by)
+        #now join to itemctxt to get appropriate whenposteds. currently get multiple for same item if posted
+        #by different users into a group: or do we allow only one post (ie idempotency?) i dont think so
+        # print 'TYPE', type(q)
+        # if retlist[ITEMCTXT]:
+        #     if userwanted:
+        #         newq=self.session.query(retlist[ITEMCTXT]).join(q.as_scalar(),retlist[ITEMCTXT].item_id==retlist[TAGCTXT].item_id)
+        #         #q=q.join(retlist[ITEMCTXT], retlist[ITEMCTXT].item_id==retlist[TAGCTXT].item_id)#, retlist[TAGCTXT].user==userwanted)
+        #     else:
+        #         newq=self.session.query(retlist[ITEMCTXT]).join(q.as_scalar(),retlist[ITEMCTXT].item_id==retlist[TAGCTXT].item_id)
+        #         #q=q.join(retlist[ITEMCTXT], retlist[ITEMCTXT].item_id==retlist[TAGCTXT].item_id)
+        # print ":::",[e for e in newq]
+        # #BUG dont handle when posteds for now for simplicity
+        newq=q
+        items=[t.item for t in newq]
+        whenposteds=[t.item.whencreated for t in newq]
+        return items, whenposteds
     #remember this returns items in your personal group, not those created by you. Everytime
     #you post someone elses items into a group, it does get added to your personal group
     def getItems(self, currentuser, useras, context=None, fqin=None, criteria={}, fvlist=[], orderer=[]):
@@ -942,11 +1091,13 @@ class Postdb(dbase.Database):
                 authorize(False, self.whosdb, currentuser, useras)
                 fqin=useras.nick+"/group:default"
                 grp=self.whosdb.getGroup(currentuser, fqin)
-                items,whenposteds=self._doItemFilter(context, useras, grp, ItemGroup, criteria, fvlist, orderer)
+                #items,whenposteds=self._doItemFilter(context, useras, grp, ItemGroup, criteria, fvlist, orderer)
+                items,whenposteds=self._doItemFilter2(context, useras, grp, criteria, fvlist, orderer)
             else:
                 #permit(self.whosdb.isSystemUser(currentuser), "Only System User allowed")
                 authorize(False, self.whosdb, currentuser, None)
-                items, whenposteds = self._doItemFilter(context, None, None, None, criteria, fvlist, orderer)
+                #items, whenposteds = self._doItemFilter(context, None, None, None, criteria, fvlist, orderer)
+                items,whenposteds=self._doItemFilter(context, None, None, criteria, fvlist, orderer)
             #permit(self.whosdb.isSystemUser(currentuser), "Only System User allowed")
             #items, whenposteds = self._doItemFilter(context, None, None, None, criteria, fvlist, orderer)
         elif context == 'group':
@@ -960,9 +1111,11 @@ class Postdb(dbase.Database):
             #alllowed in (besides sys) and once in, can filter at length.
             additional=['groupwhenposted']
             if userthere:
-                items,whenposteds=self._doItemFilter(context, useras, grp, ItemGroup, criteria, fvlist, orderer, additional)
+                #items,whenposteds=self._doItemFilter(context, useras, grp, ItemGroup, criteria, fvlist, orderer, additional)
+                items,whenposteds=self._doItemFilter2(context, useras, grp,  criteria, fvlist, orderer, additional)
             else:
-                items, whenposteds = self._doItemFilter(context, None, grp, ItemGroup, criteria, fvlist, orderer, additional)
+                #items, whenposteds = self._doItemFilter(context, None, grp, ItemGroup, criteria, fvlist, orderer, additional)
+                items,whenposteds=self._doItemFilter2(context, None, grp,  criteria, fvlist, orderer, additional)
         elif context == 'app':
             app=self.whosdb.getApp(currentuser, fqin)
             permit(self.whosdb.isMemberOfApp(useras, app), "Only member of app %s allowed" % app.fqin)
@@ -971,9 +1124,11 @@ class Postdb(dbase.Database):
             #     "Current user must be useras or only owner of app %s or systemuser can masquerade as user" % app.fqin)
             additional=['appwhenposted']
             if userthere:
-                items,whenposteds=self._doItemFilter(context, useras, app, ItemApplication, criteria, fvlist, orderer, additional)
+                #items,whenposteds=self._doItemFilter(context, useras, app, ItemApplication, criteria, fvlist, orderer, additional)
+                items,whenposteds=self._doItemFilter2(context, useras, app, criteria, fvlist, orderer, additional)
             else:
-                items,whenposteds=self._doItemFilter(context, None, app, ItemApplication, criteria, fvlist, orderer, additional)
+                #items,whenposteds=self._doItemFilter(context, None, app, ItemApplication, criteria, fvlist, orderer, additional)
+                items,whenposteds=self._doItemFilter2(context, None, app, criteria, fvlist, orderer, additional)
 
         eleinfo=[ele.info(useras) for ele in items]
         count=len(eleinfo)
@@ -1178,11 +1333,15 @@ def initialize_testing(db_session):
     postdb.saveItem(currentuser, rahuldave, dict(name="hello kitty", itemtype="ads@adslabs.org/pub", creator=rahuldave))
     #postdb.commit()
     postdb.saveItem(currentuser, rahuldave, dict(name="hello doggy", itemtype="ads@adslabs.org/pub2", creator=rahuldave))
-    postdb.commit()
+    postdb.saveItem(currentuser, rahuldave, dict(name="hello barkley", itemtype="ads@adslabs.org/pub", creator=rahuldave))
+    postdb.saveItem(currentuser, rahuldave, dict(name="hello machka", itemtype="ads@adslabs.org/pub", creator=rahuldave))
     print "here"
     postdb.tagItem(currentuser, rahuldave, "ads@adslabs.org/hello kitty", dict(tagtype="ads@adslabs.org/tag", creator=rahuldave, name="stupid"))
+    postdb.tagItem(currentuser, rahuldave, "ads@adslabs.org/hello barkley", dict(tagtype="ads@adslabs.org/tag", creator=rahuldave, name="stupid"))
     print "W++++++++++++++++++"
     postdb.tagItem(currentuser, rahuldave, "ads@adslabs.org/hello kitty", dict(tagtype="ads@adslabs.org/tag", creator=rahuldave, name="dumb"))
+    postdb.tagItem(currentuser, rahuldave, "ads@adslabs.org/hello doggy", dict(tagtype="ads@adslabs.org/tag", creator=rahuldave, name="dumb"))
+
     postdb.tagItem(currentuser, rahuldave, "ads@adslabs.org/hello kitty", dict(tagtype="ads@adslabs.org/note",
         creator=rahuldave, name="somethingunique1", description="this is a note for the kitty"))
 
